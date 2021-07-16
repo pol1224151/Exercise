@@ -1,0 +1,300 @@
+@charset "UTF-8";
+* {
+  margin: 0;
+  padding: 0;
+  -webkit-box-sizing: border-box;
+          box-sizing: border-box;
+  font-family: "Noto Sans TC", sans-serif;
+}
+
+body {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  width: 100vw;
+  background-color: #dcccbc;
+}
+
+.showmenu {
+  display: none;
+}
+
+header {
+  height: 100vh;
+  width: 45%;
+  background-color: white;
+  -webkit-box-shadow: 3px 3px 5px 0px #ccc;
+          box-shadow: 3px 3px 5px 0px #ccc;
+  z-index: 5;
+  position: relative;
+}
+
+header div {
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+header div .showmenu {
+  display: none;
+}
+
+header div img {
+  display: none;
+}
+
+header div svg.mysvg {
+  position: absolute;
+  border-radius: 50%;
+  right: -30px;
+  top: 25px;
+  -webkit-box-shadow: 3px 3px 5px 0px #ccc;
+          box-shadow: 3px 3px 5px 0px #ccc;
+}
+
+header div svg.mysvg:hover {
+  -webkit-transform: scale(1.2);
+          transform: scale(1.2);
+}
+
+header nav {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+  max-width: 960px;
+}
+
+header nav h2 {
+  padding: 40px;
+}
+
+header nav ul.menu {
+  list-style-type: none;
+}
+
+header nav ul.menu li {
+  padding: 0.5rem;
+}
+
+header nav ul.menu li a {
+  text-decoration: none;
+  color: black;
+}
+
+header nav ul.menu li a:hover {
+  color: #6e3131;
+  -webkit-box-shadow: 0 1.5px;
+          box-shadow: 0 1.5px;
+  padding-bottom: 5px;
+}
+
+header nav ul.menu li .showmenu {
+  display: none;
+}
+
+main section.img {
+  background-image: url(../pic/KfUmCKk.jpg);
+  background-position: center;
+  background-size: cover;
+  width: 100%;
+  height: 60vh;
+  z-index: 0;
+  position: relative;
+}
+
+main section.img div.filter {
+  background-color: rgba(0, 0, 0, 0.2);
+  width: 100%;
+  height: 60vh;
+  position: absolute;
+  z-index: 1;
+}
+
+main section.img h3 {
+  color: white;
+  font-size: 3rem;
+  position: absolute;
+  bottom: 60px;
+  right: 20px;
+  z-index: 2;
+}
+
+main section.img h5 {
+  color: white;
+  font-size: 1rem;
+  position: absolute;
+  bottom: 30px;
+  right: 20px;
+  z-index: 2;
+}
+
+main section.second {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -ms-flex-wrap: wrap;
+      flex-wrap: wrap;
+  vertical-align: text-top;
+  background-color: #dcccbc;
+  max-width: 100%;
+}
+
+main section.second section.cards {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -ms-flex-wrap: wrap;
+      flex-wrap: wrap;
+  -webkit-box-flex: 1;
+      -ms-flex: 1 1 300px;
+          flex: 1 1 300px;
+  width: 80%;
+  height: 80%;
+}
+
+main section.second section.cards div.card {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-flex: 1;
+      -ms-flex: 1 1 300px;
+          flex: 1 1 300px;
+  -ms-flex-pack: distribute;
+      justify-content: space-around;
+  vertical-align: text-top;
+  padding: 5rem;
+  position: relative;
+}
+
+main section.second section.cards div.card img.mypic {
+  width: 1.75vw;
+  height: 1.75vh;
+  position: absolute;
+  left: 100px;
+  bottom: 101px;
+}
+
+main section.second section.cards div.card h2 {
+  font-size: 2rem;
+  margin-right: 1rem;
+  display: inline;
+}
+
+@media screen and (max-width: 1000px) {
+  body {
+    display: inline-block;
+  }
+  header {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    width: 100%;
+    height: 15vh;
+    -webkit-box-shadow: none;
+            box-shadow: none;
+  }
+  header svg.mysvg {
+    position: static;
+    margin-right: 50px;
+  }
+  header nav {
+    width: 100%;
+  }
+  main section.img {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    width: 100%;
+  }
+  main section.img div.filter {
+    z-index: -5;
+  }
+  main section.img h3 {
+    -webkit-box-align: center;
+        -ms-flex-align: center;
+            align-items: center;
+    text-align: center;
+    padding: 1rem;
+    top: 100px;
+  }
+  main section.img h5 {
+    -webkit-box-align: center;
+        -ms-flex-align: center;
+            align-items: center;
+    text-align: center;
+    padding: 1rem;
+    margin-bottom: 50px;
+  }
+  main section.second section.cards div.card {
+    -webkit-box-pack: space-evenly;
+        -ms-flex-pack: space-evenly;
+            justify-content: space-evenly;
+  }
+  main section.second section.cards div.card img.mypic {
+    width: 1.75vw;
+    height: 1.75vh;
+    position: absolute;
+    left: 110px;
+    bottom: 85px;
+    display: none;
+  }
+  main section.second section.cards div.card img.mypic h2 {
+    vertical-align: top;
+  }
+}
+
+@media (max-width: 1000px) {
+  .menu {
+    /*隱藏選單開始*/
+    max-height: 0px;
+    overflow: hidden;
+    /*隱藏選單結束*/
+    -webkit-transition: max-height 2.3s;
+    transition: max-height 2.3s;
+    margin-top: 1px;
+    /*絕對定位疊在網頁上*/
+    position: absolute;
+    z-index: 100;
+    /*header 80px+1px boder 線條*/
+    top: 100px;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+  }
+  .menu li {
+    float: none;
+    list-style-type: none;
+  }
+  .menu li a {
+    -webkit-transition: 0.1s;
+    transition: 0.1s;
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-pack: center;
+        -ms-flex-pack: center;
+            justify-content: center;
+  }
+  .menu li a:hover {
+    color: white;
+  }
+  .showmenu {
+    display: block;
+    float: right;
+    margin: 1em;
+    position: absolute;
+    top: 30px;
+    left: 0;
+  }
+  /*jQ點擊後動態在 body 加上 class */
+  .menu-show .menu {
+    max-height: 500px;
+  }
+}
+/*# sourceMappingURL=style.css.map */
