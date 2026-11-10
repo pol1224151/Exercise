@@ -1,0 +1,921 @@
+/**
+ * RTA draft and fight sandbox.
+ * Multipliers and effect numbers come from catalog.json.
+ * Win rate is the share of simulated trials, not a promise.
+ */
+
+const ADVANTAGE = { fire: "wind", wind: "ice", ice: "fire", light: "dark", dark: "light" };
+
+const PIECES = {
+  Health: 2, Defense: 2, Attack: 4, Speed: 4, Critical: 2, Hit: 2, Destruction: 4,
+  Lifesteal: 4, Counter: 4, Resist: 2, Unity: 2, Rage: 4, Immunity: 2, Penetration: 2,
+  Revenge: 4, Injury: 4, Protection: 4, Torrent: 2, Reversal: 4, Riposte: 4,
+  Warfare: 4, Pursuit: 2, Weakening: 4, Fervor: 2,
+};
+
+const FRIBBELS_SET = {
+  HealthSet: "Health", DefenseSet: "Defense", AttackSet: "Attack", SpeedSet: "Speed",
+  CriticalSet: "Critical", HitSet: "Hit", DestructionSet: "Destruction", LifestealSet: "Lifesteal",
+  CounterSet: "Counter", ResistSet: "Resist", UnitySet: "Unity", RageSet: "Rage",
+  ImmunitySet: "Immunity", PenetrationSet: "Penetration", RevengeSet: "Revenge",
+  InjurySet: "Injury", ProtectionSet: "Protection", TorrentSet: "Torrent",
+  ReversalSet: "Reversal", RiposteSet: "Riposte", WarfareSet: "Warfare",
+  PursuitSet: "Pursuit", WeakeningSet: "Weakening", FervorSet: "Fervor",
+};
+
+const STAT_ZH = {
+  Attack: "攻擊", AttackPercent: "攻擊%", Health: "生命", HealthPercent: "生命%",
+  Defense: "防禦", DefensePercent: "防禦%", Speed: "速度",
+  CriticalHitChancePercent: "暴擊", CriticalHitDamagePercent: "暴擊傷害",
+  EffectivenessPercent: "效果命中", EffectResistancePercent: "效果抗性",
+};
+
+export function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function rand() {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function elementRelation(att, def) {
+  if (ADVANTAGE[att] === def) return "advantage";
+  if (ADVANTAGE[def] === att && ADVANTAGE[att] !== def) return "disadvantage";
+  return "neutral";
+}
+
+export function skillDamage(att, defUnit, skill, hitMult) {
+  const rate = skill.rate || 0;
+  const hp = att.hp || 0;
+  const atk = att.atk || 0;
+  const defStat = att.def || 0;
+  const spd = att.spd || att.speed || 0;
+  if (rate <= 0 && !(skill.selfHpScaling || skill.selfAtkScaling || skill.selfDefScaling || skill.selfSpdScaling)) {
+    return 0;
+  }
+  const scaling =
+    (skill.selfHpScaling || 0) * hp +
+    (skill.selfAtkScaling || 0) * atk +
+    (skill.selfDefScaling || 0) * defStat +
+    (skill.selfSpdScaling || 0) * spd;
+  const increased = 1 + (skill.increasedValue || 0) + (skill.enhanceDamagePctApplied || 0);
+  const pen = skill.penetration || 0;
+  let remain = 1 - pen;
+  if ((att.sets || []).includes("Penetration") && (skill.targets || 1) === 1) remain *= 0.85;
+  remain = Math.max(0, remain);
+  let pct = 1;
+  if ((att.sets || []).includes("Torrent")) pct += 0.1;
+  if ((att.sets || []).includes("Rage") && (defUnit.debuffs || []).length) pct += 0.3;
+  const offensive = (atk * rate + scaling) * 1.871 * (skill.pow || 1) * increased * hitMult * pct;
+  const targetDef = defUnit.def || 0;
+  const defensive = 1 / ((targetDef * remain) / 300 + 1);
+  return Math.max(0, offensive * defensive);
+}
+
+function activeSets(setNamesOrCounts) {
+  if (Array.isArray(setNamesOrCounts)) return setNamesOrCounts.filter((name) => PIECES[name]);
+  const active = [];
+  for (const [name, count] of Object.entries(setNamesOrCounts || {})) {
+    if ((PIECES[name] || 99) <= count) active.push(name);
+  }
+  return active;
+}
+
+function heroByName(catalog, name) {
+  const key = String(name || "").trim().toLowerCase();
+  return catalog.heroes.find((h) => h.name.toLowerCase() === key || h.nameZh === name || h.id === key);
+}
+
+export function parseRoster(input, catalog) {
+  const data = typeof input === "string" ? JSON.parse(input) : input;
+  const list = data.heroes || data.units || [];
+  if (!Array.isArray(list)) throw new Error("找不到 heroes 陣列");
+  const heroes = [];
+  const unknown = [];
+  for (const raw of list) {
+    const name = raw.name || raw.heroName;
+    const def = heroByName(catalog, name);
+    if (!def) {
+      unknown.push(name || "(未命名)");
+      continue;
+    }
+    const finalStats = raw.atk != null || raw.attack != null;
+    const attack = num(raw.attack ?? raw.atk, def.base.attack);
+    const hp = num(raw.hp, def.base.hp);
+    const defense = num(raw.defense ?? raw.def, def.base.defense);
+    const speed = num(raw.speed ?? raw.spd, def.base.speed);
+    const crit = num(raw.crit ?? raw.cr ?? raw.chc, def.base.crit);
+    const critDamage = num(raw.critDamage ?? raw.cd ?? raw.chd, def.base.critDamage);
+    const effectiveness = num(raw.effectiveness ?? raw.eff, def.base.effectiveness);
+    const effectResistance = num(raw.effectResistance ?? raw.res ?? raw.efr, def.base.effectResistance);
+    const gear = readGear(raw);
+    heroes.push({
+      id: def.id,
+      name: def.name,
+      nameZh: def.nameZh,
+      sample: Boolean(raw.sample || data.label),
+      attack, hp, defense, speed, crit, critDamage, effectiveness, effectResistance,
+      artifact: raw.artifact || raw.artifactName || null,
+      artifactLevel: raw.artifactLevel ?? null,
+      artifactLimitBreak: raw.artifactLimitBreak ?? limitBreakFromLevel(raw.artifactLevel),
+      imprint: raw.imprint || raw.imprintNumber || null,
+      awakening: raw.awakening ?? raw.awaken ?? (raw.stars >= 6 ? null : null),
+      stars: raw.stars ?? null,
+      skillEnhance: raw.skillEnhance || { s1: null, s2: null, s3: null },
+      sets: gear.sets.length ? activeSets(gear.counts) : activeSets(raw.sets || []),
+      gearPieces: gear.pieces,
+      statsAreFinal: finalStats,
+    });
+  }
+  return {
+    label: data.label || data._label || null,
+    warning: data.warning || null,
+    heroes,
+    unknown,
+  };
+}
+
+function num(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function limitBreakFromLevel(level) {
+  const n = Number(level);
+  if (!Number.isFinite(n)) return null;
+  if (n <= 15) return 0;
+  return Math.max(0, Math.round((n - 15) / 3));
+}
+
+function readGear(raw) {
+  const pieces = [];
+  const counts = {};
+  const equip = raw.equipment || {};
+  for (const item of Object.values(equip)) {
+    if (!item || !item.set) continue;
+    const set = FRIBBELS_SET[item.set] || String(item.set).replace(/Set$/, "");
+    counts[set] = (counts[set] || 0) + 1;
+    pieces.push({
+      slot: item.gear || null,
+      set,
+      main: item.main?.type || null,
+      mainValue: item.main?.value ?? null,
+      substats: (item.substats || []).map((s) => s.type),
+    });
+  }
+  return { pieces, counts, sets: activeSets(counts) };
+}
+
+function preparedSkill(heroDef, slot, enhanceMode) {
+  const skill = heroDef.skills[slot];
+  const copy = { ...skill, slot };
+  const maxed = enhanceMode === "max";
+  if (maxed) {
+    copy.enhanceDamagePctApplied = skill.enhanceDamagePct || 0;
+    copy.enhanceEffectPctApplied = skill.enhanceEffectPct || 0;
+    if (skill.cooldownShown != null) {
+      copy.cooldown = Math.max(0, skill.cooldownShown - (skill.enhanceCooldownCut || 0));
+    } else {
+      copy.cooldown = 0;
+    }
+  } else {
+    copy.enhanceDamagePctApplied = 0;
+    copy.enhanceEffectPctApplied = 0;
+    copy.cooldown = skill.cooldownShown || 0;
+  }
+  return copy;
+}
+
+function unitFrom(rosterHero, def, enhanceMode) {
+  const skills = {};
+  for (const slot of ["S1", "S2", "S3"]) skills[slot] = preparedSkill(def, slot, enhanceMode);
+  return {
+    id: def.id,
+    name: def.name,
+    nameZh: def.nameZh,
+    attribute: def.attribute,
+    side: null,
+    hp: rosterHero.hp,
+    maxHp: rosterHero.hp,
+    atk: rosterHero.attack,
+    def: rosterHero.defense,
+    baseDef: rosterHero.defense,
+    speed: rosterHero.speed,
+    baseSpeed: rosterHero.speed,
+    crit: rosterHero.crit,
+    cd: rosterHero.critDamage,
+    eff: rosterHero.effectiveness,
+    res: rosterHero.effectResistance,
+    sets: rosterHero.sets || [],
+    skills,
+    cdLeft: { S1: 0, S2: 0, S3: 0 },
+    cr: 0,
+    alive: true,
+    debuffs: [],
+    buffs: [],
+    barrier: 0,
+    lockedSpeed: rosterHero.speed,
+    passives: collectPassives(skills),
+  };
+}
+
+function collectPassives(skills) {
+  const list = [];
+  for (const skill of Object.values(skills)) {
+    if (!skill.passive && skill.slot !== "S2") continue;
+    for (const effect of skill.effects || []) {
+      if (["speedCap", "crLockOnCasterTurn", "fixOwnSpeed", "crImmune", "soulCut", "cannotCrit"].includes(effect.kind)) {
+        list.push(effect);
+      }
+      if (effect.kind === "crPush" && effect.atBattleStart) list.push(effect);
+    }
+  }
+  return list;
+}
+
+function effectText(effect) {
+  switch (effect.kind) {
+    case "speedCap":
+      return `其他角色速度上限為施放者的 ${Math.round(effect.ratio * 100)}%`;
+    case "crLockOnCasterTurn":
+      return "施放者行動時，戰鬥準備度增加不會生效";
+    case "fixOwnSpeed":
+      return "自己的速度在開場後固定";
+    case "crImmune":
+      return "不受戰鬥準備度增減影響";
+    case "soulCut":
+      return `敵方獲得的魂降低 ${Math.round(effect.ratio * 100)}%`;
+    case "crPush":
+      return `戰鬥準備度 +${effect.amount}`;
+    case "crPushback":
+      return effect.amountMin != null
+        ? `戰鬥準備度 -${effect.amountMin} 到 -${effect.amountMax}`
+        : `戰鬥準備度 -${effect.amount}`;
+    case "stun":
+    case "fear":
+      return `${Math.round((effect.chance ?? 1) * 100)}% 無法行動`;
+    case "silence":
+      return `${Math.round((effect.chance ?? 1) * 100)}% 沉默`;
+    case "defDown":
+      return `${Math.round((effect.chance ?? 1) * 100)}% 防禦下降${effect.value ? ` ${Math.round(effect.value * 100)}%` : ""}`;
+    case "dispelBuff":
+      return "驅散強化";
+    case "penetrate":
+      return effect.ratio != null ? `防禦穿透 ${Math.round(effect.ratio * 100)}%` : "防禦穿透（倍率用 Fribbels）";
+    case "extraAttack":
+      return "額外攻擊（沒有獨立倍率，傷害不計算）";
+    case "heal":
+      return effect.full ? "完全回復生命" : "回復生命";
+    case "extraTurn":
+      return "再行動一次";
+    default:
+      return effect.kind;
+  }
+}
+
+export function counterEdges(catalog) {
+  const edges = [];
+  const heroes = catalog.heroes;
+  for (const a of heroes) {
+    for (const b of heroes) {
+      if (a.id === b.id) continue;
+      if (elementRelation(a.attribute, b.attribute) === "advantage") {
+        edges.push({
+          from: a.id,
+          to: b.id,
+          why: `${a.attributeZh}屬性克制${b.attributeZh}屬性，優勢傷害 ×1.1，且不會擦傷`,
+          kind: "element",
+        });
+      }
+    }
+    const texts = Object.values(a.skills).flatMap((s) => s.effects || []);
+    if (texts.some((e) => e.kind === "speedCap")) {
+      const ratio = texts.find((e) => e.kind === "speedCap").ratio;
+      for (const b of heroes) {
+        if (b.id === a.id) continue;
+        const bSpeed = b.reference?.median?.speed || b.base.speed;
+        const aSpeed = a.reference?.median?.speed || a.base.speed;
+        if (bSpeed > aSpeed * ratio) {
+          edges.push({
+            from: a.id,
+            to: b.id,
+            why: `${a.nameZh}把其他人的速度壓到自己的 ${Math.round(ratio * 100)}%。${b.nameZh}的參考速度 ${bSpeed} 高過這個上限，先手優勢會被吃掉`,
+            kind: "speedCap",
+          });
+        }
+      }
+    }
+    if (texts.some((e) => e.kind === "soulCut")) {
+      for (const b of heroes) {
+        const burn = Object.values(b.skills).find((s) => s.soulburnCost);
+        if (burn) {
+          edges.push({
+            from: a.id,
+            to: b.id,
+            why: `${a.nameZh}讓敵方獲得的魂降為 0，${b.nameZh}的燒魂（${burn.soulburnCost} 魂）比較難交得出來`,
+            kind: "soul",
+          });
+        }
+      }
+    }
+    if (texts.some((e) => e.kind === "crPush" && e.atBattleStart)) {
+      for (const b of heroes) {
+        if (b.id === a.id) continue;
+        if (Object.values(b.skills).some((s) => (s.effects || []).some((e) => e.kind === "speedCap" || e.kind === "crPushback"))) {
+          edges.push({
+            from: b.id,
+            to: a.id,
+            why: `${a.nameZh}開場推戰鬥準備度，${b.nameZh}的拉條或速度上限是針對這種先手`,
+            kind: "opener",
+          });
+        }
+      }
+    }
+  }
+  return edges;
+}
+
+function answers(edges, fromId, toId) {
+  return edges.filter((e) => e.from === fromId && e.to === toId);
+}
+
+export function buildGearReport(rosterHero, def, catalog) {
+  const combo = (def.rtaGear.setCombos || [])[0] || null;
+  const artifact = (def.rtaGear.artifacts || [])[0] || null;
+  const metaSets = combo?.names || [];
+  const haveSets = rosterHero.sets || [];
+  const metaArt = artifact?.names?.[0] || null;
+  const artZh = artifactZh(catalog, metaArt);
+  const haveArtZh = artifactZh(catalog, rosterHero.artifact);
+  const changes = [];
+  const missing = metaSets.filter((s) => !haveSets.includes(s));
+  const extra = haveSets.filter((s) => !metaSets.includes(s));
+  if (combo && (missing.length || extra.length || !haveSets.length)) {
+    changes.push(`套裝：你現在是 ${haveSets.map(setZh).join("、") || "沒有讀到套裝"}。天梯最常見是 ${metaSets.map(setZh).join(" + ")}（${combo.pickRate}%）。`);
+  } else if (combo) {
+    changes.push(`套裝已經是天梯最常見的 ${metaSets.map(setZh).join(" + ")}。`);
+  }
+  if (metaArt && rosterHero.artifact && rosterHero.artifact !== metaArt) {
+    changes.push(`神器：你現在是 ${haveArtZh || rosterHero.artifact}。天梯最常見是 ${artZh}（${artifact.pickRate}%）。模擬仍用你現在的面板，不把沒穿上的神器加成算進去。`);
+  } else if (metaArt && !rosterHero.artifact) {
+    changes.push(`神器：檔案沒有讀到。天梯最常見是 ${artZh}（${artifact.pickRate}%）。`);
+  } else if (metaArt) {
+    changes.push(`神器已經是天梯最常見的 ${artZh}。`);
+  }
+  const editorial = def.editorialGear || {};
+  const mainLine = translateMains(editorial.mainsSentence);
+  const priority = (editorial.substatPriority || []).map(translateStat);
+  const haveSubs = countSubs(rosterHero.gearPieces);
+  return {
+    haveSets: haveSets.map(setZh),
+    metaSets: metaSets.map(setZh),
+    metaSetDetail: combo,
+    haveArtifact: haveArtZh || rosterHero.artifact,
+    metaArtifact: artZh,
+    metaArtifactDetail: artifact,
+    changes,
+    mains: mainLine,
+    substatPriority: priority,
+    substatAvoid: (editorial.substatAvoid || []).map(translateStat),
+    haveSubs,
+    editorialNote: "主屬性與副屬性優先序來自 Epic7Tools 的配裝建議，頁面沒有標賽季。套裝和神器才是 Epic7RTAStats 的賽季統計。兩邊不一致時，套裝以賽季統計為準。",
+    source: def.sources.rtaGear,
+  };
+}
+
+function setZh(name, catalog) {
+  return catalog?.setZh?.[name] || SET_ZH[name] || name;
+}
+const SET_ZH = {
+  Speed: "速度", Hit: "命中", Critical: "暴擊", Defense: "防禦", Health: "生命", Attack: "攻擊",
+  Counter: "反擊", Lifesteal: "吸血", Destruction: "破滅", Resist: "抗性", Unity: "連擊", Rage: "憤怒",
+  Immunity: "免疫", Penetration: "穿透", Revenge: "復仇", Injury: "創傷", Protection: "守護",
+  Torrent: "激流", Reversal: "逆轉", Riposte: "還擊", Warfare: "開戰", Pursuit: "追擊",
+  Weakening: "削弱", Fervor: "熱誠",
+};
+
+function artifactZh(catalog, name) {
+  if (!name) return null;
+  const found = Object.values(catalog.artifactNames || {}).find((a) => a.name === name);
+  return found?.nameZh || name;
+}
+
+function translateStat(text) {
+  return String(text)
+    .replaceAll("Critical Hit Damage", "暴擊傷害")
+    .replaceAll("Critical Hit Chance", "暴擊率")
+    .replaceAll("Effect Resistance", "效果抗性")
+    .replaceAll("Effectiveness", "效果命中")
+    .replaceAll("Health %", "生命%")
+    .replaceAll("Defense %", "防禦%")
+    .replaceAll("Attack %", "攻擊%")
+    .replaceAll("Speed", "速度")
+    .replaceAll("Health", "生命")
+    .replaceAll("Defense", "防禦")
+    .replaceAll("Attack", "攻擊");
+}
+
+function translateMains(sentence) {
+  if (!sentence) return null;
+  return translateStat(sentence)
+    .replaceAll("necklace", "項鍊")
+    .replaceAll("ring", "戒指")
+    .replaceAll("boots", "鞋子")
+    .replaceAll("on the", "在")
+    .replaceAll("and", "與");
+}
+
+function countSubs(pieces) {
+  const counts = {};
+  for (const piece of pieces || []) {
+    for (const type of piece.substats || []) {
+      const label = STAT_ZH[type] || type;
+      counts[label] = (counts[label] || 0) + 1;
+    }
+    if (piece.main) {
+      const label = `主屬:${piece.slot || ""} ${STAT_ZH[piece.main] || piece.main}`;
+      counts[label] = (counts[label] || 0) + 1;
+    }
+  }
+  return counts;
+}
+
+function combinations(list, n) {
+  const out = [];
+  const cur = [];
+  function walk(start) {
+    if (cur.length === n) {
+      out.push(cur.slice());
+      return;
+    }
+    for (let i = start; i < list.length; i += 1) {
+      cur.push(list[i]);
+      walk(i + 1);
+      cur.pop();
+    }
+  }
+  walk(0);
+  return out;
+}
+
+export function advise(catalog, roster, options = {}) {
+  const prebansEach = options.rank === "below" ? 1 : 2;
+  const userFirst = options.firstPick !== false;
+  const enhanceMode = options.assumeMaxEnhance ? "max" : "base";
+  const trials = options.trials || 8;
+  const edges = counterEdges(catalog);
+  const byId = Object.fromEntries(catalog.heroes.map((h) => [h.id, h]));
+  const owned = roster.heroes.filter((h) => byId[h.id]);
+  const gear = owned.map((h) => ({ hero: h, def: byId[h.id], report: buildGearReport(h, byId[h.id], catalog) }));
+  if (owned.length < 5) {
+    return {
+      ok: false,
+      reason: `名單裡能模擬的英雄只有 ${owned.length} 名，一場要選 5 名。請補上核心英雄，或先用範例名單。`,
+      gear,
+      edges,
+      unknown: roster.unknown,
+    };
+  }
+
+  const enemyPre = [...catalog.heroes]
+    .sort((a, b) => b.rtaPresence.prebans - a.rtaPresence.prebans)
+    .slice(0, prebansEach)
+    .map((h) => h.id);
+  const userCandidates = [...catalog.heroes]
+    .sort((a, b) => b.rtaPresence.prebans - a.rtaPresence.prebans)
+    .filter((h) => !enemyPre.includes(h.id))
+    .slice(0, prebansEach === 1 ? 4 : 5);
+  const userPairs = prebansEach === 1
+    ? userCandidates.map((h) => [h.id])
+    : combinations(userCandidates.map((h) => h.id), 2);
+
+  const plans = [
+    { id: "s3-burn", order: ["S3", "S2", "S1"], burn: true },
+    { id: "s3", order: ["S3", "S2", "S1"], burn: false },
+    { id: "s1-burn", order: ["S1", "S3", "S2"], burn: true },
+    { id: "s1", order: ["S1", "S3", "S2"], burn: false },
+  ];
+
+  let best = null;
+  const considered = [];
+  let seed = 1;
+  for (const userPre of userPairs) {
+    const drafted = runDraft({
+      catalog, owned, byId, edges, userPre, enemyPre, userFirst,
+    });
+    if (!drafted) continue;
+    let bestPlan = null;
+    for (const plan of plans) {
+      let wins = 0;
+      let sampleLog = null;
+      for (let t = 0; t < trials; t += 1) {
+        const fight = fightFromRoster(drafted, roster, catalog, plan, enhanceMode, mulberry32(seed));
+        seed += 1;
+        if (fight.winner === "user") wins += 1;
+        if (!sampleLog || (fight.winner === "user" && sampleLog.winner !== "user")) sampleLog = fight;
+      }
+      const rate = wins / trials;
+      const entry = { plan, rate, log: sampleLog };
+      if (!bestPlan || rate > bestPlan.rate) bestPlan = entry;
+    }
+    const line = {
+      userPre,
+      enemyPre,
+      draft: drafted,
+      plan: bestPlan.plan,
+      rate: bestPlan.rate,
+      log: bestPlan.log,
+      reason: explain(drafted, bestPlan, byId, edges),
+    };
+    considered.push(line);
+    if (!best || line.rate > best.rate) best = line;
+  }
+  considered.sort((a, b) => b.rate - a.rate);
+  return {
+    ok: Boolean(best),
+    best,
+    alternatives: considered.slice(0, 3),
+    gear,
+    edges,
+    unknown: roster.unknown,
+    settings: {
+      prebansEach,
+      userFirst,
+      enhanceMode,
+      trials,
+      season: catalog.provenance.rtaSeasonLabel,
+    },
+  };
+}
+
+function runDraft({ catalog, owned, byId, edges, userPre, enemyPre, userFirst }) {
+  const banned = new Set([...userPre, ...enemyPre]);
+  const ownedIds = new Set(owned.map((h) => h.id));
+  const picked = { user: [], enemy: [] };
+  const pattern = [1, 2, 2, 2, 2, 1];
+  let side = userFirst ? "user" : "enemy";
+  const steps = [];
+  for (const n of pattern) {
+    for (let i = 0; i < n; i += 1) {
+      const pool = catalog.heroes.filter((h) => !banned.has(h.id) && !picked.user.includes(h.id) && !picked.enemy.includes(h.id));
+      const legal = side === "user" ? pool.filter((h) => ownedIds.has(h.id)) : pool;
+      if (!legal.length) return null;
+      const choice = legal
+        .map((h) => ({ h, score: pickScore(h, side, picked, edges, byId) }))
+        .sort((a, b) => b.score - a.score)[0].h;
+      picked[side].push(choice.id);
+      steps.push({ side, id: choice.id, protected: picked[side].length === 3 });
+    }
+    side = side === "user" ? "enemy" : "user";
+  }
+  const userBan = choosePostban(picked.enemy, picked.user, edges, byId);
+  const enemyBan = choosePostban(picked.user, picked.enemy, edges, byId);
+  const userFight = picked.user.filter((id) => id !== enemyBan);
+  const enemyFight = picked.enemy.filter((id) => id !== userBan);
+  if (userFight.length !== 4 || enemyFight.length !== 4) return null;
+  return { steps, picked, userBan, enemyBan, userFight, enemyFight, userFirst };
+}
+
+function pickScore(hero, side, picked, edges, byId) {
+  const played = hero.rtaPresence.wins + hero.rtaPresence.losses;
+  let score = Math.log10(played + 10);
+  const own = picked[side];
+  const opp = picked[side === "user" ? "enemy" : "user"];
+  if (own.length === 2) score += uniqueValue(hero);
+  for (const id of opp) score += answers(edges, hero.id, id).length * 2.2;
+  for (const id of own) score += answers(edges, id, hero.id).length * -0.4;
+  for (const id of opp) score += answers(edges, id, hero.id).length * -0.8;
+  if (side === "enemy") score += hero.rtaPresence.prebans / 2000000;
+  return score;
+}
+
+function uniqueValue(hero) {
+  const kinds = Object.values(hero.skills).flatMap((s) => (s.effects || []).map((e) => e.kind));
+  let n = 0;
+  if (kinds.includes("speedCap")) n += 4;
+  if (kinds.includes("soulCut")) n += 3;
+  if (kinds.includes("crPush") && Object.values(hero.skills).some((s) => (s.effects || []).some((e) => e.atBattleStart))) n += 3;
+  if (kinds.includes("revive")) n += 2;
+  return n;
+}
+
+function choosePostban(opponentPicks, ownPicks, edges, byId) {
+  const protectedId = opponentPicks[2];
+  let best = null;
+  let bestScore = -1;
+  for (const id of opponentPicks) {
+    if (id === protectedId) continue;
+    let score = uniqueValue(byId[id]);
+    for (const own of ownPicks) score += answers(edges, id, own).length * 2;
+    score += Math.log10((byId[id].rtaPresence.wins + byId[id].rtaPresence.losses) + 10);
+    if (score > bestScore) {
+      bestScore = score;
+      best = id;
+    }
+  }
+  return best;
+}
+
+function explain(draft, bestPlan, byId, edges) {
+  const names = (ids) => ids.map((id) => byId[id].nameZh).join("、");
+  const protectedUser = byId[draft.picked.user[2]].nameZh;
+  const bits = [];
+  bits.push(`估計勝率來自 ${bestPlan.log ? "同一套" : ""}沙盤，不是保證。`);
+  const link = [];
+  for (const id of draft.userFight) {
+    for (const enemy of draft.enemyFight) {
+      const why = answers(edges, id, enemy)[0];
+      if (why) link.push(`${byId[id].nameZh} 對 ${byId[enemy].nameZh}：${why.why}`);
+    }
+  }
+  if (link[0]) bits.push(link[0]);
+  bits.push(`第三選是保護位，留下了${protectedUser}。`);
+  bits.push(bestPlan.plan.burn ? "技能順序優先大招，並在魂夠且燒魂效果有數字時才燒。" : "這條線不燒魂，勝率較高。");
+  if (bestPlan.log?.firstActor) bits.push(`開場第一動是${bestPlan.log.firstActor}。`);
+  return { summary: bits[1] || bits[0], lines: bits, names, link };
+}
+
+export function simulateFight(draft, plan, byId, enhanceMode, rand) {
+  const rosterSide = (ids, side, rosterLookup) => ids.map((id) => {
+    const def = byId[id];
+    const fromRoster = rosterLookup(id, side);
+    const unit = unitFrom(fromRoster, def, enhanceMode);
+    unit.side = side;
+    return unit;
+  });
+  // The caller stuffs stats onto draft via closure? We'll pass units instead.
+  return simulateUnits(draft.userUnits, draft.enemyUnits, plan, rand);
+}
+
+export function fightFromRoster(draft, roster, catalog, plan, enhanceMode, rand, enemyMode = "reference") {
+  const byId = Object.fromEntries(catalog.heroes.map((h) => [h.id, h]));
+  const owned = Object.fromEntries(roster.heroes.map((h) => [h.id, h]));
+  const make = (id, side) => {
+    const def = byId[id];
+    const own = side === "user" ? owned[id] : null;
+    const ref = def.reference?.median;
+    const stats = (side === "user" && own) ? own : {
+      hp: ref?.hp ?? def.base.hp,
+      attack: ref?.attack ?? def.base.attack,
+      defense: ref?.defense ?? def.base.defense,
+      speed: ref?.speed ?? def.base.speed,
+      crit: ref?.crit ?? def.base.crit,
+      critDamage: ref?.critDamage ?? def.base.critDamage,
+      effectiveness: ref?.effectiveness ?? def.base.effectiveness,
+      effectResistance: ref?.effectResistance ?? def.base.effectResistance,
+      sets: (def.rtaGear.setCombos?.[0]?.names) || [],
+    };
+    if (enemyMode === "reference" && side === "enemy") {
+      stats.sets = (def.rtaGear.setCombos?.[0]?.names) || stats.sets;
+    }
+    const unit = unitFrom({
+      hp: stats.hp,
+      attack: stats.attack,
+      defense: stats.defense,
+      speed: stats.speed,
+      crit: stats.crit,
+      critDamage: stats.critDamage,
+      effectiveness: stats.effectiveness,
+      effectResistance: stats.effectResistance,
+      sets: stats.sets || [],
+    }, def, enhanceMode);
+    unit.side = side;
+    return unit;
+  };
+  const userUnits = draft.userFight.map((id) => make(id, "user"));
+  const enemyUnits = draft.enemyFight.map((id) => make(id, "enemy"));
+  return simulateUnits(userUnits, enemyUnits, plan, rand);
+}
+
+function simulateUnits(userUnits, enemyUnits, plan, rand) {
+  const units = [...userUnits, ...enemyUnits];
+  const log = [];
+  for (const unit of units) {
+    for (const effect of unit.passives) {
+      if (effect.kind === "fixOwnSpeed" || effect.kind === "speedCap") unit.lockedSpeed = unit.baseSpeed;
+      if (effect.kind === "crPush" && effect.atBattleStart) {
+        unit.cr = Math.min(100, unit.cr + effect.amount);
+        log.push(`${unit.nameZh} 開場戰鬥準備度 +${effect.amount}（技能原文）。`);
+      }
+    }
+  }
+  let firstActor = null;
+  let actions = 0;
+  let winner = null;
+  while (actions < 36 && !winner) {
+    const living = units.filter((u) => u.alive);
+    const ready = living.filter((u) => u.cr >= 100);
+    let actor;
+    if (ready.length) {
+      actor = ready.sort((a, b) => b.cr - a.cr || effectiveSpeed(b, units) - effectiveSpeed(a, units))[0];
+    } else {
+      let dt = Infinity;
+      for (const unit of living) dt = Math.min(dt, (100 - unit.cr) / effectiveSpeed(unit, units));
+      for (const unit of living) unit.cr += effectiveSpeed(unit, units) * dt;
+      actor = living.slice().sort((a, b) => b.cr - a.cr || effectiveSpeed(b, units) - effectiveSpeed(a, units))[0];
+    }
+    if (!firstActor) firstActor = actor.nameZh;
+    takeTurn(actor, units, plan, rand, log);
+    actions += 1;
+    winner = winnerOf(userUnits, enemyUnits);
+  }
+  if (!winner) winner = "draw";
+  const hpLeft = (list) => list.map((u) => `${u.nameZh} ${Math.max(0, Math.round(u.hp / u.maxHp * 100))}%`).join("、");
+  return {
+    winner,
+    firstActor,
+    actions,
+    log: log.slice(0, 28),
+    userHp: hpLeft(userUnits),
+    enemyHp: hpLeft(enemyUnits),
+  };
+}
+
+function effectiveSpeed(unit, units) {
+  let speed = unit.fixOwn ? unit.lockedSpeed : unit.baseSpeed;
+  if (unit.passives.some((e) => e.kind === "fixOwnSpeed")) speed = unit.lockedSpeed;
+  for (const other of units) {
+    if (!other.alive || other.id === unit.id) continue;
+    const cap = other.passives.find((e) => e.kind === "speedCap");
+    if (cap) speed = Math.min(speed, other.lockedSpeed * cap.ratio);
+  }
+  return Math.max(1, speed);
+}
+
+function winnerOf(userUnits, enemyUnits) {
+  if (enemyUnits.every((u) => !u.alive)) return "user";
+  if (userUnits.every((u) => !u.alive)) return "enemy";
+  return null;
+}
+
+const CAST_KINDS = new Set([
+  "heal", "crPush", "crPushback", "dispelBuff", "dispelDebuff", "stun", "fear", "sleep",
+  "silence", "provoke", "defDown", "atkDown", "unbuffable", "uncounterable", "extraTurn",
+  "barrier", "skillNull", "cutBuffDuration",
+]);
+
+function canCast(skill) {
+  if (!skill || skill.passive) return false;
+  if ((skill.rate || 0) <= 0 && /^at the start/i.test(skill.text || "") && !skill.cooldown) return false;
+  if ((skill.rate || 0) > 0) return true;
+  return (skill.effects || []).some((effect) => effect.simulated !== false && CAST_KINDS.has(effect.kind));
+}
+
+function takeTurn(actor, units, plan, rand, log) {
+  actor.cr = 0;
+  for (const slot of ["S1", "S2", "S3"]) {
+    if (actor.cdLeft[slot] > 0) actor.cdLeft[slot] -= 1;
+  }
+  if (!actor.alive) return;
+  if (actor.debuffs.some((d) => d.kind === "stun" || d.kind === "fear" || d.kind === "sleep")) {
+    log.push(`${actor.nameZh} 無法行動。`);
+    tickDebuffs(actor);
+    return;
+  }
+  const forced = actor.debuffs.some((d) => d.kind === "provoke");
+  const silenced = actor.debuffs.some((d) => d.kind === "silence");
+  const order = forced ? ["S1"] : plan.order;
+  let skill = null;
+  for (const slot of order) {
+    const candidate = actor.skills[slot];
+    if (!candidate || candidate.passive) continue;
+    if (actor.cdLeft[slot] > 0) continue;
+    if (silenced && slot !== "S1") continue;
+    if (!canCast(candidate)) continue;
+    skill = candidate;
+    break;
+  }
+  if (!skill) {
+    log.push(`${actor.nameZh} 沒有可放的技能。`);
+    tickDebuffs(actor);
+    return;
+  }
+  const foes = units.filter((u) => u.alive && u.side !== actor.side);
+  const allies = units.filter((u) => u.alive && u.side === actor.side);
+  if (!foes.length) return;
+  const crLocked = units.some((u) => u.passives.some((e) => e.kind === "crLockOnCasterTurn") && u.id === actor.id && actor.passives.some((e) => e.kind === "crLockOnCasterTurn"));
+  const purse = units.find((u) => u.side === actor.side);
+  if (!purse.purse) purse.purse = { value: 0 };
+  const burnFx = (skill.soulburnEffects || []).filter((e) => e.kind !== "unparsed" && e.simulated !== false);
+  const doBurn = plan.burn && skill.soulburnCost && purse.purse.value >= skill.soulburnCost && burnFx.length > 0;
+  if (doBurn) purse.purse.value -= skill.soulburnCost;
+  const targets = pickTargets(foes, skill.targets || (skill.effects?.length ? foes.length : 1));
+  const parts = [];
+  for (const target of targets) {
+    const relation = elementRelation(actor.attribute, target.attribute);
+    const glance = relation === "disadvantage" && rand() < 0.5;
+    const cannotCrit = actor.passives.some((e) => e.kind === "cannotCrit") || (skill.effects || []).some((e) => e.kind === "cannotCrit");
+    const alwaysCrit = (skill.effects || []).some((e) => e.kind === "alwaysCrit");
+    let hitMult = 1;
+    if (glance) hitMult = 0.75;
+    else if (!cannotCrit && (alwaysCrit || rand() < Math.min(100, actor.crit) / 100)) hitMult = Math.min(3.5, actor.cd / 100);
+    if (relation === "advantage") hitMult *= 1.1;
+    let damage = skillDamage(actor, target, skill, hitMult);
+    if (target.barrier > 0 && damage > 0) {
+      const absorbed = Math.min(target.barrier, damage);
+      target.barrier -= absorbed;
+      damage -= absorbed;
+    }
+    if ((target.buffs || []).includes("skillNull") && damage > 0) {
+      damage = 0;
+      target.buffs = target.buffs.filter((b) => b !== "skillNull");
+    }
+    target.hp -= damage;
+    if (target.hp <= 0) target.alive = false;
+    if (!glance) applyEffects(skill, actor, target, allies, foes, units, doBurn, burnFx, crLocked, rand, log);
+    parts.push(`${target.nameZh}${glance ? "擦傷" : ""}${Math.round(damage)}`);
+  }
+  if (skill.cooldown) actor.cdLeft[skill.slot] = skill.cooldown;
+  const soulCut = foes.some((u) => u.alive && u.passives.some((e) => e.kind === "soulCut" && e.ratio >= 1));
+  if (!soulCut) purse.purse.value += skill.soulGain || 0;
+  const burnNote = doBurn ? `，燒魂 ${skill.soulburnCost}` : "";
+  log.push(`${actor.nameZh} ${skill.name}${burnNote} → ${parts.join("、")}`);
+  if ((skill.effects || []).some((e) => e.kind === "extraTurn")) {
+    actor.cr = 100;
+    log.push(`${actor.nameZh} 獲得再行動。`);
+  }
+  tickDebuffs(actor);
+  refreshDef(actor);
+}
+
+function pickTargets(foes, count) {
+  const sorted = foes.slice().sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
+  if (count >= foes.length) return sorted;
+  return sorted.slice(0, Math.max(1, count));
+}
+
+function applyEffects(skill, actor, target, allies, foes, units, doBurn, burnFx, crLocked, rand, log) {
+  const ignoreRes = doBurn && burnFx.some((e) => e.kind === "ignoreResistance");
+  const forcedChance = doBurn ? burnFx.find((e) => e.kind === "effectChance") : null;
+  for (const effect of skill.effects || []) {
+    if (effect.simulated === false) continue;
+    if (effect.kind === "heal") {
+      const scaling = (skill.options || []).find((o) => o.selfHpScaling)?.selfHpScaling;
+      if (effect.full) {
+        for (const ally of allies) ally.hp = ally.maxHp;
+      } else if (scaling) {
+        for (const ally of allies) ally.hp = Math.min(ally.maxHp, ally.hp + actor.hp * scaling);
+      }
+    } else if (effect.kind === "crPush" && !crLocked) {
+      const amount = effect.amount || 0;
+      const who = effect.who || "";
+      const group = who.includes("allies") ? allies : who.includes("enemy") || who.includes("target") ? [target] : [actor];
+      if (!who || who.includes("caster") || who.includes("target") && !who.includes("enemy")) {
+        // "the target" on a self-timed sentence still means the caster when it is not an attack rider.
+      }
+      const receivers = who.includes("enem") ? [target] : who.includes("allies") ? allies : [actor];
+      for (const unit of receivers) {
+        if (unit.passives?.some((e) => e.kind === "crImmune")) continue;
+        unit.cr = Math.min(100, unit.cr + amount);
+      }
+    } else if (effect.kind === "crPushback") {
+      const amount = effect.amount != null
+        ? effect.amount
+        : effect.amountMin + rand() * ((effect.amountMax || effect.amountMin) - effect.amountMin);
+      const group = effect.who === "all enemies" ? foes : [target];
+      for (const unit of group) {
+        if (unit.passives.some((e) => e.kind === "crImmune")) continue;
+        unit.cr = Math.max(0, unit.cr - amount);
+      }
+    } else if (effect.kind === "dispelBuff") {
+      target.buffs = [];
+      target.barrier = 0;
+    } else if (["stun", "fear", "sleep", "silence", "provoke", "defDown", "atkDown", "unbuffable", "uncounterable"].includes(effect.kind)) {
+      let chance = forcedChance ? forcedChance.chance : (effect.chance ?? 1);
+      chance = Math.min(1, chance + (skill.enhanceEffectPctApplied || 0));
+      if (rand() > chance) continue;
+      if (!ignoreRes) {
+        const resist = Math.min(100, Math.max(15, target.res - actor.eff)) / 100;
+        if (rand() < resist) continue;
+      }
+      const turns = effect.turns || (doBurn ? burnFx.find((e) => e.kind === "defDownTurns")?.turns : null) || 1;
+      target.debuffs.push({ kind: effect.kind, turns, value: effect.value || 0 });
+    }
+    refreshDef(target);
+  }
+}
+
+function refreshDef(unit) {
+  const down = (unit.debuffs || []).find((d) => d.kind === "defDown" && d.value);
+  unit.def = down ? unit.baseDef * (1 - down.value) : unit.baseDef;
+}
+
+function tickDebuffs(actor) {
+  actor.debuffs = (actor.debuffs || []).filter((d) => {
+    d.turns -= 1;
+    return d.turns > 0;
+  });
+}
+
+export function describePlan(plan) {
+  const order = plan.order.map((slot) => ({ S1: "1 技能", S2: "2 技能", S3: "3 技能" }[slot])).join(" → ");
+  return {
+    order,
+    burn: plan.burn ? "魂夠、而且燒魂句子裡有可計算的效果時才燒" : "這條線不燒魂",
+  };
+}
+
+export { effectText, PIECES, SET_ZH };

@@ -1,0 +1,6900 @@
+{
+  "provenance": {
+    "fetchedOn": "2026-11-10",
+    "fribbelsCommit": "cd69229c7c60547e85cb12f3135a724f01516aa0",
+    "fribbelsCommitDate": "2026-11-07",
+    "gamePatchAssumed": "8.7 content update on 2026-10-29, plus the 2026-11-05 bugfix patch. The 2026-11-19 balance preview is not applied.",
+    "rtaSeason": "pvp_rta_ss21",
+    "rtaSeasonLabel": "2026 秋季賽季（Fall 2026），Champion+",
+    "damageFormula": "Fribbels StatCalculator.getSkillValue at the same commit: ((atk * rate + hp/atk/def/spd scalings) * 1.871 * pow * (1+increasedValue) * hit) / (def * (1-pen) / 300 + 1). The extra dmgUpMod = 1 + selfSpdScaling * spd term in that function is not applied, because selfSpdScaling is already inside the flat scaling and would be counted twice.",
+    "element": "Advantage multiplies damage by 1.1 (comment in Fribbels damageCalc.js). Disadvantage uses the miss hit type 0.75 and cannot crit or land the skill's debuff; the 50% glance chance is the long-standing attribute rule that selects that hit type.",
+    "resist": "Debuff resist chance is max(15%, effect resistance - effectiveness), capped at 100%. Proc chance in the skill text is rolled first.",
+    "draft": {
+      "lookedUp": "2026-11-10",
+      "championPrebans": 2,
+      "belowChampionPrebans": 1,
+      "pickPattern": [
+        1,
+        2,
+        2,
+        2,
+        2,
+        1
+      ],
+      "protectedPick": 3,
+      "postban": 1,
+      "battleSize": 4,
+      "notes": "Prebans are secret and remove the hero for both sides. Each player's own third pick cannot be post-banned. Confirmed against the live Champion+ description on Hideout's RTA draft page (season 21 data through 27 Oct 2026) and the 8 Nov 2026 STOVE thread that still asks to remove the existing third-pick protection. The 5 Nov 2026 patch notes do not change draft rules.",
+      "sources": [
+        "https://www.hideoutgacha.com/games/epic-seven/rta-live",
+        "https://page.onstove.com/epicSeven/global/view/14272349",
+        "https://epic7db.com/news/115-thu-patch-information"
+      ]
+    },
+    "accountImport": {
+      "method": "Fribbels Epic 7 Optimizer gear.txt or Save-all JSON",
+      "schema": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/app/js/lib/importer.js",
+      "notDone": "This app does not capture game traffic. The user exports the file in Fribbels, then loads it here."
+    }
+  },
+  "setZh": {
+    "Speed": "速度",
+    "Hit": "命中",
+    "Critical": "暴擊",
+    "Defense": "防禦",
+    "Health": "生命",
+    "Attack": "攻擊",
+    "Counter": "反擊",
+    "Lifesteal": "吸血",
+    "Destruction": "破滅",
+    "Resist": "抗性",
+    "Unity": "連擊",
+    "Rage": "憤怒",
+    "Immunity": "免疫",
+    "Penetration": "穿透",
+    "Revenge": "復仇",
+    "Injury": "創傷",
+    "Protection": "守護",
+    "Torrent": "激流",
+    "Reversal": "逆轉",
+    "Riposte": "還擊",
+    "Warfare": "開戰",
+    "Pursuit": "追擊",
+    "Weakening": "削弱",
+    "Fervor": "熱誠"
+  },
+  "artifactNames": {
+    "efk21": {
+      "name": "3F",
+      "nameZh": "3F"
+    },
+    "efk26": {
+      "name": "A Boss's Dignity",
+      "nameZh": "老大的威嚴"
+    },
+    "efw21": {
+      "name": "A Little Queen's Huge Crown",
+      "nameZh": "小小女王的巨大王冠"
+    },
+    "efk23": {
+      "name": "A Precious Connection",
+      "nameZh": "珍貴的緣分"
+    },
+    "ef412": {
+      "name": "A Song for Everybody",
+      "nameZh": "獻給你和這個世界的歌曲"
+    },
+    "ef504": {
+      "name": "A Symbol of Unity",
+      "nameZh": "團結象徵"
+    },
+    "efm01": {
+      "name": "Abyssal Crown",
+      "nameZh": "深淵王冠"
+    },
+    "efk04": {
+      "name": "Adamant Shield",
+      "nameZh": "金剛石盾牌"
+    },
+    "efr17": {
+      "name": "Air-to-Surface Missile: MISHA",
+      "nameZh": "空對地導彈：美莎"
+    },
+    "efa12": {
+      "name": "Alabastron",
+      "nameZh": "雪花石膏瓶"
+    },
+    "efw13": {
+      "name": "Alencinox's Wrath",
+      "nameZh": "艾蓮西諾克斯的逆麟"
+    },
+    "efa07": {
+      "name": "Alexa's Basket",
+      "nameZh": "雅莉莎的提籃"
+    },
+    "ef307": {
+      "name": "Alsacian Spear",
+      "nameZh": "艾爾賽斯之矛"
+    },
+    "efr07": {
+      "name": "Ambrote",
+      "nameZh": "安布羅泰"
+    },
+    "efr29": {
+      "name": "An Assassin's Pledge",
+      "nameZh": "殺手的庇護"
+    },
+    "efr24": {
+      "name": "An Offer You Can't Refuse",
+      "nameZh": "無法拒絕的提議"
+    },
+    "efk14": {
+      "name": "Ancient Dragon's Legacy",
+      "nameZh": "古龍遺產"
+    },
+    "ef304": {
+      "name": "Ancient Sheath",
+      "nameZh": "古代劍鞘"
+    },
+    "efr11": {
+      "name": "Andre's Crossbow",
+      "nameZh": "安德烈斯之弩"
+    },
+    "efw23": {
+      "name": "Anti-Magic Mask",
+      "nameZh": "抗魔面具"
+    },
+    "ef314": {
+      "name": "Aqua Rose",
+      "nameZh": "水玫瑰"
+    },
+    "ef315": {
+      "name": "Axe of Heavenly Mandate",
+      "nameZh": "參天斧"
+    },
+    "ef306": {
+      "name": "Atma's Portal",
+      "nameZh": "亞特瑪的傳送門"
+    },
+    "efr32": {
+      "name": "Aubade Orb",
+      "nameZh": "黎明寶珠"
+    },
+    "efk03": {
+      "name": "Aurius",
+      "nameZh": "亞烏利斯"
+    },
+    "efr30": {
+      "name": "Awakened Leaf",
+      "nameZh": "甦醒之葉"
+    },
+    "efw22": {
+      "name": "Azure Comet",
+      "nameZh": "青光彗星"
+    },
+    "efm15": {
+      "name": "Barthez's Orbuculum",
+      "nameZh": "巴泰斯的水晶球"
+    },
+    "ef507": {
+      "name": "Bastion of Hope",
+      "nameZh": "希望的堡壘"
+    },
+    "efk09": {
+      "name": "Bastion of Perlutia",
+      "nameZh": "波魯迪亞的堡壘"
+    },
+    "efa24": {
+      "name": "Beguiling Wings",
+      "nameZh": "迷惑羽翼"
+    },
+    "efw30": {
+      "name": "Benimaru's Tachi",
+      "nameZh": "紅丸之刀"
+    },
+    "efh20": {
+      "name": "Bird's-Eye View",
+      "nameZh": "觀察者之眼"
+    },
+    "ef104": {
+      "name": "Biting Wind Star",
+      "nameZh": "寒風飛鏢"
+    },
+    "efm16": {
+      "name": "Black Hand of the Goddess",
+      "nameZh": "女神的黑手"
+    },
+    "ef425": {
+      "name": "Blazing Full Moon Trophy",
+      "nameZh": "燃燒的滿月獎盃"
+    },
+    "ef408": {
+      "name": "Blessings of Camaraderie",
+      "nameZh": "戰友們的祝福"
+    },
+    "ef506": {
+      "name": "Guide to a Decision",
+      "nameZh": "選擇的指標"
+    },
+    "ef205": {
+      "name": "Bloodbead Dagger",
+      "nameZh": "血誅短劍"
+    },
+    "efr01": {
+      "name": "Bloodstone",
+      "nameZh": "血玉髓"
+    },
+    "efm14": {
+      "name": "Bloody Rose",
+      "nameZh": "血玫瑰"
+    },
+    "efw07": {
+      "name": "Border Coin",
+      "nameZh": "孤注一擲"
+    },
+    "ef426": {
+      "name": "Brilliant Confidence",
+      "nameZh": "閃耀的自信"
+    },
+    "efk20": {
+      "name": "Broken Will of the Priest",
+      "nameZh": "殘破的祭司長意志"
+    },
+    "efm33": {
+      "name": "Butterfly Hair Ornament",
+      "nameZh": "蝴蝶髮夾"
+    },
+    "ef318": {
+      "name": "Butterfly Mandolin",
+      "nameZh": "蝴蝶的曼陀林"
+    },
+    "efa33": {
+      "name": "Butterfly's Baptism",
+      "nameZh": "蝶之洗禮"
+    },
+    "ef401": {
+      "name": "Card of Small Miracles",
+      "nameZh": "小小奇蹟賀年卡"
+    },
+    "efh06": {
+      "name": "Celestine",
+      "nameZh": "天青石"
+    },
+    "efw18": {
+      "name": "Champion's Trophy",
+      "nameZh": "優勝者獎盃"
+    },
+    "efm07": {
+      "name": "Chatty",
+      "nameZh": "柴迪"
+    },
+    "efw17": {
+      "name": "Circus Fantasia",
+      "nameZh": "奇幻馬戲團"
+    },
+    "efw16": {
+      "name": "Cradle of Life",
+      "nameZh": "生命搖籃"
+    },
+    "efw09": {
+      "name": "Creation & Destruction",
+      "nameZh": "創造之福&破壞之頌"
+    },
+    "efm18": {
+      "name": "Crimson Moon of Nightmares",
+      "nameZh": "紅色惡夢之月"
+    },
+    "efw10": {
+      "name": "Crimson Seed",
+      "nameZh": "紅焰種子"
+    },
+    "efk13": {
+      "name": "Crown of Glory",
+      "nameZh": "榮耀之冠"
+    },
+    "ef503": {
+      "name": "Cruel Mischief",
+      "nameZh": "殘酷的玩笑"
+    },
+    "efh27": {
+      "name": "Cure-All Magic Wand",
+      "nameZh": "萬能恢復魔法棒"
+    },
+    "ef309": {
+      "name": "Cursed Compass",
+      "nameZh": "詛咒的羅盤"
+    },
+    "efw42": {
+      "name": "Custom-Made Power Anchor",
+      "nameZh": "量身特製力量之錨"
+    },
+    "ef434": {
+      "name": "Cutie Pando",
+      "nameZh": "小可愛胖嘟"
+    },
+    "efa25": {
+      "name": "Dark Blood Keeper",
+      "nameZh": "黑血守護者"
+    },
+    "ef317": {
+      "name": "Daydream Joker",
+      "nameZh": "白日夢小丑"
+    },
+    "ef420": {
+      "name": "Days of Destiny",
+      "nameZh": "命中注定的相遇"
+    },
+    "ef201": {
+      "name": "Deadly Sword",
+      "nameZh": "必殺大劍"
+    },
+    "ef102": {
+      "name": "Demon's Pistol",
+      "nameZh": "惡魔手槍"
+    },
+    "ef312": {
+      "name": "Devil's Brand",
+      "nameZh": "惡魔烙印"
+    },
+    "efm13": {
+      "name": "Dignus Orb",
+      "nameZh": "尊嚴寶珠"
+    },
+    "efa27": {
+      "name": "Discreet Hands",
+      "nameZh": "隱密之手"
+    },
+    "efh12": {
+      "name": "Doctor's Bag",
+      "nameZh": "急救包"
+    },
+    "efa16": {
+      "name": "Double-Edged Decrescent",
+      "nameZh": "雙刃下弦月"
+    },
+    "efw11": {
+      "name": "Draco Plate",
+      "nameZh": "龍族板甲"
+    },
+    "ef103": {
+      "name": "Dream Scroll",
+      "nameZh": "夢之卷軸"
+    },
+    "efr27": {
+      "name": "Dreamlike Holiday",
+      "nameZh": "如夢假日"
+    },
+    "efw02": {
+      "name": "Durandal",
+      "nameZh": "杜蘭月"
+    },
+    "efa05": {
+      "name": "Dust Devil",
+      "nameZh": "塵埃惡魔"
+    },
+    "efr12": {
+      "name": "Dux Noctis",
+      "nameZh": "暗夜指揮者"
+    },
+    "efh17": {
+      "name": "EXIF Detective (E.d.) Gadget",
+      "nameZh": "EXIF Detective(E.d.)"
+    },
+    "ef302": {
+      "name": "Egg of Delusion",
+      "nameZh": "迷惑之蛋"
+    },
+    "efw03": {
+      "name": "El's Fist",
+      "nameZh": "艾爾之拳"
+    },
+    "efk02": {
+      "name": "Elbris Ritual Sword",
+      "nameZh": "埃布利斯的寶劍"
+    },
+    "efr25": {
+      "name": "Elegiac Candles",
+      "nameZh": "Elegiac Candles"
+    },
+    "ef202": {
+      "name": "Elf's Bow",
+      "nameZh": "妖精之弓"
+    },
+    "efa04": {
+      "name": "Elyha's Knife",
+      "nameZh": "埃里哈刀"
+    },
+    "ef106": {
+      "name": "Enhanced Gauntlet",
+      "nameZh": "強化拳套"
+    },
+    "ef319": {
+      "name": "Envoy's Pipe",
+      "nameZh": "死神煙斗"
+    },
+    "efh08": {
+      "name": "Eternus",
+      "nameZh": "埃特諾斯"
+    },
+    "efm02": {
+      "name": "Etica's Scepter",
+      "nameZh": "艾帝嘉權杖"
+    },
+    "efh29": {
+      "name": "Excommunicant's Censer",
+      "nameZh": "隱退者的香爐"
+    },
+    "ef316": {
+      "name": "Exorcist's Tonfa",
+      "nameZh": "鬥鬼的拐棍"
+    },
+    "efm19": {
+      "name": "Fairy Tale for a Nightmare",
+      "nameZh": "惡夢的童話"
+    },
+    "ef204": {
+      "name": "Fairy's Grimoire",
+      "nameZh": "妖精的魔法書"
+    },
+    "efh18": {
+      "name": "Fan of Light and Dark",
+      "nameZh": "昏明之扇"
+    },
+    "efa26": {
+      "name": "Feed of Criticism",
+      "nameZh": "眾矢之的"
+    },
+    "ef206": {
+      "name": "Firm Shield",
+      "nameZh": "堅定之盾"
+    },
+    "efa34": {
+      "name": "Flame Dragon's Jewel",
+      "nameZh": "火龍寶石"
+    },
+    "ef437": {
+      "name": "Flames on a snowy mountain",
+      "nameZh": "Flames on a snowy mountain"
+    },
+    "efh15": {
+      "name": "Flawless Garments",
+      "nameZh": "天衣無縫"
+    },
+    "efw15": {
+      "name": "Flower Shower",
+      "nameZh": "灑花"
+    },
+    "ef321": {
+      "name": "Forest Totem",
+      "nameZh": "綠林圖騰"
+    },
+    "efm28": {
+      "name": "Frame of Light",
+      "nameZh": "光之框架"
+    },
+    "ef509": {
+      "name": "Frantic Flight",
+      "nameZh": "緊急升空"
+    },
+    "efw28": {
+      "name": "Fullmetals Automail",
+      "nameZh": "Fullmetals Automail"
+    },
+    "efr31": {
+      "name": "Gifted Pen",
+      "nameZh": "蒙賜之筆"
+    },
+    "efr19": {
+      "name": "Glo-Wings 21",
+      "nameZh": "光輝羽翼21"
+    },
+    "efa31": {
+      "name": "Glorious Flag",
+      "nameZh": "榮耀旗幟"
+    },
+    "efk24": {
+      "name": "Glorious Throne",
+      "nameZh": "榮耀王座"
+    },
+    "efa19": {
+      "name": "Goblet of Oath",
+      "nameZh": "誓言之杯"
+    },
+    "ef313": {
+      "name": "Goblin's Lamp",
+      "nameZh": "鬼怪明燈"
+    },
+    "ef411": {
+      "name": "Golden Cocoa Cookie",
+      "nameZh": "黃金可可豆餅乾"
+    },
+    "efw31": {
+      "name": "Golden Rose",
+      "nameZh": "金玫瑰"
+    },
+    "ef301": {
+      "name": "Grail of Blood",
+      "nameZh": "鮮血聖杯"
+    },
+    "efh14": {
+      "name": "Guardian Ice Crystals",
+      "nameZh": "守護的冰封碎片"
+    },
+    "efr13": {
+      "name": "Guiding Light",
+      "nameZh": "引導之光"
+    },
+    "efw04": {
+      "name": "Hell Cutter",
+      "nameZh": "地獄切割機"
+    },
+    "efk05": {
+      "name": "Hilag Lance",
+      "nameZh": "錫拉革騎槍"
+    },
+    "efk01": {
+      "name": "Holy Sacrifice",
+      "nameZh": "神聖犧牲"
+    },
+    "efh22": {
+      "name": "Homage to Tarman",
+      "nameZh": "致敬塔爾曼"
+    },
+    "efa22": {
+      "name": "Hostess of the Banquet",
+      "nameZh": "宴會之主"
+    },
+    "ef428": {
+      "name": "III. The Empress",
+      "nameZh": "III. The Empress"
+    },
+    "ef429": {
+      "name": "IV. The Emperor",
+      "nameZh": "IV. The Emperor"
+    },
+    "efh07": {
+      "name": "Idol's Cheer",
+      "nameZh": "歌姬助陣"
+    },
+    "efm08": {
+      "name": "Iela Violin",
+      "nameZh": "依埃蘿小提琴"
+    },
+    "efm26": {
+      "name": "Ignition Cloth Gloves",
+      "nameZh": "發火布手套"
+    },
+    "efw26": {
+      "name": "Indestructible Gaiters",
+      "nameZh": "金剛綁腿"
+    },
+    "efr03": {
+      "name": "Infinity Basket",
+      "nameZh": "無限提籃"
+    },
+    "efr33": {
+      "name": "Intoxicating Indulgence",
+      "nameZh": "無法自拔的沉溺"
+    },
+    "efr08": {
+      "name": "Iron Fan",
+      "nameZh": "鐵扇"
+    },
+    "efw25": {
+      "name": "Jack-O's Symbol",
+      "nameZh": "潔克‧歐的象徵"
+    },
+    "efw39": {
+      "name": "Jumbo Berry Special",
+      "nameZh": "超大草莓聖代"
+    },
+    "efw08": {
+      "name": "Junkyard Dog",
+      "nameZh": "Junkyard Dog"
+    },
+    "efk07": {
+      "name": "Justice for All",
+      "nameZh": "為眾人的正義"
+    },
+    "efm04": {
+      "name": "Kal'adra",
+      "nameZh": "嘉拉特拉"
+    },
+    "efm20": {
+      "name": "Knowledge Seed",
+      "nameZh": "知識種子"
+    },
+    "ef308": {
+      "name": "Labyrinth Cube",
+      "nameZh": "迷宮的方塊"
+    },
+    "ef511": {
+      "name": "Land of Lingering Light",
+      "nameZh": "光耀之地"
+    },
+    "efm17": {
+      "name": "Last Teatime",
+      "nameZh": "最後的下午茶"
+    },
+    "efa29": {
+      "name": "Lethal Whispers",
+      "nameZh": "危險呢喃"
+    },
+    "efr34": {
+      "name": "Light and Darkness",
+      "nameZh": "光與暗"
+    },
+    "ef402": {
+      "name": "Love Potion",
+      "nameZh": "愛情靈丹"
+    },
+    "efk22": {
+      "name": "M.O.A.S",
+      "nameZh": "M.O.A.S"
+    },
+    "efh05": {
+      "name": "Magaraha's Tome",
+      "nameZh": "瑪姬拉哈的魔法古書"
+    },
+    "efm31": {
+      "name": "Magic Bubble Maker",
+      "nameZh": "魔法泡泡機"
+    },
+    "efm23": {
+      "name": "Magic for Friends",
+      "nameZh": "為了朋友的魔法"
+    },
+    "efa13": {
+      "name": "Manica of Control",
+      "nameZh": "控制的護臂"
+    },
+    "efa30": {
+      "name": "Master of the Nightmare",
+      "nameZh": "惡夢之主"
+    },
+    "efk18": {
+      "name": "Mature Sunglasses",
+      "nameZh": "成熟的墨鏡"
+    },
+    "efw14": {
+      "name": "Merciless Glutton",
+      "nameZh": "無情的大食客"
+    },
+    "ef406": {
+      "name": "Midnight Bloom",
+      "nameZh": "月夜之花"
+    },
+    "ef439": {
+      "name": "Midnight Pizza Delivery",
+      "nameZh": "深夜披薩護胃隊"
+    },
+    "ef311": {
+      "name": "Mighty Yaksha",
+      "nameZh": "金剛夜叉"
+    },
+    "efm32": {
+      "name": "Mirrored Lotus Ring",
+      "nameZh": "鏡蓮華戒指"
+    },
+    "efa03": {
+      "name": "Moonlight Dreamblade",
+      "nameZh": "皎月夢夜"
+    },
+    "ef415": {
+      "name": "Moonlight's Vestige",
+      "nameZh": "月光之痕"
+    },
+    "efr14": {
+      "name": "Ms. Confille",
+      "nameZh": "Miss Confile"
+    },
+    "efm10": {
+      "name": "Necro & Undine",
+      "nameZh": "惡魔＆天使"
+    },
+    "ef410": {
+      "name": "New Year Cookies",
+      "nameZh": "蘊含幸福的歲末餅乾"
+    },
+    "ef436": {
+      "name": "New Year's Festival Souvenir",
+      "nameZh": "新年慶典紀念品"
+    },
+    "efk06": {
+      "name": "Noble Oath",
+      "nameZh": "高潔的誓言"
+    },
+    "ef427": {
+      "name": "Succubus Mirror",
+      "nameZh": "魅魔之鏡"
+    },
+    "ef322": {
+      "name": "Oath Key",
+      "nameZh": "誓約鑰匙"
+    },
+    "ef423": {
+      "name": "Official Levulin Beach Volleyball",
+      "nameZh": "里伯林沙灘排球指定用球"
+    },
+    "efr26": {
+      "name": "Old Gardening Shears",
+      "nameZh": "老舊園藝剪刀"
+    },
+    "ef405": {
+      "name": "One Year of Gratitude",
+      "nameZh": "心存感謝的1年"
+    },
+    "efr06": {
+      "name": "Otherworldly Machinery",
+      "nameZh": "異界的機械"
+    },
+    "ef435": {
+      "name": "Our Beautiful Seasons",
+      "nameZh": "共度的季節"
+    },
+    "ef508": {
+      "name": "P.O.S",
+      "nameZh": "P.O.S"
+    },
+    "efw34": {
+      "name": "Pipette Lance",
+      "nameZh": "滴管長槍"
+    },
+    "ef403": {
+      "name": "Portrait of the Saviors",
+      "nameZh": "救援者們的畫像"
+    },
+    "efw32": {
+      "name": "Prayer of Solitude",
+      "nameZh": "孤獨的祈禱"
+    },
+    "ef432": {
+      "name": "Prelude to a New Era",
+      "nameZh": "新時代的序幕"
+    },
+    "efh23": {
+      "name": "Proof of Friendship",
+      "nameZh": "友情信物"
+    },
+    "efh25": {
+      "name": "Proof of Love",
+      "nameZh": "愛之印記"
+    },
+    "ef501": {
+      "name": "Proof of Valor",
+      "nameZh": "勇猛證據"
+    },
+    "ef303": {
+      "name": "Prophetic Candlestick",
+      "nameZh": "預視的燭台"
+    },
+    "efw24": {
+      "name": "Pure White Trust",
+      "nameZh": "純白的信賴"
+    },
+    "efh26": {
+      "name": "Queen's Whistle",
+      "nameZh": "女王之哨"
+    },
+    "efm09": {
+      "name": "Radiant Forever",
+      "nameZh": "燦爛的永恆"
+    },
+    "ef404": {
+      "name": "Rainbow Scale",
+      "nameZh": "人魚公主的鱗片"
+    },
+    "ef305": {
+      "name": "Ranon's Memorandum",
+      "nameZh": "拉農的備忘錄"
+    },
+    "ef424": {
+      "name": "Records of Unity",
+      "nameZh": "團結的紀錄"
+    },
+    "efm34": {
+      "name": "Refracted Desire",
+      "nameZh": "扭曲的欲望"
+    },
+    "ef443": {
+      "name": "Reingar Festival Dumpling",
+      "nameZh": "雷茵格爾慶典肉包"
+    },
+    "efr10": {
+      "name": "Reingar's Special Drink",
+      "nameZh": "雷茵格爾特調飲料"
+    },
+    "efr28": {
+      "name": "Renewed Will",
+      "nameZh": "意志昇華"
+    },
+    "ef409": {
+      "name": "Resolute Soldier Series",
+      "nameZh": "《有決心的士兵》系列"
+    },
+    "efa01": {
+      "name": "Rhianna & Luciella",
+      "nameZh": "里安娜&路西艾拉"
+    },
+    "efk12": {
+      "name": "Rise of a Monarch",
+      "nameZh": "王的誕生"
+    },
+    "efw40": {
+      "name": "Ritual of Sealing Flames",
+      "nameZh": "封焰儀式"
+    },
+    "efk19": {
+      "name": "Rocket Punch Gauntlet",
+      "nameZh": "火箭拳擊手"
+    },
+    "efh01": {
+      "name": "Rod of Amaryllis",
+      "nameZh": "孤挺花之杖"
+    },
+    "efr05": {
+      "name": "Rosa Hargana",
+      "nameZh": "羅沙哈勒戈納"
+    },
+    "efw36": {
+      "name": "Ruyi Jingu Bang",
+      "nameZh": "如意金箍棒"
+    },
+    "efh16": {
+      "name": "Sacred Tree Branch",
+      "nameZh": "神木樹枝"
+    },
+    "efw20": {
+      "name": "Samsara Prayer Beads",
+      "nameZh": "循環念珠"
+    },
+    "efa06": {
+      "name": "Santa Muerte",
+      "nameZh": "死亡聖神"
+    },
+    "efr04": {
+      "name": "Sashe Ithanes",
+      "nameZh": "香袋伊妲涅斯"
+    },
+    "efm25": {
+      "name": "Scroll of Shadows",
+      "nameZh": "暗影之書"
+    },
+    "efr22": {
+      "name": "Seal of Capture",
+      "nameZh": "束縛之印"
+    },
+    "efa14": {
+      "name": "Secret Art - Storm Sword",
+      "nameZh": "祕笈－雷天一劍"
+    },
+    "efa23": {
+      "name": "Seductive Flower",
+      "nameZh": "誘惑之花"
+    },
+    "efw12": {
+      "name": "Sepulcrum",
+      "nameZh": "塞弗克魯姆"
+    },
+    "efm22": {
+      "name": "Severed Horn Wand",
+      "nameZh": "被截斷的犄角手杖"
+    },
+    "efa32": {
+      "name": "Shadow Winds 7",
+      "nameZh": "暗影之風7"
+    },
+    "efr20": {
+      "name": "Sharpshooters Handgun",
+      "nameZh": "Sharpshooters Handgun"
+    },
+    "efa15": {
+      "name": "Shepherd of the Hollow",
+      "nameZh": "無為的引導者"
+    },
+    "efa10": {
+      "name": "Shepherds of Chaos",
+      "nameZh": "混沌的引導者們"
+    },
+    "efh02": {
+      "name": "Shimadra Staff",
+      "nameZh": "席瑪德拉的手杖"
+    },
+    "efw01": {
+      "name": "Sigurd Scythe",
+      "nameZh": "席格勒賽斯"
+    },
+    "efa11": {
+      "name": "Silver Rain",
+      "nameZh": "銀光驟雨"
+    },
+    "efm05": {
+      "name": "Sira-Ren",
+      "nameZh": "席拉－蓮"
+    },
+    "efw19": {
+      "name": "Snow Crystal",
+      "nameZh": "白雪水晶"
+    },
+    "efh19": {
+      "name": "Sole Consolation",
+      "nameZh": "唯一的慰藉"
+    },
+    "efr02": {
+      "name": "Song of Stars",
+      "nameZh": "星辰之歌"
+    },
+    "efr35": {
+      "name": "Sorrow of the Rose",
+      "nameZh": "玫瑰之悲"
+    },
+    "efr21": {
+      "name": "Spatiotemporal Fan",
+      "nameZh": "時空摺扇"
+    },
+    "efw27": {
+      "name": "Spear of Purification",
+      "nameZh": "破邪之鎗"
+    },
+    "efk15": {
+      "name": "Spear of a New Dawn",
+      "nameZh": "開闢之鎗"
+    },
+    "ef440": {
+      "name": "Special Strawberry Cake",
+      "nameZh": "特別的草莓蛋糕"
+    },
+    "efr23": {
+      "name": "Sphere of Inferno",
+      "nameZh": "焚滅之球"
+    },
+    "efk17": {
+      "name": "Sphere of Sadism",
+      "nameZh": "嗜虐之球"
+    },
+    "efm11": {
+      "name": "Spirit's Breath",
+      "nameZh": "精靈氣息"
+    },
+    "ef407": {
+      "name": "Spooky Solayu Stories",
+      "nameZh": "奇聞軼事錄"
+    },
+    "efh21": {
+      "name": "Spotted Mouse Hair Tie",
+      "nameZh": "點點鼠髮圈"
+    },
+    "efm30": {
+      "name": "Staff of Ainz Ooal Gown",
+      "nameZh": "安茲‧烏爾‧恭之杖"
+    },
+    "ef203": {
+      "name": "Staff of Wisdom",
+      "nameZh": "智慧的手杖"
+    },
+    "efr18": {
+      "name": "Star of the Deep Sea",
+      "nameZh": "深海漂浮之星"
+    },
+    "efk10": {
+      "name": "Steadfast Gatekeeper",
+      "nameZh": "堅定的看守者"
+    },
+    "efh09": {
+      "name": "Stella Harpa",
+      "nameZh": "星之豎琴"
+    },
+    "efw05": {
+      "name": "Strak Gauntlet",
+      "nameZh": "史特雷克拳套"
+    },
+    "efw38": {
+      "name": "Strike of Aspiration",
+      "nameZh": "夙願一擊"
+    },
+    "efa28": {
+      "name": "Summer Photogenic",
+      "nameZh": "夏日倩影"
+    },
+    "ef413": {
+      "name": "Super Duper Water Gun Shooter",
+      "nameZh": "至尊王牌水槍"
+    },
+    "efw35": {
+      "name": "Sweet Miracle",
+      "nameZh": "甜蜜奇蹟"
+    },
+    "efw29": {
+      "name": "Sword of Autumn Eclipse",
+      "nameZh": "秋端染刀"
+    },
+    "efa20": {
+      "name": "Sword of Cycling Seasons",
+      "nameZh": "循環之劍"
+    },
+    "efk08": {
+      "name": "Sword of Ezera",
+      "nameZh": "伊傑拉的聖劍"
+    },
+    "efr09": {
+      "name": "Sword of Judgment",
+      "nameZh": "審判之劍"
+    },
+    "efa17": {
+      "name": "Sword of Summer Twilight",
+      "nameZh": "夏夜閃刀"
+    },
+    "efa18": {
+      "name": "Sword of Winter Shadow",
+      "nameZh": "冬晷切刀"
+    },
+    "ef310": {
+      "name": "Sword of the Morning",
+      "nameZh": "黎明劍"
+    },
+    "ef101": {
+      "name": "Sword of the Sun",
+      "nameZh": "太陽之劍"
+    },
+    "efm03": {
+      "name": "Tagehel's Ancient Book",
+      "nameZh": "塔克赫爾古書"
+    },
+    "efm12": {
+      "name": "Tear of the Desert",
+      "nameZh": "沙漠之淚"
+    },
+    "efa21": {
+      "name": "The Armament",
+      "nameZh": "兵器"
+    },
+    "ef421": {
+      "name": "The Guardian Star's Blessing",
+      "nameZh": "守護星的祝福"
+    },
+    "efw37": {
+      "name": "Thorn of the Blue Rose",
+      "nameZh": "藍玫瑰的尖刺"
+    },
+    "efm06": {
+      "name": "Time Matter",
+      "nameZh": "時間的物質"
+    },
+    "ef320": {
+      "name": "Timeless Anchor",
+      "nameZh": "永劫之錨"
+    },
+    "ef414": {
+      "name": "To a New World",
+      "nameZh": "敬嶄新的時代"
+    },
+    "efw41": {
+      "name": "Tome of Life's End",
+      "nameZh": "壽命之書"
+    },
+    "efa09": {
+      "name": "Torn Sleeve",
+      "nameZh": "撕裂的右衣袖"
+    },
+    "efh11": {
+      "name": "Touch of Rekos",
+      "nameZh": "列科斯的救援"
+    },
+    "efm21": {
+      "name": "Twilight Calamity",
+      "nameZh": "落日之災"
+    },
+    "efw33": {
+      "name": "Tyrant's Descent",
+      "nameZh": "暴君的血統"
+    },
+    "efw06": {
+      "name": "Uberius's Tooth",
+      "nameZh": "尤貝里烏斯的臼齒"
+    },
+    "efm29": {
+      "name": "Umbral Keystones",
+      "nameZh": "暗影源石"
+    },
+    "efh10": {
+      "name": "Unfading Memories",
+      "nameZh": "不凋零的回憶"
+    },
+    "ef510": {
+      "name": "Unleashed Axe of Heavenly Mandate",
+      "nameZh": "解放·參天斧"
+    },
+    "efr16": {
+      "name": "Unseen Observer",
+      "nameZh": "隱形的觀察者"
+    },
+    "efm24": {
+      "name": "Upgraded Dragon Knuckles",
+      "nameZh": "改良型龍指虎"
+    },
+    "ef433": {
+      "name": "VI. The Lovers",
+      "nameZh": "VI. The Lovers"
+    },
+    "ef431": {
+      "name": "VII. The Chariot",
+      "nameZh": "VII. The Chariot"
+    },
+    "ef105": {
+      "name": "Venus Orb",
+      "nameZh": "金星寶珠"
+    },
+    "efh28": {
+      "name": "Veritas",
+      "nameZh": "真實香水"
+    },
+    "ef502": {
+      "name": "Victorious Flag",
+      "nameZh": "勝戰旗幟"
+    },
+    "efa08": {
+      "name": "Violet Talisman",
+      "nameZh": "紫色護身符"
+    },
+    "efr15": {
+      "name": "Wall of Order",
+      "nameZh": "秩序護牆"
+    },
+    "ef505": {
+      "name": "War Horn",
+      "nameZh": "進攻號角"
+    },
+    "efh03": {
+      "name": "Water's Origin",
+      "nameZh": "波濤的祈願"
+    },
+    "efa02": {
+      "name": "Wind Rider",
+      "nameZh": "乘風者"
+    },
+    "efk16": {
+      "name": "Wings of Light and Shadow",
+      "nameZh": "明暗雙翼"
+    },
+    "efk25": {
+      "name": "With a Little Friend",
+      "nameZh": "與小同伴同行"
+    },
+    "efh04": {
+      "name": "Wondrous Potion Vial",
+      "nameZh": "靈藥的試管"
+    },
+    "ef442": {
+      "name": "XII. The Hanged Man",
+      "nameZh": "XII. The Hanged Man"
+    },
+    "ef417": {
+      "name": "XIII. Death",
+      "nameZh": "XIII. Death"
+    },
+    "ef422": {
+      "name": "XIV. Temperance",
+      "nameZh": "XIV. Temperance"
+    },
+    "ef430": {
+      "name": "XIX. The Sun",
+      "nameZh": "XIX. The Sun"
+    },
+    "ef441": {
+      "name": "XV. The Devil",
+      "nameZh": "XV. The Devil"
+    },
+    "ef418": {
+      "name": "XVI. The Tower",
+      "nameZh": "XVI. The Tower"
+    },
+    "ef438": {
+      "name": "XVII. The Star",
+      "nameZh": "XVII. The Star"
+    },
+    "ef419": {
+      "name": "XVIII. The Moon",
+      "nameZh": "XVIII. The Moon"
+    }
+  },
+  "heroes": [
+    {
+      "id": "lisette",
+      "code": "c2186",
+      "name": "Lisette",
+      "nameZh": "黎潔特",
+      "attribute": "light",
+      "attributeZh": "光",
+      "role": "manauser",
+      "roleZh": "精靈師",
+      "base": {
+        "attack": 830,
+        "hp": 5121,
+        "defense": 735,
+        "speed": 107,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.11,
+          "B": 0.07,
+          "S": 0.15,
+          "SS": 0.18,
+          "SSS": 0.21
+        },
+        "type": "max_hp_rate"
+      },
+      "skills": {
+        "S1": {
+          "name": "Light Source",
+          "passive": false,
+          "rate": 1,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0.1,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S1 heal",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 0.07
+            }
+          ],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul Attacks the enemy with light, and recovers Health of all allies. Damage dealt and amount recovered increase proportional to the caster's max Health.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "heal",
+              "full": false,
+              "source": "recover Health",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Devotion",
+          "passive": true,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "At the start of the first battle, grants four divinity effects. When an ally except for the caster dies, consumes one divinity to revive them as a Fragment of Life for 2 turns and increases Combat Readiness by 20%.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "crPush",
+              "who": "the target",
+              "amount": 20,
+              "atBattleStart": false,
+              "source": "increases Combat Readiness by 20%"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Converged Time",
+          "passive": false,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S3 heal",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 1,
+              "targets": 0
+            }
+          ],
+          "cooldownShown": 10,
+          "soulGain": 5,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "-3 turn cooldown",
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 3,
+          "text": "10 turns Acquire 5 Soul Animation Official video Reconstructs the world to fully recover Health of all allies and grants increased Speed for 3 turns. When the caster is granted divinity, grants time reversal to all allies except for the caster and applies the same effect. This skill is unaffected by cooldown increase and decrease effects.",
+          "textBeforeAwaken": "Reconstructs the world to fully recover Health of all allies. When the caster is granted divinity, grants time reversal to all allies except for the caster. This skill is unaffected by cooldown increase and decrease effects.",
+          "effects": [
+            {
+              "kind": "heal",
+              "full": true,
+              "source": "recover Health",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Protection",
+              "Health"
+            ],
+            "pickRate": 39.6,
+            "winRate": 63.47,
+            "games": 75068
+          },
+          {
+            "names": [
+              "Speed",
+              "Health"
+            ],
+            "pickRate": 37.67,
+            "winRate": 59.32,
+            "games": 71399
+          },
+          {
+            "names": [
+              "Counter",
+              "Health"
+            ],
+            "pickRate": 10.19,
+            "winRate": 58.97,
+            "games": 19316
+          },
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 3.49,
+            "winRate": 59.01,
+            "games": 6621
+          },
+          {
+            "names": [
+              "Health",
+              "Health",
+              "Health"
+            ],
+            "pickRate": 1.96,
+            "winRate": 57.52,
+            "games": 3712
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Health"
+            ],
+            "pickRate": 47.97,
+            "winRate": 60.88,
+            "games": 179756
+          },
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 21.7,
+            "winRate": 59.29,
+            "games": 81320
+          },
+          {
+            "names": [
+              "Protection"
+            ],
+            "pickRate": 20.56,
+            "winRate": 63.33,
+            "games": 77032
+          },
+          {
+            "names": [
+              "Counter"
+            ],
+            "pickRate": 6.62,
+            "winRate": 58.54,
+            "games": 24824
+          },
+          {
+            "names": [
+              "Penetration"
+            ],
+            "pickRate": 0.94,
+            "winRate": 57.56,
+            "games": 3511
+          },
+          {
+            "names": [
+              "Critical"
+            ],
+            "pickRate": 0.79,
+            "winRate": 56.75,
+            "games": 2976
+          },
+          {
+            "names": [
+              "Defense"
+            ],
+            "pickRate": 0.55,
+            "winRate": 58.63,
+            "games": 2074
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "War Horn"
+            ],
+            "pickRate": 32.98,
+            "winRate": 60.66,
+            "games": 62517
+          },
+          {
+            "names": [
+              "Homage to Tarman"
+            ],
+            "pickRate": 22.11,
+            "winRate": 62.18,
+            "games": 41915
+          },
+          {
+            "names": [
+              "Idol's Cheer"
+            ],
+            "pickRate": 11.06,
+            "winRate": 63.0,
+            "games": 20969
+          },
+          {
+            "names": [
+              "Celestine"
+            ],
+            "pickRate": 8.87,
+            "winRate": 58.95,
+            "games": 16813
+          },
+          {
+            "names": [
+              "Excommunicant's Censer"
+            ],
+            "pickRate": 7.82,
+            "winRate": 59.2,
+            "games": 14821
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Speed",
+          "Health"
+        ],
+        "substatPriority": [
+          "Health",
+          "Speed",
+          "Defense",
+          "Effect Resistance"
+        ],
+        "substatAvoid": [
+          "Attack",
+          "Attack %",
+          "Effectiveness",
+          "Health"
+        ],
+        "mainsSentence": "Health % Health % Speed Health on the necklace and ring, as the healing follows it; Speed on the boots"
+      },
+      "reference": {
+        "n": 3000,
+        "dateMin": "2026-09-03",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 1518,
+          "hp": 23862,
+          "defense": 1763,
+          "speed": 206,
+          "crit": 15,
+          "critDamage": 150,
+          "effectiveness": 17,
+          "effectResistance": 33
+        }
+      },
+      "gaps": [],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/lisette/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c2186",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 149377,
+        "losses": 103357,
+        "bans": 63172,
+        "prebans": 1528170,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "rhianna-and-luciella",
+      "code": "c2185",
+      "name": "Rhianna and Luciella",
+      "nameZh": "里安娜路西艾拉",
+      "attribute": "dark",
+      "attributeZh": "暗",
+      "role": "assassin",
+      "roleZh": "刺客",
+      "base": {
+        "attack": 1003,
+        "hp": 5057,
+        "defense": 511,
+        "speed": 132,
+        "crit": 35,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.09,
+          "B": 0.06,
+          "S": 0.12,
+          "SS": 0.15,
+          "SSS": 0.18
+        },
+        "type": "cri"
+      },
+      "skills": {
+        "S1": {
+          "name": "Half Moon Slash",
+          "passive": false,
+          "rate": 0.7,
+          "pow": 0.95,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+35% damage dealt",
+          "enhanceDamagePct": 0.35,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul (Rhianna) Attacks the enemy with a dagger, inflicting erosion for 2 turns. A critical hit will detonate erosion effects inflicted on the target.\n(Luciella) After granting increased Attack to the caster for 1 turn, attacks the enemy with a dagger and absorbs some of the damage dealt as Health.",
+          "textBeforeAwaken": null,
+          "effects": [],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Hunter's Mark",
+          "passive": false,
+          "rate": 1,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": 3,
+          "soulGain": 1,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul (Rhianna) Attacks the enemy, dispelling two buffs before inflicting bind and decreased Defense for 2 turns. Swaps with Luciella and grants an extra turn. After attacking, when the target has a debuff, Luciella activates Waning Moon Slash as an extra attack.\n(Luciella) After granting increased Attack to the caster for 3 turns, attacks the enemy. Swaps with Rhianna and grants an extra turn. After attacking, when the target's Health is 50% or less, Rhianna activates Half Moon Slash as an extra attack.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "dispelBuff",
+              "count": 2,
+              "source": "dispelling two buffs"
+            },
+            {
+              "kind": "extraAttack",
+              "simulated": false,
+              "source": "extra attack",
+              "gap": "Fribbels herodata has no separate multiplier for this extra attack, so its damage is not simulated."
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Pursuit of Death",
+          "passive": false,
+          "rate": 1.3,
+          "pow": 1,
+          "targets": 3,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S3 barrier",
+              "pow": 0,
+              "rate": 0,
+              "selfAtkScaling": 1.6
+            }
+          ],
+          "cooldownShown": 5,
+          "soulGain": 3,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+30% damage dealt · -1 turn cooldown",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 1,
+          "text": "5 turns Acquire 3 Soul Animation Official video Rhianna and Luciella launch a coordinated attack. Luciella attacks all enemies and when the target is a Hero, ignores damage sharing. Rhianna dispels two buffs from all enemies, before inflicting fear for 1 turn. Grants a barrier (proportional to Attack) to the caster for 3 turns. One Butterfly's Afterdream will remain throughout the battle.",
+          "textBeforeAwaken": "Rhianna and Luciella launch a coordinated attack. Luciella attacks all enemies and when the target is a Hero, ignores damage sharing. Rhianna dispels two buffs from all enemies, before inflicting fear for 1 turn. One Butterfly's Afterdream will remain throughout the battle. Fear Cannot act for a certain number of turns. At the start of the turn, has a 40% chance to be dispelled.",
+          "effects": [
+            {
+              "kind": "dispelBuff",
+              "count": 2,
+              "source": "dispels two buffs"
+            },
+            {
+              "kind": "barrier",
+              "source": "barrier",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Speed",
+              "Critical"
+            ],
+            "pickRate": 24.84,
+            "winRate": 49.61,
+            "games": 148749
+          },
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 24.05,
+            "winRate": 49.52,
+            "games": 144025
+          },
+          {
+            "names": [
+              "Speed",
+              "Fervor"
+            ],
+            "pickRate": 20.89,
+            "winRate": 50.76,
+            "games": 125059
+          },
+          {
+            "names": [
+              "Speed",
+              "Hit"
+            ],
+            "pickRate": 15.42,
+            "winRate": 50.25,
+            "games": 92354
+          },
+          {
+            "names": [
+              "Speed",
+              "Penetration"
+            ],
+            "pickRate": 8.04,
+            "winRate": 50.21,
+            "games": 48145
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 56.53,
+            "winRate": 50.1,
+            "games": 595401
+          },
+          {
+            "names": [
+              "Critical"
+            ],
+            "pickRate": 14.14,
+            "winRate": 49.6,
+            "games": 148961
+          },
+          {
+            "names": [
+              "Fervor"
+            ],
+            "pickRate": 11.94,
+            "winRate": 50.73,
+            "games": 125743
+          },
+          {
+            "names": [
+              "Hit"
+            ],
+            "pickRate": 8.8,
+            "winRate": 50.22,
+            "games": 92732
+          },
+          {
+            "names": [
+              "Penetration"
+            ],
+            "pickRate": 4.67,
+            "winRate": 50.16,
+            "games": 49181
+          },
+          {
+            "names": [
+              "Torrent"
+            ],
+            "pickRate": 2.95,
+            "winRate": 51.67,
+            "games": 31058
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Violet Talisman"
+            ],
+            "pickRate": 69.67,
+            "winRate": 50.06,
+            "games": 417203
+          },
+          {
+            "names": [
+              "Butterfly's Baptism"
+            ],
+            "pickRate": 9.68,
+            "winRate": 48.3,
+            "games": 57950
+          },
+          {
+            "names": [
+              "Shadow Winds 7"
+            ],
+            "pickRate": 6.75,
+            "winRate": 53.9,
+            "games": 40396
+          },
+          {
+            "names": [
+              "A Symbol of Unity"
+            ],
+            "pickRate": 3.38,
+            "winRate": 51.27,
+            "games": 20243
+          },
+          {
+            "names": [
+              "Double-Edged Decrescent"
+            ],
+            "pickRate": 2.4,
+            "winRate": 47.78,
+            "games": 14390
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Speed"
+        ],
+        "substatPriority": [
+          "Speed",
+          "Critical Hit Chance",
+          "Critical Hit Damage",
+          "Attack",
+          "Effectiveness"
+        ],
+        "substatAvoid": [
+          "Defense",
+          "Defense %",
+          "Attack"
+        ],
+        "mainsSentence": "Attack % Speed Crit Damage on the necklace, Attack on the ring, Speed on the boots"
+      },
+      "reference": {
+        "n": 2966,
+        "dateMin": "2026-06-06",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 2975,
+          "hp": 9588,
+          "defense": 870,
+          "speed": 316,
+          "crit": 101,
+          "critDamage": 255,
+          "effectiveness": 14,
+          "effectResistance": 0
+        }
+      },
+      "gaps": [
+        "Rhianna and Luciella S2 extra attack is not damaged in the sim: no separate Fribbels multiplier."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/rhianna-and-luciella/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c2185",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 354073,
+        "losses": 349665,
+        "bans": 104945,
+        "prebans": 935811,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "lady-of-the-scales",
+      "code": "c6005",
+      "name": "Lady of the Scales",
+      "nameZh": "天秤之主",
+      "attribute": "light",
+      "attributeZh": "光",
+      "role": "manauser",
+      "roleZh": "精靈師",
+      "base": {
+        "attack": 694,
+        "hp": 4855,
+        "defense": 655,
+        "speed": 117,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 30
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.14,
+          "B": 0.09,
+          "S": 0.19,
+          "SS": 0.23,
+          "SSS": 0.27
+        },
+        "type": "res"
+      },
+      "skills": {
+        "S1": {
+          "name": "Divine Punishment",
+          "passive": false,
+          "rate": 1,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S1 heal",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 0.08
+            }
+          ],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": 10,
+          "soulburnText": "Increases effect chance to 100%, and attacks all enemies. This attack does not trigger a Dual Attack.",
+          "soulburnEffects": [
+            {
+              "kind": "effectChance",
+              "chance": 1.0,
+              "source": "Increases effect chance to 100%, and attacks all enemies. This attack does not trigger a Dual Attack."
+            }
+          ],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul Attacks the enemy with divine lightning and has a 50% chance to inflict fear for 1 turn, before recovering Health of all allies proportional to the target's max Health. Fear Cannot act for a certain number of turns. At the start of the turn, has a 40% chance to be dispelled.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "fear",
+              "chance": 0.5,
+              "source": "has a 50% chance to inflict fear",
+              "turns": 1
+            },
+            {
+              "kind": "heal",
+              "full": false,
+              "source": "recover Health",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Scales of Equity",
+          "passive": true,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S2 heal",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 0.5,
+              "targets": 0
+            }
+          ],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "At the start of battle, grants offering to the foremost ally. When the ally granted offering dies, recovers Health of all allies by 50%. When Combat Readiness of an enemy increases during battle, increases Combat Readiness of the caster by 35% of the amount of Combat Readiness increased. This effect will not be applied to the Combat Readiness increase effect triggered by the same skill.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "heal",
+              "full": false,
+              "source": "recover Health",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "The Caress of Mercy",
+          "passive": false,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": 5,
+          "soulGain": 3,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+10% Combat Readiness · -1 turn cooldown",
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 1,
+          "text": "5 turns Acquire 3 Soul Animation Official video With the Goddess’s authority, dispels all debuffs from all allies and increases Combat Readiness by 15%. Consumes 20% of the current Health of the ally granted offering, granting abundance to all other allies for 2 turns.",
+          "textBeforeAwaken": "With the Goddess’s authority, increases Combat Readiness of all allies by 15%. Consumes 20% of the current Health of the ally granted offering, granting abundance to all other allies for 2 turns.",
+          "effects": [
+            {
+              "kind": "dispelDebuff",
+              "count": 99,
+              "source": "dispels all debuffs"
+            },
+            {
+              "kind": "crPush",
+              "who": "the target",
+              "amount": 15,
+              "atBattleStart": false,
+              "source": "increases Combat Readiness by 15%"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Speed",
+              "Resist"
+            ],
+            "pickRate": 40.5,
+            "winRate": 52.87,
+            "games": 215925
+          },
+          {
+            "names": [
+              "Speed",
+              "Immunity"
+            ],
+            "pickRate": 23.28,
+            "winRate": 52.4,
+            "games": 124155
+          },
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 14.29,
+            "winRate": 53.44,
+            "games": 76200
+          },
+          {
+            "names": [
+              "Speed",
+              "Hit"
+            ],
+            "pickRate": 8.48,
+            "winRate": 54.51,
+            "games": 45195
+          },
+          {
+            "names": [
+              "Speed",
+              "Health"
+            ],
+            "pickRate": 5.54,
+            "winRate": 52.47,
+            "games": 29533
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 52.05,
+            "winRate": 53.04,
+            "games": 517256
+          },
+          {
+            "names": [
+              "Resist"
+            ],
+            "pickRate": 23.15,
+            "winRate": 52.62,
+            "games": 230046
+          },
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 12.84,
+            "winRate": 52.33,
+            "games": 127581
+          },
+          {
+            "names": [
+              "Hit"
+            ],
+            "pickRate": 4.6,
+            "winRate": 54.46,
+            "games": 45739
+          },
+          {
+            "names": [
+              "Health"
+            ],
+            "pickRate": 3.54,
+            "winRate": 51.95,
+            "games": 35183
+          },
+          {
+            "names": [
+              "Pursuit"
+            ],
+            "pickRate": 2.06,
+            "winRate": 54.1,
+            "games": 20479
+          },
+          {
+            "names": [
+              "Counter"
+            ],
+            "pickRate": 0.84,
+            "winRate": 50.11,
+            "games": 8345
+          },
+          {
+            "names": [
+              "Critical"
+            ],
+            "pickRate": 0.53,
+            "winRate": 54.6,
+            "games": 5247
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Excommunicant's Censer"
+            ],
+            "pickRate": 33.59,
+            "winRate": 53.44,
+            "games": 179108
+          },
+          {
+            "names": [
+              "Sole Consolation"
+            ],
+            "pickRate": 21.94,
+            "winRate": 51.16,
+            "games": 117001
+          },
+          {
+            "names": [
+              "Spotted Mouse Hair Tie"
+            ],
+            "pickRate": 13.02,
+            "winRate": 55.34,
+            "games": 69424
+          },
+          {
+            "names": [
+              "Bird's-Eye View"
+            ],
+            "pickRate": 11.38,
+            "winRate": 54.34,
+            "games": 60697
+          },
+          {
+            "names": [
+              "Cure-All Magic Wand"
+            ],
+            "pickRate": 7.63,
+            "winRate": 51.04,
+            "games": 40703
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Speed",
+          "Immunity"
+        ],
+        "substatPriority": [
+          "Speed",
+          "Effect Resistance",
+          "Health",
+          "Defense",
+          "Effectiveness"
+        ],
+        "substatAvoid": [
+          "Attack",
+          "Attack %",
+          "Critical Hit Chance",
+          "Critical Hit Damage",
+          "Health"
+        ],
+        "mainsSentence": "Health % To stay up while the offering ally takes the damage"
+      },
+      "reference": {
+        "n": 2960,
+        "dateMin": "2025-08-30",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 1346,
+          "hp": 16387,
+          "defense": 1433,
+          "speed": 265,
+          "crit": 15,
+          "critDamage": 150,
+          "effectiveness": 45,
+          "effectResistance": 192
+        }
+      },
+      "gaps": [],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/lady-of-the-scales/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c6005",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 342283,
+        "losses": 307176,
+        "bans": 116258,
+        "prebans": 974123,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "notos",
+      "code": "c2181",
+      "name": "Notos",
+      "nameZh": "諾托斯",
+      "attribute": "light",
+      "attributeZh": "光",
+      "role": "knight",
+      "roleZh": "騎士",
+      "base": {
+        "attack": 794,
+        "hp": 7332,
+        "defense": 767,
+        "speed": 95,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.11,
+          "B": 0.07,
+          "S": 0.15,
+          "SS": 0.18,
+          "SSS": 0.21
+        },
+        "type": "max_hp_rate"
+      },
+      "skills": {
+        "S1": {
+          "name": "Divinity Release",
+          "passive": false,
+          "rate": 0.5,
+          "pow": 0.9,
+          "targets": 1,
+          "selfHpScaling": 0.1,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+40% damage dealt",
+          "enhanceDamagePct": 0.4,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul (Notos) Attacks the enemy with divinity and has a 75% chance to inflict decreased Defense for 1 turn. Damage dealt increases proportional to the caster’s max Health.\n(God of Battle) Attacks the enemy and deals additional damage proportional to the caster’s max Health. Damage dealt increases proportional to the caster’s max Health. Decrease Defense Decreases Defense by 70%.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "defDown",
+              "chance": 0.75,
+              "source": "has a 75% chance to inflict decreased Defense",
+              "turns": 1,
+              "value": 0.7
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Blaze of Battle",
+          "passive": false,
+          "rate": 0.6,
+          "pow": 0.9,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0.5,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "50% penetration",
+          "options": [],
+          "cooldownShown": 2,
+          "soulGain": 1,
+          "soulburnCost": 10,
+          "soulburnText": "Increases damage dealt.",
+          "soulburnEffects": [
+            {
+              "kind": "unparsed",
+              "simulated": false,
+              "source": "Increases damage dealt.",
+              "gap": "Soul burn sentence has no number this simulator knows how to apply."
+            }
+          ],
+          "enhanceSummary": "+40% damage dealt",
+          "enhanceDamagePct": 0.4,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "2 turns +1 soul (Notos) Unaffected by Combat Readiness increase and decrease effects.\n(God of Battle) Attacks the enemy with transcendent power. Penetrates the target’s Defense by 50%. Damage dealt increases proportional to the caster's max Health.",
+          "textBeforeAwaken": "(Notos) Unaffected by Combat Readiness increase and decrease effects.\n(God of Battle) Attacks the enemy with transcendent power. Damage dealt increases proportional to the caster's max Health.",
+          "effects": [
+            {
+              "kind": "crImmune",
+              "source": "Unaffected by Combat Readiness increase and decrease effects"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "S3",
+          "passive": false,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S3 heal",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 1,
+              "targets": 0
+            }
+          ],
+          "cooldownShown": 8,
+          "soulGain": 3,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "-1 turn cooldown",
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 1,
+          "text": "Animation Official video Grants God of Battle to the caster for 3 turns and fully recovers Health. While God of Battle is maintained, changes the battlefield into the Sanctuary of Battle. Begins the first battle with a full skill cooldown count. God of Battle All stats are doubled. Dispelled at the end of battle.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "heal",
+              "full": false,
+              "source": "recover Health",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Warfare",
+              "Immunity"
+            ],
+            "pickRate": 84.27,
+            "winRate": 54.12,
+            "games": 216612
+          },
+          {
+            "names": [
+              "Warfare",
+              "Health"
+            ],
+            "pickRate": 10.84,
+            "winRate": 51.98,
+            "games": 27851
+          },
+          {
+            "names": [
+              "Warfare",
+              "Pursuit"
+            ],
+            "pickRate": 1.21,
+            "winRate": 54.65,
+            "games": 3120
+          },
+          {
+            "names": [
+              "Warfare",
+              "Resist"
+            ],
+            "pickRate": 1.21,
+            "winRate": 52.89,
+            "games": 3101
+          },
+          {
+            "names": [
+              "Warfare"
+            ],
+            "pickRate": 1.01,
+            "winRate": 50.31,
+            "games": 2606
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Warfare"
+            ],
+            "pickRate": 50.25,
+            "winRate": 53.8,
+            "games": 256934
+          },
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 42.37,
+            "winRate": 54.11,
+            "games": 216679
+          },
+          {
+            "names": [
+              "Health"
+            ],
+            "pickRate": 5.45,
+            "winRate": 51.98,
+            "games": 27858
+          },
+          {
+            "names": [
+              "Pursuit"
+            ],
+            "pickRate": 0.61,
+            "winRate": 54.61,
+            "games": 3124
+          },
+          {
+            "names": [
+              "Resist"
+            ],
+            "pickRate": 0.61,
+            "winRate": 52.89,
+            "games": 3101
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Holy Sacrifice"
+            ],
+            "pickRate": 89.32,
+            "winRate": 54.07,
+            "games": 229585
+          },
+          {
+            "names": [
+              "Proof of Valor"
+            ],
+            "pickRate": 4.86,
+            "winRate": 50.5,
+            "games": 12503
+          },
+          {
+            "names": [
+              "Bastion of Hope"
+            ],
+            "pickRate": 1.35,
+            "winRate": 54.27,
+            "games": 3464
+          },
+          {
+            "names": [
+              "Bastion of Perlutia"
+            ],
+            "pickRate": 1.0,
+            "winRate": 53.34,
+            "games": 2578
+          },
+          {
+            "names": [
+              "Glorious Throne"
+            ],
+            "pickRate": 0.8,
+            "winRate": 50.36,
+            "games": 2057
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Warfare",
+          "Immunity"
+        ],
+        "substatPriority": [
+          "Health",
+          "Speed",
+          "Critical Hit Chance",
+          "Critical Hit Damage",
+          "Defense"
+        ],
+        "substatAvoid": [
+          "Attack",
+          "Attack %",
+          "Health",
+          "Attack"
+        ],
+        "mainsSentence": "Health % Health % Speed Health on the necklace and ring, as the damage follows it; Speed on the boots"
+      },
+      "reference": {
+        "n": 3000,
+        "dateMin": "2026-03-19",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 1508,
+          "hp": 29189,
+          "defense": 1622,
+          "speed": 205,
+          "crit": 52,
+          "critDamage": 176,
+          "effectiveness": 0,
+          "effectResistance": 18
+        }
+      },
+      "gaps": [
+        "Notos S2 soul burn text was stored but not fully simulated."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/notos/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c2181",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 188719,
+        "losses": 162316,
+        "bans": 94004,
+        "prebans": 959973,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "estelle",
+      "code": "c1183",
+      "name": "Estelle",
+      "nameZh": "艾絲黛",
+      "attribute": "wind",
+      "attributeZh": "木",
+      "role": "knight",
+      "roleZh": "騎士",
+      "base": {
+        "attack": 894,
+        "hp": 6840,
+        "defense": 694,
+        "speed": 104,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.11,
+          "B": 0.07,
+          "S": 0.15,
+          "SS": 0.18,
+          "SSS": 0.21
+        },
+        "type": "max_hp_rate"
+      },
+      "skills": {
+        "S1": {
+          "name": "Shield Strike",
+          "passive": false,
+          "rate": 1,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0.16,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S1 heal",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 0.1
+            },
+            {
+              "name": "S1 barrier",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 0.2
+            }
+          ],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul Attacks the enemy, inflicting up to 10% injuries and recovering the caster's Health. A successful attack always results in a critical hit. Amount recovered and damage dealt increase proportional to the caster's max Health. When it is not the caster's turn, damage dealt and injuries are doubled. After attacking, when Fighting Spirit is full, consumes all Fighting Spirit to activate Wind of Protection.\nWind of Protection (Acquire 10 Soul): Grants a barrier (proportional to the caster's max Health) to all allies for 2 turns, and increases Combat Readiness of the caster by 35%.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "alwaysCrit",
+              "source": "always results in a critical hit"
+            },
+            {
+              "kind": "crPush",
+              "who": "the caster",
+              "amount": 35,
+              "atBattleStart": false,
+              "source": "increases Combat Readiness of the caster by 35%"
+            },
+            {
+              "kind": "barrier",
+              "source": "barrier",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Protective Nature",
+          "passive": true,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "At the start of the first battle, gains 50 Fighting Spirit. Grants 30% damage sharing from the damage received by the ally. After an ally except for the caster is attacked, when the damage suffered is 20% or more of max Health, dispels all debuffs from the caster and counterattacks. Cannot be triggered by extra attacks or counterattacks.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "dispelDebuff",
+              "count": 99,
+              "source": "dispels all debuffs"
+            },
+            {
+              "kind": "extraAttack",
+              "simulated": false,
+              "source": "extra attack",
+              "gap": "Fribbels herodata has no separate multiplier for this extra attack, so its damage is not simulated."
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Dazzling Strike",
+          "passive": false,
+          "rate": 0.5,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0.14,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0.5,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "50% penetration",
+          "options": [
+            {
+              "name": "S3 heal",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 0.2
+            }
+          ],
+          "cooldownShown": 4,
+          "soulGain": 2,
+          "soulburnCost": 10,
+          "soulburnText": "Skill cooldown is decreased by 2 turns.",
+          "soulburnEffects": [
+            {
+              "kind": "cooldownCut",
+              "turns": 2,
+              "source": "Skill cooldown is decreased by 2 turns."
+            }
+          ],
+          "enhanceSummary": "+30% damage dealt · -1 turn cooldown",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 1,
+          "text": "4 turns Acquire 2 Soul Animation Official video Attacks the enemy with a shield, inflicting up to 20% injuries, and recovering Health of the caster. Penetrates the target's Defense by 50%. A successful attack always results in a critical hit. Amount recovered and damage dealt increase proportional to the caster's max Health.",
+          "textBeforeAwaken": "Attacks the enemy with a shield, inflicting up to 20% injuries. Penetrates the target's Defense by 50%. A successful attack always results in a critical hit. Damage dealt increases proportional to the caster's max Health.",
+          "effects": [
+            {
+              "kind": "alwaysCrit",
+              "source": "always results in a critical hit"
+            },
+            {
+              "kind": "penetrate",
+              "source": "Penetrates the target's Defense by 50%",
+              "ratio": 0.5
+            },
+            {
+              "kind": "heal",
+              "full": false,
+              "source": "recover Health",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Counter",
+              "Immunity"
+            ],
+            "pickRate": 68.5,
+            "winRate": 51.41,
+            "games": 569306
+          },
+          {
+            "names": [
+              "Counter",
+              "Health"
+            ],
+            "pickRate": 15.23,
+            "winRate": 49.63,
+            "games": 126605
+          },
+          {
+            "names": [
+              "Protection",
+              "Immunity"
+            ],
+            "pickRate": 3.76,
+            "winRate": 52.98,
+            "games": 31213
+          },
+          {
+            "names": [
+              "Counter",
+              "Penetration"
+            ],
+            "pickRate": 2.52,
+            "winRate": 49.14,
+            "games": 20903
+          },
+          {
+            "names": [
+              "Destruction",
+              "Immunity"
+            ],
+            "pickRate": 1.98,
+            "winRate": 48.64,
+            "games": 16444
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Counter"
+            ],
+            "pickRate": 44.09,
+            "winRate": 50.96,
+            "games": 735189
+          },
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 37.81,
+            "winRate": 51.35,
+            "games": 630423
+          },
+          {
+            "names": [
+              "Health"
+            ],
+            "pickRate": 10.94,
+            "winRate": 49.29,
+            "games": 182431
+          },
+          {
+            "names": [
+              "Protection"
+            ],
+            "pickRate": 2.35,
+            "winRate": 52.56,
+            "games": 39161
+          },
+          {
+            "names": [
+              "Destruction"
+            ],
+            "pickRate": 1.89,
+            "winRate": 48.55,
+            "games": 31501
+          },
+          {
+            "names": [
+              "Penetration"
+            ],
+            "pickRate": 1.54,
+            "winRate": 48.83,
+            "games": 25756
+          },
+          {
+            "names": [
+              "Resist"
+            ],
+            "pickRate": 0.8,
+            "winRate": 48.57,
+            "games": 13282
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Holy Sacrifice"
+            ],
+            "pickRate": 50.24,
+            "winRate": 50.97,
+            "games": 417592
+          },
+          {
+            "names": [
+              "With a Little Friend"
+            ],
+            "pickRate": 48.71,
+            "winRate": 50.78,
+            "games": 404840
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Counter",
+          "Immunity"
+        ],
+        "substatPriority": [
+          "Health",
+          "Critical Hit Damage",
+          "Defense",
+          "Effect Resistance",
+          "Speed"
+        ],
+        "substatAvoid": [
+          "Critical Hit Chance",
+          "Attack",
+          "Attack %",
+          "Health",
+          "Attack"
+        ],
+        "mainsSentence": "Health % Health % Crit Damage on the necklace, as every landed hit crits; Health elsewhere, as everything follows it"
+      },
+      "reference": {
+        "n": 3000,
+        "dateMin": "2026-04-30",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 1647,
+          "hp": 30095,
+          "defense": 1638,
+          "speed": 133,
+          "crit": 25,
+          "critDamage": 236,
+          "effectiveness": 7,
+          "effectResistance": 47
+        }
+      },
+      "gaps": [
+        "S1 attack rate mismatch: Fribbels 1 vs Epic7Tools 0.5. Using Fribbels.",
+        "Estelle S2 extra attack is not damaged in the sim: no separate Fribbels multiplier."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/estelle/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c1183",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 458197,
+        "losses": 449236,
+        "bans": 76305,
+        "prebans": 42027,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "school-nurse-yulha",
+      "code": "c2131",
+      "name": "School Nurse Yulha",
+      "nameZh": "保健室老師律荷",
+      "attribute": "dark",
+      "attributeZh": "暗",
+      "role": "assassin",
+      "roleZh": "刺客",
+      "base": {
+        "attack": 1054,
+        "hp": 6606,
+        "defense": 518,
+        "speed": 115,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.14,
+          "B": 0.09,
+          "S": 0.19,
+          "SS": 0.23,
+          "SSS": 0.27
+        },
+        "type": "acc"
+      },
+      "skills": {
+        "S1": {
+          "name": "S1",
+          "passive": false,
+          "rate": 0.9,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": 10,
+          "soulburnText": "Grants an extra attack with the same skill.",
+          "soulburnEffects": [
+            {
+              "kind": "unparsed",
+              "simulated": false,
+              "source": "Grants an extra attack with the same skill.",
+              "gap": "Soul burn sentence has no number this simulator knows how to apply."
+            }
+          ],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul Attacks the enemy with a scalpel, with a 65% chance each to inflict two bleeding effects for 2 turns. At the end of the turn, detonates bleeding effects inflicted on the target. Bleed At the start of the turn, suffers damage proportional to the caster's Attack.",
+          "textBeforeAwaken": null,
+          "effects": [],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "S2",
+          "passive": false,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S2 heal",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 0.08,
+              "targets": 0
+            }
+          ],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "At the start of the first battle, increases Attack proportional to max Health. At the start of an ally’s turn, dispels one debuff from the target and recovers Health proportional to the caster’s max Health.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "heal",
+              "full": false,
+              "source": "recover Health",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "S3",
+          "passive": false,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S3 heal",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 1,
+              "targets": 0
+            }
+          ],
+          "cooldownShown": 7,
+          "soulGain": 3,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "-3 turn cooldown",
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 3,
+          "text": "7 turns Acquire 3 Soul Animation Official video Dispels all debuffs from an ally except for the caster before fully recovering Health. Grants superhumanization to the target for 3 turns and increases Combat Readiness by 50%. When the target is already dead, revives them with 100% Health before the same effect is applied. This skill is unaffected by cooldown increase and decrease effects.",
+          "textBeforeAwaken": "Dispels all debuffs from an ally except for the caster before fully recovering Health. Grants superhumanization to the target for 3 turns and increases Combat Readiness by 50%. This skill is unaffected by cooldown increase and decrease effects. Superhumanization Increases max Health and Speed by 100%.",
+          "effects": [
+            {
+              "kind": "dispelDebuff",
+              "count": 99,
+              "source": "Dispels all debuffs"
+            },
+            {
+              "kind": "crPush",
+              "who": "the target",
+              "amount": 50,
+              "atBattleStart": false,
+              "source": "increases Combat Readiness by 50%"
+            },
+            {
+              "kind": "heal",
+              "full": false,
+              "source": "recover Health",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Speed",
+              "Health"
+            ],
+            "pickRate": 37.6,
+            "winRate": 48.14,
+            "games": 270331
+          },
+          {
+            "names": [
+              "Speed",
+              "Immunity"
+            ],
+            "pickRate": 35.46,
+            "winRate": 50.32,
+            "games": 254950
+          },
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 14.72,
+            "winRate": 46.4,
+            "games": 105834
+          },
+          {
+            "names": [
+              "Speed",
+              "Hit"
+            ],
+            "pickRate": 5.11,
+            "winRate": 45.93,
+            "games": 36744
+          },
+          {
+            "names": [
+              "Speed",
+              "Resist"
+            ],
+            "pickRate": 4.56,
+            "winRate": 49.18,
+            "games": 32811
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 53.67,
+            "winRate": 48.55,
+            "games": 715331
+          },
+          {
+            "names": [
+              "Health"
+            ],
+            "pickRate": 20.56,
+            "winRate": 48.1,
+            "games": 274075
+          },
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 19.22,
+            "winRate": 50.3,
+            "games": 256232
+          },
+          {
+            "names": [
+              "Hit"
+            ],
+            "pickRate": 2.78,
+            "winRate": 45.88,
+            "games": 37108
+          },
+          {
+            "names": [
+              "Resist"
+            ],
+            "pickRate": 2.53,
+            "winRate": 49.08,
+            "games": 33769
+          },
+          {
+            "names": [
+              "Critical"
+            ],
+            "pickRate": 0.64,
+            "winRate": 44.64,
+            "games": 8494
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Secret Art - Storm Sword"
+            ],
+            "pickRate": 50.69,
+            "winRate": 47.84,
+            "games": 364436
+          },
+          {
+            "names": [
+              "Proof of Valor"
+            ],
+            "pickRate": 21.94,
+            "winRate": 48.82,
+            "games": 157760
+          },
+          {
+            "names": [
+              "Glorious Flag"
+            ],
+            "pickRate": 10.6,
+            "winRate": 50.02,
+            "games": 76202
+          },
+          {
+            "names": [
+              "Shadow Winds 7"
+            ],
+            "pickRate": 5.34,
+            "winRate": 51.82,
+            "games": 38391
+          },
+          {
+            "names": [
+              "Bastion of Hope"
+            ],
+            "pickRate": 4.87,
+            "winRate": 51.38,
+            "games": 35036
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Speed",
+          "Health"
+        ],
+        "substatPriority": [
+          "Speed",
+          "Health",
+          "Effect Resistance",
+          "Defense",
+          "Effectiveness"
+        ],
+        "substatAvoid": [
+          "Attack",
+          "Attack %",
+          "Attack",
+          "Health"
+        ],
+        "mainsSentence": "Health % Health % Speed Health on the necklace and ring, as the healing follows it; Speed on the boots"
+      },
+      "reference": {
+        "n": 2970,
+        "dateMin": "2025-11-20",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 1890,
+          "hp": 24399,
+          "defense": 1215,
+          "speed": 275,
+          "crit": 15,
+          "critDamage": 150,
+          "effectiveness": 54,
+          "effectResistance": 32
+        }
+      },
+      "gaps": [
+        "School Nurse Yulha S1 soul burn text was stored but not fully simulated."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/school-nurse-yulha/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c2131",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 404566,
+        "losses": 425398,
+        "bans": 111047,
+        "prebans": 58004,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "perfumer-byblis",
+      "code": "c5154",
+      "name": "Perfumer Byblis",
+      "nameZh": "調香師維波里絲",
+      "attribute": "fire",
+      "attributeZh": "火",
+      "role": "manauser",
+      "roleZh": "精靈師",
+      "base": {
+        "attack": 640,
+        "hp": 5340,
+        "defense": 720,
+        "speed": 106,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 18,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.11,
+          "B": 0.07,
+          "S": 0.15,
+          "SS": 0.18,
+          "SSS": 0.21
+        },
+        "type": "max_hp_rate"
+      },
+      "skills": {
+        "S1": {
+          "name": "Rose Breeze",
+          "passive": false,
+          "rate": 1,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": 10,
+          "soulburnText": "Triggers a Dual Attack from the ally with the highest Attack.",
+          "soulburnEffects": [
+            {
+              "kind": "unparsed",
+              "simulated": false,
+              "source": "Triggers a Dual Attack from the ally with the highest Attack.",
+              "gap": "Soul burn sentence has no number this simulator knows how to apply."
+            }
+          ],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul Attacks the enemy with scented paper, and has a 60% chance to inflict decreased Defense for 1 turn. Decrease Defense Decreases Defense by 70%.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "defDown",
+              "chance": 0.6,
+              "source": "has a 60% chance to inflict decreased Defense",
+              "turns": 1,
+              "value": 0.7
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Elixir de Belle Nuit",
+          "passive": true,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S2 heal",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 0.23,
+              "targets": 0
+            },
+            {
+              "name": "S2 barrier",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 0.1,
+              "targets": 0
+            }
+          ],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "At the start of an enemy’s turn, grants lingering fragrance to all allies for 1 turn. When an ally’s Health is 50% or less after being attacked, activates La Vie en Rose.\nLa Vie en Rose: Dispels two debuffs from all allies and recovers Health before granting a barrier for 2 turns. Amount recovered and barrier strength increase proportional to the caster’s max Health.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "dispelDebuff",
+              "count": 2,
+              "source": "Dispels two debuffs"
+            },
+            {
+              "kind": "barrier",
+              "source": "barrier",
+              "scaling": "fribbels-option"
+            },
+            {
+              "kind": "heal",
+              "full": false,
+              "source": "recover Health",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Aura de la Mort",
+          "passive": false,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": 4,
+          "soulGain": 2,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+30% effect chance · -1 turn cooldown",
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0.3,
+          "enhanceCooldownCut": 1,
+          "text": "4 turns Acquire 2 Soul Animation Official video After granting increased Effectiveness to the caster for 3 turns, spreads the scent of death, inflicting redirected provoke on all enemies for 1 turn and a 70% chance each to inflict two venom effects for 2 turns. At the end of the turn, detonates venom effects inflicted on the target.",
+          "textBeforeAwaken": "After granting increased Effectiveness to the caster for 3 turns, spreads the scent of death, with a 70% chance each to inflict two venom effects on all enemies for 2 turns. At the end of the turn, detonates venom effects inflicted on the target. Venom At the start of the turn, suffers damage equivalent to 10% of max Health and is inflicted with injuries. Venom effect applies to Heroes only.",
+          "effects": [],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Speed",
+              "Immunity"
+            ],
+            "pickRate": 44.02,
+            "winRate": 53.68,
+            "games": 260769
+          },
+          {
+            "names": [
+              "Protection",
+              "Immunity"
+            ],
+            "pickRate": 12.27,
+            "winRate": 55.97,
+            "games": 72709
+          },
+          {
+            "names": [
+              "Resist",
+              "Health",
+              "Immunity"
+            ],
+            "pickRate": 9.07,
+            "winRate": 54.97,
+            "games": 53747
+          },
+          {
+            "names": [
+              "Speed",
+              "Health"
+            ],
+            "pickRate": 6.64,
+            "winRate": 52.6,
+            "games": 39335
+          },
+          {
+            "names": [
+              "Speed",
+              "Resist"
+            ],
+            "pickRate": 6.58,
+            "winRate": 52.6,
+            "games": 39006
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 34.45,
+            "winRate": 54.42,
+            "games": 451847
+          },
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 27.95,
+            "winRate": 53.37,
+            "games": 366561
+          },
+          {
+            "names": [
+              "Health"
+            ],
+            "pickRate": 15.06,
+            "winRate": 54.27,
+            "games": 197518
+          },
+          {
+            "names": [
+              "Resist"
+            ],
+            "pickRate": 13.03,
+            "winRate": 53.9,
+            "games": 170851
+          },
+          {
+            "names": [
+              "Protection"
+            ],
+            "pickRate": 6.37,
+            "winRate": 55.77,
+            "games": 83577
+          },
+          {
+            "names": [
+              "Hit"
+            ],
+            "pickRate": 2.39,
+            "winRate": 52.35,
+            "games": 31322
+          },
+          {
+            "names": [
+              "Defense"
+            ],
+            "pickRate": 0.64,
+            "winRate": 54.09,
+            "games": 8370
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Veritas"
+            ],
+            "pickRate": 80.55,
+            "winRate": 53.75,
+            "games": 477161
+          },
+          {
+            "names": [
+              "Spotted Mouse Hair Tie"
+            ],
+            "pickRate": 10.06,
+            "winRate": 56.08,
+            "games": 59608
+          },
+          {
+            "names": [
+              "Bastion of Hope"
+            ],
+            "pickRate": 3.79,
+            "winRate": 53.4,
+            "games": 22430
+          },
+          {
+            "names": [
+              "Excommunicant's Censer"
+            ],
+            "pickRate": 0.7,
+            "winRate": 50.86,
+            "games": 4139
+          },
+          {
+            "names": [
+              "Queen’s Whistle"
+            ],
+            "pickRate": 0.67,
+            "winRate": 56.05,
+            "games": 3941
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Speed",
+          "Immunity"
+        ],
+        "substatPriority": [
+          "Speed",
+          "Health",
+          "Effect Resistance",
+          "Effectiveness",
+          "Defense"
+        ],
+        "substatAvoid": [
+          "Attack",
+          "Attack %",
+          "Critical Hit Chance",
+          "Critical Hit Damage",
+          "Health"
+        ],
+        "mainsSentence": "Health % Health % Speed Health on the necklace and ring, as healing and barrier follow it; Speed on the boots"
+      },
+      "reference": {
+        "n": 3000,
+        "dateMin": "2026-04-07",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 1172,
+          "hp": 21412,
+          "defense": 1699,
+          "speed": 216,
+          "crit": 15,
+          "critDamage": 150,
+          "effectiveness": 95,
+          "effectResistance": 91
+        }
+      },
+      "gaps": [
+        "Perfumer Byblis S1 soul burn text was stored but not fully simulated."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/perfumer-byblis/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c5154",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 353544,
+        "losses": 310098,
+        "bans": 71233,
+        "prebans": 210531,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "boss-arunka",
+      "code": "c2124",
+      "name": "Boss Arunka",
+      "nameZh": "組長亞露嘉",
+      "attribute": "light",
+      "attributeZh": "光",
+      "role": "knight",
+      "roleZh": "騎士",
+      "base": {
+        "attack": 776,
+        "hp": 6593,
+        "defense": 822,
+        "speed": 93,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 18
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.11,
+          "B": 0.07,
+          "S": 0.15,
+          "SS": 0.18,
+          "SSS": 0.21
+        },
+        "type": "def_rate"
+      },
+      "skills": {
+        "S1": {
+          "name": "Road Sign Smash",
+          "passive": false,
+          "rate": 0.6,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 1,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": 10,
+          "soulburnText": "Triggers a Dual Attack from the ally with the highest Attack.",
+          "soulburnEffects": [
+            {
+              "kind": "unparsed",
+              "simulated": false,
+              "source": "Triggers a Dual Attack from the ally with the highest Attack.",
+              "gap": "Soul burn sentence has no number this simulator knows how to apply."
+            }
+          ],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul Attacks the enemy with a road sign and has a 60% chance to inflict decreased Defense for 1 turn. Damage dealt increases proportional to the caster's Defense. Decrease Defense Decreases Defense by 70%.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "defDown",
+              "chance": 0.6,
+              "source": "has a 60% chance to inflict decreased Defense",
+              "turns": 1,
+              "value": 0.7
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Vanguard of the Silent Expanse",
+          "passive": true,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "At the start of battle and at the end of the turn, when the caster is in the front row, grants Ferocious Stand for 1 turn. After being attacked, increases Combat Readiness by 20%.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "crPush",
+              "who": "the target",
+              "amount": 20,
+              "atBattleStart": false,
+              "source": "increases Combat Readiness by 20%"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Coruscated Trajectory",
+          "passive": false,
+          "rate": 0.6,
+          "pow": 0.95,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 2,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S3 barrier",
+              "pow": 0,
+              "rate": 0,
+              "selfDefScaling": 1.2
+            }
+          ],
+          "cooldownShown": 3,
+          "soulGain": 2,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+35% damage dealt",
+          "enhanceDamagePct": 0.35,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "3 turns Acquire 2 Soul Animation Official video Attacks the enemy at an incredible velocity, dispelling all buffs before inflicting decreased Defense for 2 turns. Grants increased Defense and a barrier to the caster for 2 turns. Damage dealt and barrier strength increase proportional to the caster's Defense.",
+          "textBeforeAwaken": "Attacks the enemy at an incredible velocity, dispelling all buffs before inflicting decreased Defense for 2 turns. Grants a barrier to the caster for 2 turns. Damage dealt and barrier strength increase proportional to the caster's Defense. Decrease Defense Decreases Defense by 70%.",
+          "effects": [
+            {
+              "kind": "barrier",
+              "source": "barrier",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Protection",
+              "Immunity"
+            ],
+            "pickRate": 34.36,
+            "winRate": 50.1,
+            "games": 206836
+          },
+          {
+            "names": [
+              "Counter",
+              "Immunity"
+            ],
+            "pickRate": 21.36,
+            "winRate": 46.02,
+            "games": 128612
+          },
+          {
+            "names": [
+              "Health",
+              "Health",
+              "Immunity"
+            ],
+            "pickRate": 6.26,
+            "winRate": 45.82,
+            "games": 37688
+          },
+          {
+            "names": [
+              "Defense",
+              "Health",
+              "Immunity"
+            ],
+            "pickRate": 4.44,
+            "winRate": 46.55,
+            "games": 26736
+          },
+          {
+            "names": [
+              "Protection",
+              "Health"
+            ],
+            "pickRate": 4.07,
+            "winRate": 48.77,
+            "games": 24530
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 33.05,
+            "winRate": 48.01,
+            "games": 444668
+          },
+          {
+            "names": [
+              "Health"
+            ],
+            "pickRate": 19.06,
+            "winRate": 46.4,
+            "games": 256436
+          },
+          {
+            "names": [
+              "Protection"
+            ],
+            "pickRate": 18.64,
+            "winRate": 49.97,
+            "games": 250868
+          },
+          {
+            "names": [
+              "Counter"
+            ],
+            "pickRate": 13.53,
+            "winRate": 45.92,
+            "games": 181996
+          },
+          {
+            "names": [
+              "Resist"
+            ],
+            "pickRate": 8.14,
+            "winRate": 47.44,
+            "games": 109511
+          },
+          {
+            "names": [
+              "Defense"
+            ],
+            "pickRate": 6.03,
+            "winRate": 46.23,
+            "games": 81111
+          },
+          {
+            "names": [
+              "Pursuit"
+            ],
+            "pickRate": 0.95,
+            "winRate": 45.9,
+            "games": 12747
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Proof of Valor"
+            ],
+            "pickRate": 34.49,
+            "winRate": 47.22,
+            "games": 207637
+          },
+          {
+            "names": [
+              "Crown of Glory"
+            ],
+            "pickRate": 18.91,
+            "winRate": 50.5,
+            "games": 113832
+          },
+          {
+            "names": [
+              "Rocket Punch Gauntlet"
+            ],
+            "pickRate": 15.94,
+            "winRate": 46.67,
+            "games": 95953
+          },
+          {
+            "names": [
+              "M.O.A.S"
+            ],
+            "pickRate": 11.91,
+            "winRate": 45.2,
+            "games": 71708
+          },
+          {
+            "names": [
+              "Bastion of Hope"
+            ],
+            "pickRate": 8.05,
+            "winRate": 49.05,
+            "games": 48443
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Counter",
+          "Immunity"
+        ],
+        "substatPriority": [
+          "Defense",
+          "Health",
+          "Effect Resistance",
+          "Speed"
+        ],
+        "substatAvoid": [
+          "Attack",
+          "Attack %",
+          "Defense",
+          "Attack"
+        ],
+        "mainsSentence": "Defense % Defense % Health % Defense on the necklace and ring, as the damage and barrier follow it; Health on the boots"
+      },
+      "reference": {
+        "n": 3000,
+        "dateMin": "2025-04-24",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 1498,
+          "hp": 25765,
+          "defense": 2610,
+          "speed": 124,
+          "crit": 15,
+          "critDamage": 150,
+          "effectiveness": 45,
+          "effectResistance": 114
+        }
+      },
+      "gaps": [
+        "Boss Arunka S1 soul burn text was stored but not fully simulated."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/boss-arunka/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c2124",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 327395,
+        "losses": 351435,
+        "bans": 76794,
+        "prebans": 135954,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "shepherd-of-the-dark-diene",
+      "code": "c2076",
+      "name": "Shepherd of the Dark Diene",
+      "nameZh": "黑暗牧者迪埃妮",
+      "attribute": "dark",
+      "attributeZh": "暗",
+      "role": "mage",
+      "roleZh": "法師",
+      "base": {
+        "attack": 1039,
+        "hp": 6034,
+        "defense": 613,
+        "speed": 124,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.11,
+          "B": 0.07,
+          "S": 0.15,
+          "SS": 0.18,
+          "SSS": 0.21
+        },
+        "type": "max_hp_rate"
+      },
+      "skills": {
+        "S1": {
+          "name": "Crimson Claws",
+          "passive": false,
+          "rate": 0.5,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0.12,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": 20,
+          "soulburnText": "Increases damage dealt.",
+          "soulburnEffects": [
+            {
+              "kind": "unparsed",
+              "simulated": false,
+              "source": "Increases damage dealt.",
+              "gap": "Soul burn sentence has no number this simulator knows how to apply."
+            }
+          ],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul After inflicting rupture on the enemy for 1 turn, attacks the enemy. A successful attack always results in a critical hit. Damage dealt increases proportional to the caster's max Health. When the caster is granted immortality, triggers a Dual Attack from the ally with the highest Attack.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "alwaysCrit",
+              "source": "always results in a critical hit"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "S2",
+          "passive": false,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "At the start of battle, grants immortality for 1 turn. When granted immortality, increases Effect Resistance by 200%. When someone uses a Soulburn, dispels all debuffs from the caster before activating Dark Moon.\nDark Moon: Dispels two buffs from all enemies, before granting immortality to the caster for 3 turns and increasing Combat Readiness by 35%.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "dispelDebuff",
+              "count": 99,
+              "source": "dispels all debuffs"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Endless Darkness",
+          "passive": false,
+          "rate": 0.5,
+          "pow": 1,
+          "targets": 3,
+          "selfHpScaling": 0.2,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": 5,
+          "soulGain": 3,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+30% damage dealt · -1 turn cooldown",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 1,
+          "text": "5 turns Acquire 3 Soul Animation Official video After inflicting seal on all enemies for 2 turns, attacks them and decreases Combat Readiness by 30%. A successful attack always results in a critical hit. When the caster is granted immortality, ignores Effect Resistance. Damage dealt increases proportional to the caster's max Health.",
+          "textBeforeAwaken": "After inflicting seal on all enemies for 1 turn, attacks them and decreases Combat Readiness by 30%. A successful attack always results in a critical hit. When the caster is granted immortality, ignores Effect Resistance. Damage dealt increases proportional to the caster's max Health.",
+          "effects": [
+            {
+              "kind": "alwaysCrit",
+              "source": "always results in a critical hit"
+            },
+            {
+              "kind": "crPushback",
+              "who": "the target",
+              "amount": 30,
+              "atBattleStart": false,
+              "source": "decreases Combat Readiness by 30%"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Speed",
+              "Hit"
+            ],
+            "pickRate": 31.55,
+            "winRate": 56.26,
+            "games": 105127
+          },
+          {
+            "names": [
+              "Speed",
+              "Health"
+            ],
+            "pickRate": 16.9,
+            "winRate": 56.19,
+            "games": 56322
+          },
+          {
+            "names": [
+              "Destruction",
+              "Health"
+            ],
+            "pickRate": 12.89,
+            "winRate": 56.12,
+            "games": 42964
+          },
+          {
+            "names": [
+              "Destruction",
+              "Hit"
+            ],
+            "pickRate": 9.7,
+            "winRate": 57.23,
+            "games": 32321
+          },
+          {
+            "names": [
+              "Destruction",
+              "Immunity"
+            ],
+            "pickRate": 7.19,
+            "winRate": 56.15,
+            "games": 23951
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 32.08,
+            "winRate": 56.2,
+            "games": 208016
+          },
+          {
+            "names": [
+              "Hit"
+            ],
+            "pickRate": 21.81,
+            "winRate": 56.4,
+            "games": 141431
+          },
+          {
+            "names": [
+              "Destruction"
+            ],
+            "pickRate": 18.02,
+            "winRate": 56.41,
+            "games": 116881
+          },
+          {
+            "names": [
+              "Health"
+            ],
+            "pickRate": 15.88,
+            "winRate": 56.18,
+            "games": 102964
+          },
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 6.22,
+            "winRate": 55.98,
+            "games": 40314
+          },
+          {
+            "names": [
+              "Resist"
+            ],
+            "pickRate": 2.59,
+            "winRate": 57.38,
+            "games": 16780
+          },
+          {
+            "names": [
+              "Torrent"
+            ],
+            "pickRate": 1.7,
+            "winRate": 58.04,
+            "games": 11004
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Tagehel's Ancient Book"
+            ],
+            "pickRate": 90.48,
+            "winRate": 56.17,
+            "games": 301486
+          },
+          {
+            "names": [
+              "Mirrored Lotus Ring"
+            ],
+            "pickRate": 7.91,
+            "winRate": 57.93,
+            "games": 26353
+          },
+          {
+            "names": [
+              "Abyssal Crown"
+            ],
+            "pickRate": 0.64,
+            "winRate": 52.22,
+            "games": 2135
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Destruction",
+          "Immunity"
+        ],
+        "substatPriority": [
+          "Health",
+          "Critical Hit Damage",
+          "Speed",
+          "Effectiveness",
+          "Effect Resistance"
+        ],
+        "substatAvoid": [
+          "Critical Hit Chance",
+          "Attack",
+          "Attack %",
+          "Health",
+          "Attack"
+        ],
+        "mainsSentence": "Health % Speed Crit Damage on the necklace, as every landed hit crits; Health on the ring; Speed on the boots"
+      },
+      "reference": {
+        "n": 2844,
+        "dateMin": "2026-01-01",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 1882,
+          "hp": 21055,
+          "defense": 1101,
+          "speed": 247,
+          "crit": 21,
+          "critDamage": 298,
+          "effectiveness": 81,
+          "effectResistance": 6
+        }
+      },
+      "gaps": [
+        "Shepherd of the Dark Diene S1 soul burn text was stored but not fully simulated."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/shepherd-of-the-dark-diene/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c2076",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 300362,
+        "losses": 249938,
+        "bans": 217086,
+        "prebans": 93932,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "harsetti",
+      "code": "c1153",
+      "name": "Harsetti",
+      "nameZh": "赫爾賽蒂",
+      "attribute": "dark",
+      "attributeZh": "暗",
+      "role": "mage",
+      "roleZh": "法師",
+      "base": {
+        "attack": 1039,
+        "hp": 6034,
+        "defense": 613,
+        "speed": 124,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.11,
+          "B": 0.07,
+          "S": 0.15,
+          "SS": 0.18,
+          "SSS": 0.21
+        },
+        "type": "max_hp_rate"
+      },
+      "skills": {
+        "S1": {
+          "name": "Gambit",
+          "passive": false,
+          "rate": 0.6,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0.08,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": 10,
+          "soulburnText": "Effect Chance of Gambit increases to 100%, and decreases Defense for 2 turns.",
+          "soulburnEffects": [
+            {
+              "kind": "effectChance",
+              "chance": 1.0,
+              "source": "Effect Chance of Gambit increases to 100%, and decreases Defense for 2 turns."
+            },
+            {
+              "kind": "defDownTurns",
+              "turns": 2,
+              "source": "Effect Chance of Gambit increases to 100%, and decreases Defense for 2 turns."
+            }
+          ],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul Attacks the enemy, with a 60% chance to decrease Defense for 1 turn. When it is the caster's turn, uses En Passant as an extra attack. Damage dealt increases proportional to the caster's max Health.\nEn Passant: Attacks all enemies, with a 60% chance to decrease Attack for 1 turn. Damage dealt increases proportional to the caster's max Health. Decrease Defense Decreases Defense by 70%.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "defDown",
+              "chance": 0.6,
+              "source": "with a 60% chance to decrease Defense",
+              "turns": 1,
+              "value": 0.7
+            },
+            {
+              "kind": "atkDown",
+              "chance": 0.6,
+              "source": "with a 60% chance to decrease Attack",
+              "turns": 1
+            },
+            {
+              "kind": "extraAttack",
+              "simulated": false,
+              "source": "extra attack",
+              "gap": "Fribbels herodata has no separate multiplier for this extra attack, so its damage is not simulated."
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "The Law of Skuggiheim",
+          "passive": true,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "At the start of battle, Speed of the caster is fixed going forward, and Speed of all Heroes except for the caster is limited to a maximum of 90% of the caster's Speed. On the caster's turn, Combat Readiness increase effects of all Heroes is not applied. The Law of Skuggiheim only applies to PvP.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "speedCap",
+              "ratio": 0.9,
+              "source": "Speed of all Heroes except for the caster is limited to a maximum of 90% of the caster's Speed"
+            },
+            {
+              "kind": "crLockOnCasterTurn",
+              "source": "On the caster's turn, Combat Readiness increase effects of all Heroes is not applied."
+            },
+            {
+              "kind": "fixOwnSpeed",
+              "source": "Speed of the caster is fixed going forward"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Checkmate",
+          "passive": false,
+          "rate": 0.1,
+          "pow": 1,
+          "targets": 3,
+          "selfHpScaling": 0.02,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 1,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "100% penetration",
+          "options": [],
+          "cooldownShown": 5,
+          "soulGain": 3,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "5 turns Acquire 3 Soul Animation Warlord of Anarchy Official video Attacks all enemies, decreasing buff durations by 2 turns and a 75% chance each to inflict unable to counterattack and unable to be buffed for 2 turns. Penetrates the target's Defense. When Focus is full, consumes it all, increasing damage dealt. Damage dealt increases proportional to the caster's max Health.",
+          "textBeforeAwaken": "Attacks all enemies, decreasing buff durations by 2 turns and a 75% chance to inflict unable to be buffed for 2 turns. Penetrates the target's Defense. When Focus is full, consumes it all, increasing damage dealt. Damage dealt increases proportional to the caster's max Health. Cannot Buff Cannot receive any buffs.",
+          "effects": [
+            {
+              "kind": "uncounterable",
+              "chance": 0.75,
+              "source": "a 75% chance each to inflict unable to counterattack",
+              "turns": 2
+            },
+            {
+              "kind": "unbuffable",
+              "chance": 0.75,
+              "turns": 2,
+              "source": "75% chance each to inflict unable to counterattack and unable to be buffed"
+            },
+            {
+              "kind": "cutBuffDuration",
+              "turns": 2,
+              "source": "decreasing buff durations by 2 turns"
+            },
+            {
+              "kind": "penetrate",
+              "source": "Penetrates the target's Defense"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Weakening",
+              "Hit"
+            ],
+            "pickRate": 34.58,
+            "winRate": 48.84,
+            "games": 65596
+          },
+          {
+            "names": [
+              "Injury",
+              "Health"
+            ],
+            "pickRate": 13.6,
+            "winRate": 51.78,
+            "games": 25793
+          },
+          {
+            "names": [
+              "Weakening",
+              "Health"
+            ],
+            "pickRate": 12.38,
+            "winRate": 51.06,
+            "games": 23477
+          },
+          {
+            "names": [
+              "Destruction",
+              "Health"
+            ],
+            "pickRate": 9.24,
+            "winRate": 48.52,
+            "games": 17524
+          },
+          {
+            "names": [
+              "Injury",
+              "Critical"
+            ],
+            "pickRate": 4.59,
+            "winRate": 48.73,
+            "games": 8706
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Weakening"
+            ],
+            "pickRate": 27.21,
+            "winRate": 49.55,
+            "games": 102380
+          },
+          {
+            "names": [
+              "Hit"
+            ],
+            "pickRate": 23.62,
+            "winRate": 48.32,
+            "games": 88879
+          },
+          {
+            "names": [
+              "Health"
+            ],
+            "pickRate": 21.42,
+            "winRate": 49.98,
+            "games": 80574
+          },
+          {
+            "names": [
+              "Injury"
+            ],
+            "pickRate": 11.34,
+            "winRate": 50.41,
+            "games": 42682
+          },
+          {
+            "names": [
+              "Destruction"
+            ],
+            "pickRate": 7.19,
+            "winRate": 48.25,
+            "games": 27038
+          },
+          {
+            "names": [
+              "Critical"
+            ],
+            "pickRate": 5.3,
+            "winRate": 47.93,
+            "games": 19932
+          },
+          {
+            "names": [
+              "Pursuit"
+            ],
+            "pickRate": 1.2,
+            "winRate": 49.61,
+            "games": 4513
+          },
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 0.62,
+            "winRate": 48.91,
+            "games": 2349
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Abyssal Crown"
+            ],
+            "pickRate": 75.07,
+            "winRate": 49.02,
+            "games": 142401
+          },
+          {
+            "names": [
+              "Fairy Tale for a Nightmare"
+            ],
+            "pickRate": 18.49,
+            "winRate": 52.29,
+            "games": 35075
+          },
+          {
+            "names": [
+              "Bird's-Eye View"
+            ],
+            "pickRate": 2.19,
+            "winRate": 47.06,
+            "games": 4156
+          },
+          {
+            "names": [
+              "Tagehel's Ancient Book"
+            ],
+            "pickRate": 1.91,
+            "winRate": 45.63,
+            "games": 3614
+          },
+          {
+            "names": [
+              "Black Hand of the Goddess"
+            ],
+            "pickRate": 0.75,
+            "winRate": 45.81,
+            "games": 1432
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Destruction",
+          "Health"
+        ],
+        "substatPriority": [
+          "Health",
+          "Critical Hit Chance",
+          "Critical Hit Damage",
+          "Effectiveness",
+          "Defense"
+        ],
+        "substatAvoid": [
+          "Speed",
+          "Attack",
+          "Attack %"
+        ],
+        "mainsSentence": "Health % Health % Crit Damage on the necklace, Health on the ring and boots: Speed is not needed in PvP"
+      },
+      "reference": {
+        "n": 3000,
+        "dateMin": "2024-09-27",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 1861,
+          "hp": 24636,
+          "defense": 1377,
+          "speed": 150,
+          "crit": 98,
+          "critDamage": 256,
+          "effectiveness": 33,
+          "effectResistance": 0
+        }
+      },
+      "gaps": [
+        "Harsetti S1 extra attack is not damaged in the sim: no separate Fribbels multiplier."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/harsetti/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c1153",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 131948,
+        "losses": 133847,
+        "bans": 76094,
+        "prebans": 515266,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "zio",
+      "code": "c1133",
+      "name": "Zio",
+      "nameZh": "智武",
+      "attribute": "dark",
+      "attributeZh": "暗",
+      "role": "mage",
+      "roleZh": "法師",
+      "base": {
+        "attack": 1255,
+        "hp": 5016,
+        "defense": 652,
+        "speed": 106,
+        "crit": 27,
+        "critDamage": 150,
+        "effectiveness": 18,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.14,
+          "B": 0.09,
+          "S": 0.19,
+          "SS": 0.23,
+          "SSS": 0.27
+        },
+        "type": "acc"
+      },
+      "skills": {
+        "S1": {
+          "name": "Let Me Destroy You",
+          "passive": false,
+          "rate": 0.7,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul Attacks the enemy with a spear, before granting increased Attack to the caster for 1 turn. When the caster is granted deify, activates Disappear as an extra attack. Disappear can only be activated once per turn, during the caster's turn.\nDisappear: Attacks the enemy with a sword blast, and when the enemy is defeated, increases Combat Readiness of the caster by 50%. Penetrates the target's Defense by 50%. Increase Attack Increases Attack by 50%.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "penetrate",
+              "source": "Penetrates the target's Defense by 50%",
+              "ratio": 0.5
+            },
+            {
+              "kind": "crPush",
+              "who": "the caster",
+              "amount": 50,
+              "atBattleStart": false,
+              "source": "increases Combat Readiness of the caster by 50%"
+            },
+            {
+              "kind": "extraAttack",
+              "simulated": false,
+              "source": "extra attack",
+              "gap": "Fribbels herodata has no separate multiplier for this extra attack, so its damage is not simulated."
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Supreme Authority",
+          "passive": true,
+          "rate": 1,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0.5,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "S1 proc",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "Unaffected by effects that reduce Combat Readiness increases. At the start of the first battle, increases Combat Readiness by 20%.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "crImmune",
+              "source": "Unaffected by Combat Readiness increase and decrease effects"
+            },
+            {
+              "kind": "crPush",
+              "who": "the target",
+              "amount": 20,
+              "atBattleStart": true,
+              "source": "increases Combat Readiness by 20%"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Bow Down Before Me",
+          "passive": false,
+          "rate": 0.2,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 1,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "100% penetration",
+          "options": [],
+          "cooldownShown": 6,
+          "soulGain": 3,
+          "soulburnCost": 20,
+          "soulburnText": "Ignores Effect Resistance.",
+          "soulburnEffects": [
+            {
+              "kind": "ignoreResistance",
+              "source": "Ignores Effect Resistance."
+            }
+          ],
+          "enhanceSummary": "+10% Combat Readiness · -1 turn cooldown",
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 1,
+          "text": "6 turns Acquire 3 Soul Animation Official video Attacks the enemy, dispelling two buffs before inflicting silence for 1 turn and decreasing Combat Readiness by 30%. Grants deify to the caster for 3 turns. Penetrates the target's Defense by 100%, but cannot trigger a critical hit or a heavy blow. When the target is a Hero, damage dealt increases proportional to the target's current Health.",
+          "textBeforeAwaken": "Attacks the enemy, dispelling two buffs before decreasing Combat Readiness by 30%. Grants deify to the caster for 3 turns. Penetrates the target's Defense by 100%, but cannot trigger a critical hit or a heavy blow. When the target is a Hero, damage dealt increases proportional to the target's current Health. Deify When attacking, increases Critical Hit Chance by 50%, and when attacked, grants 50% damage reduction.",
+          "effects": [
+            {
+              "kind": "cannotCrit",
+              "source": "cannot trigger a critical hit"
+            },
+            {
+              "kind": "dispelBuff",
+              "count": 2,
+              "source": "dispelling two buffs"
+            },
+            {
+              "kind": "penetrate",
+              "source": "Penetrates the target's Defense by 100%",
+              "ratio": 1.0
+            },
+            {
+              "kind": "crPushback",
+              "who": "the target",
+              "amount": 30,
+              "atBattleStart": false,
+              "source": "decreasing Combat Readiness by 30%"
+            },
+            {
+              "kind": "silence",
+              "chance": 1,
+              "turns": 1,
+              "source": "inflicting silence for 1 turn"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Speed",
+              "Hit"
+            ],
+            "pickRate": 41.96,
+            "winRate": 44.14,
+            "games": 170120
+          },
+          {
+            "names": [
+              "Speed",
+              "Penetration"
+            ],
+            "pickRate": 38.92,
+            "winRate": 42.23,
+            "games": 157779
+          },
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 7.62,
+            "winRate": 41.84,
+            "games": 30907
+          },
+          {
+            "names": [
+              "Speed",
+              "Torrent"
+            ],
+            "pickRate": 4.59,
+            "winRate": 43.35,
+            "games": 18622
+          },
+          {
+            "names": [
+              "Speed",
+              "Critical"
+            ],
+            "pickRate": 2.26,
+            "winRate": 40.53,
+            "games": 9179
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 49.57,
+            "winRate": 43.04,
+            "games": 388535
+          },
+          {
+            "names": [
+              "Hit"
+            ],
+            "pickRate": 22.79,
+            "winRate": 44.23,
+            "games": 178653
+          },
+          {
+            "names": [
+              "Penetration"
+            ],
+            "pickRate": 20.58,
+            "winRate": 42.19,
+            "games": 161350
+          },
+          {
+            "names": [
+              "Torrent"
+            ],
+            "pickRate": 4.53,
+            "winRate": 43.69,
+            "games": 35502
+          },
+          {
+            "names": [
+              "Critical"
+            ],
+            "pickRate": 1.24,
+            "winRate": 40.66,
+            "games": 9755
+          },
+          {
+            "names": [
+              "Destruction"
+            ],
+            "pickRate": 0.5,
+            "winRate": 43.3,
+            "games": 3908
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Tagehel's Ancient Book"
+            ],
+            "pickRate": 92.63,
+            "winRate": 43.02,
+            "games": 375546
+          },
+          {
+            "names": [
+              "Mirrored Lotus Ring"
+            ],
+            "pickRate": 4.19,
+            "winRate": 47.55,
+            "games": 16991
+          },
+          {
+            "names": [
+              "Bloody Rose"
+            ],
+            "pickRate": 1.99,
+            "winRate": 41.87,
+            "games": 8053
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Speed",
+          "Penetration"
+        ],
+        "substatPriority": [
+          "Speed",
+          "Attack",
+          "Critical Hit Damage",
+          "Critical Hit Chance",
+          "Effectiveness",
+          "Health"
+        ],
+        "substatAvoid": [],
+        "mainsSentence": "Attack % Speed Crit Damage on the necklace, Attack on the ring, Speed on the boots"
+      },
+      "reference": {
+        "n": 3000,
+        "dateMin": "2023-02-20",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 3558,
+          "hp": 10708,
+          "defense": 1080,
+          "speed": 252,
+          "crit": 56,
+          "critDamage": 277,
+          "effectiveness": 64,
+          "effectResistance": 0
+        }
+      },
+      "gaps": [
+        "Zio S1 extra attack is not damaged in the sim: no separate Fribbels multiplier."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/zio/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c1133",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 191578,
+        "losses": 246937,
+        "bans": 33104,
+        "prebans": 383809,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "arbiter-vildred",
+      "code": "c2007",
+      "name": "Arbiter Vildred",
+      "nameZh": "執行官維德瑞",
+      "attribute": "dark",
+      "attributeZh": "暗",
+      "role": "assassin",
+      "roleZh": "刺客",
+      "base": {
+        "attack": 1283,
+        "hp": 5138,
+        "defense": 522,
+        "speed": 116,
+        "crit": 23,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.11,
+          "B": 0.07,
+          "S": 0.15,
+          "SS": 0.18,
+          "SSS": 0.21
+        },
+        "type": "att_rate"
+      },
+      "skills": {
+        "S1": {
+          "name": "Sweep",
+          "passive": false,
+          "rate": 0.975,
+          "pow": 0.95,
+          "targets": 2,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+35% damage dealt",
+          "enhanceDamagePct": 0.35,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul Attacks two enemies with a swordstorm, transferring two debuffs from the caster. When a critical hit is made, ignores Effect Resistance.",
+          "textBeforeAwaken": "Attacks two enemies with a swordstorm, transferring two debuffs from the caster.",
+          "effects": [],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Dark Contract",
+          "passive": true,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "At the start of the turn, when Focus is full, resets skill cooldown of Dark Blade. Upon dying, revives to 70% Health, before increasing Combat Readiness by 100% and gaining maximum Focus.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "revive",
+              "hpRatio": 0.7,
+              "source": "revives to 70% Health"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Dark Blade",
+          "passive": false,
+          "rate": 1.15,
+          "pow": 0.85,
+          "targets": 3,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": 5,
+          "soulGain": 3,
+          "soulburnCost": 10,
+          "soulburnText": "Increases damage dealt.",
+          "soulburnEffects": [
+            {
+              "kind": "unparsed",
+              "simulated": false,
+              "source": "Increases damage dealt.",
+              "gap": "Soul burn sentence has no number this simulator knows how to apply."
+            }
+          ],
+          "enhanceSummary": "+45% damage dealt",
+          "enhanceDamagePct": 0.45,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "Animation Dark Monarch After increasing Attack of the caster for 2 turns, attacks all enemies before inflicting decreased Hit Chance for 2 turns, and when an enemy is defeated, resets cooldown. When Focus is full, consumes it all, increasing damage dealt.",
+          "textBeforeAwaken": null,
+          "effects": [],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Destruction",
+              "Torrent"
+            ],
+            "pickRate": 39.86,
+            "winRate": 51.71,
+            "games": 226628
+          },
+          {
+            "names": [
+              "Speed",
+              "Torrent"
+            ],
+            "pickRate": 30.27,
+            "winRate": 50.08,
+            "games": 172139
+          },
+          {
+            "names": [
+              "Torrent",
+              "Torrent",
+              "Torrent"
+            ],
+            "pickRate": 8.66,
+            "winRate": 52.37,
+            "games": 49253
+          },
+          {
+            "names": [
+              "Riposte",
+              "Torrent"
+            ],
+            "pickRate": 4.5,
+            "winRate": 48.66,
+            "games": 25602
+          },
+          {
+            "names": [
+              "Destruction",
+              "Critical"
+            ],
+            "pickRate": 2.69,
+            "winRate": 48.71,
+            "games": 15299
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Torrent"
+            ],
+            "pickRate": 49.67,
+            "winRate": 51.18,
+            "games": 588384
+          },
+          {
+            "names": [
+              "Destruction"
+            ],
+            "pickRate": 21.2,
+            "winRate": 51.44,
+            "games": 251111
+          },
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 16.05,
+            "winRate": 49.93,
+            "games": 190124
+          },
+          {
+            "names": [
+              "Critical"
+            ],
+            "pickRate": 4.39,
+            "winRate": 48.49,
+            "games": 52016
+          },
+          {
+            "names": [
+              "Riposte"
+            ],
+            "pickRate": 4.07,
+            "winRate": 48.57,
+            "games": 48238
+          },
+          {
+            "names": [
+              "Lifesteal"
+            ],
+            "pickRate": 1.76,
+            "winRate": 47.51,
+            "games": 20880
+          },
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 1.58,
+            "winRate": 48.18,
+            "games": 18683
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Summer Photogenic"
+            ],
+            "pickRate": 67.06,
+            "winRate": 50.63,
+            "games": 381290
+          },
+          {
+            "names": [
+              "Double-Edged Decrescent"
+            ],
+            "pickRate": 20.82,
+            "winRate": 49.5,
+            "games": 118377
+          },
+          {
+            "names": [
+              "Shadow Winds 7"
+            ],
+            "pickRate": 5.58,
+            "winRate": 56.26,
+            "games": 31744
+          },
+          {
+            "names": [
+              "Sword of Summer Twilight"
+            ],
+            "pickRate": 1.51,
+            "winRate": 49.84,
+            "games": 8572
+          },
+          {
+            "names": [
+              "Alexa's Basket"
+            ],
+            "pickRate": 1.42,
+            "winRate": 46.09,
+            "games": 8049
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Speed",
+          "Torrent"
+        ],
+        "substatPriority": [
+          "Critical Hit Chance",
+          "Critical Hit Damage",
+          "Attack",
+          "Speed",
+          "Health"
+        ],
+        "substatAvoid": [
+          "Effectiveness",
+          "Effect Resistance",
+          "Critical Hit Chance"
+        ],
+        "mainsSentence": "Attack % Speed Crit Damage on the necklace, Attack on the ring, Speed on the boots"
+      },
+      "reference": {
+        "n": 3000,
+        "dateMin": "2023-02-28",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 4510,
+          "hp": 8888,
+          "defense": 921,
+          "speed": 221,
+          "crit": 100,
+          "critDamage": 313,
+          "effectiveness": 0,
+          "effectResistance": 0
+        }
+      },
+      "gaps": [
+        "Arbiter Vildred S3 soul burn text was stored but not fully simulated."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/arbiter-vildred/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c2007",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 341701,
+        "losses": 335511,
+        "bans": 108596,
+        "prebans": 25426,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "tidal-rift-elvira",
+      "code": "c2148",
+      "name": "Tidal Rift Elvira",
+      "nameZh": "波濤的裂痕艾碧拉",
+      "attribute": "dark",
+      "attributeZh": "暗",
+      "role": "mage",
+      "roleZh": "法師",
+      "base": {
+        "attack": 1102,
+        "hp": 5782,
+        "defense": 634,
+        "speed": 120,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.14,
+          "B": 0.09,
+          "S": 0.19,
+          "SS": 0.23,
+          "SSS": 0.27
+        },
+        "type": "acc"
+      },
+      "skills": {
+        "S1": {
+          "name": "Rift Cleave",
+          "passive": false,
+          "rate": 0.75,
+          "pow": 0.95,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": 10,
+          "soulburnText": "Increases chance of activating Twisted Strike to 100%.",
+          "soulburnEffects": [
+            {
+              "kind": "unparsed",
+              "simulated": false,
+              "source": "Increases chance of activating Twisted Strike to 100%.",
+              "gap": "Soul burn sentence has no number this simulator knows how to apply."
+            }
+          ],
+          "enhanceSummary": "+35% damage dealt",
+          "enhanceDamagePct": 0.35,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul Has a 75% chance to inflict seal on the enemy for 2 turns before attacking. When used on the caster's turn, has a 40% chance to activate Twisted Strike as an extra attack.\nTwisted Strike: Attacks all enemies, absorbing some of the damage dealt as Health, and has a 35% chance to inflict fear for 1 turn. When the caster is granted engulf, effect chance is doubled.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "seal",
+              "chance": 0.75,
+              "source": "Has a 75% chance to inflict seal",
+              "turns": 2
+            },
+            {
+              "kind": "fear",
+              "chance": 0.35,
+              "source": "has a 35% chance to inflict fear",
+              "turns": 1
+            },
+            {
+              "kind": "extraAttack",
+              "simulated": false,
+              "source": "extra attack",
+              "gap": "Fribbels herodata has no separate multiplier for this extra attack, so its damage is not simulated."
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Craving Affection",
+          "passive": true,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "At the start of battle, grants engulf. When attacking, penetrates the target's Defense, and cannot trigger a critical hit or a heavy blow. After an ally uses a skill, for each debuff inflicted on all enemies, has a 25% chance to increase Combat Readiness of the caster by 10%.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "cannotCrit",
+              "source": "cannot trigger a critical hit"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Wave of Curses",
+          "passive": false,
+          "rate": 1.8,
+          "pow": 0.95,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": 5,
+          "soulGain": 3,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+35% damage dealt · -1 turn cooldown",
+          "enhanceDamagePct": 0.35,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 1,
+          "text": "5 turns Acquire 3 Soul Animation Official video Has a 35% chance to inflict curse on all enemies except for the target for 2 turns before attacking the enemy, and increases Combat Readiness of the caster by 50%. When the caster is granted engulf, effect chance is doubled.",
+          "textBeforeAwaken": "Has a 35% chance to inflict curse on all enemies except for the target for 2 turns before attacking the enemy. When the caster is granted engulf, effect chance is doubled.",
+          "effects": [
+            {
+              "kind": "crPush",
+              "who": "the caster",
+              "amount": 50,
+              "atBattleStart": false,
+              "source": "increases Combat Readiness of the caster by 50%"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Weakening",
+              "Pursuit"
+            ],
+            "pickRate": 83.43,
+            "winRate": 53.13,
+            "games": 248158
+          },
+          {
+            "names": [
+              "Weakening",
+              "Hit"
+            ],
+            "pickRate": 6.25,
+            "winRate": 53.17,
+            "games": 18599
+          },
+          {
+            "names": [
+              "Weakening",
+              "Torrent"
+            ],
+            "pickRate": 4.1,
+            "winRate": 57.06,
+            "games": 12188
+          },
+          {
+            "names": [
+              "Speed",
+              "Pursuit"
+            ],
+            "pickRate": 1.35,
+            "winRate": 48.81,
+            "games": 4026
+          },
+          {
+            "names": [
+              "Weakening"
+            ],
+            "pickRate": 1.09,
+            "winRate": 52.48,
+            "games": 3230
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Weakening"
+            ],
+            "pickRate": 48.74,
+            "winRate": 53.28,
+            "games": 288428
+          },
+          {
+            "names": [
+              "Pursuit"
+            ],
+            "pickRate": 42.73,
+            "winRate": 53.04,
+            "games": 252878
+          },
+          {
+            "names": [
+              "Hit"
+            ],
+            "pickRate": 3.41,
+            "winRate": 52.84,
+            "games": 20167
+          },
+          {
+            "names": [
+              "Torrent"
+            ],
+            "pickRate": 2.5,
+            "winRate": 56.3,
+            "games": 14779
+          },
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 1.35,
+            "winRate": 50.44,
+            "games": 7976
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Twilight Calamity"
+            ],
+            "pickRate": 68.84,
+            "winRate": 53.05,
+            "games": 204749
+          },
+          {
+            "names": [
+              "Tagehel's Ancient Book"
+            ],
+            "pickRate": 15.07,
+            "winRate": 53.68,
+            "games": 44815
+          },
+          {
+            "names": [
+              "Mirrored Lotus Ring"
+            ],
+            "pickRate": 7.64,
+            "winRate": 55.92,
+            "games": 22734
+          },
+          {
+            "names": [
+              "Refracted Desire"
+            ],
+            "pickRate": 1.91,
+            "winRate": 51.98,
+            "games": 5681
+          },
+          {
+            "names": [
+              "Abyssal Crown"
+            ],
+            "pickRate": 1.74,
+            "winRate": 49.04,
+            "games": 5173
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Weakening",
+          "Pursuit"
+        ],
+        "substatPriority": [
+          "Attack",
+          "Speed",
+          "Effectiveness",
+          "Health",
+          "Defense"
+        ],
+        "substatAvoid": [
+          "Critical Hit Chance",
+          "Critical Hit Damage"
+        ],
+        "mainsSentence": "Attack % Attack % Speed Attack on the necklace and ring, as Elvira never crits; Speed on the boots"
+      },
+      "reference": {
+        "n": 683,
+        "dateMin": "2026-07-17",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 4048,
+          "hp": 12702,
+          "defense": 1199,
+          "speed": 246,
+          "crit": 20,
+          "critDamage": 156,
+          "effectiveness": 89,
+          "effectResistance": 0
+        }
+      },
+      "gaps": [
+        "Tidal Rift Elvira S1 extra attack is not damaged in the sim: no separate Fribbels multiplier.",
+        "Tidal Rift Elvira S1 soul burn text was stored but not fully simulated."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/tidal-rift-elvira/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c2148",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 190467,
+        "losses": 173529,
+        "bans": 66556,
+        "prebans": 135363,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "eye-of-the-abyss-fumyr",
+      "code": "c5147",
+      "name": "Eye of the Abyss Fumyr",
+      "nameZh": "深海之眼芙米爾",
+      "attribute": "wind",
+      "attributeZh": "木",
+      "role": "mage",
+      "roleZh": "法師",
+      "base": {
+        "attack": 1039,
+        "hp": 6034,
+        "defense": 613,
+        "speed": 124,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.14,
+          "B": 0.09,
+          "S": 0.19,
+          "SS": 0.23,
+          "SSS": 0.27
+        },
+        "type": "acc"
+      },
+      "skills": {
+        "S1": {
+          "name": "Elemental Magic",
+          "passive": false,
+          "rate": 1,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": 10,
+          "soulburnText": "Increases effect chance to 100%.",
+          "soulburnEffects": [
+            {
+              "kind": "effectChance",
+              "chance": 1.0,
+              "source": "Increases effect chance to 100%."
+            }
+          ],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul Attacks the enemy with elemental magic, with a 25% chance to inflict stun for 1 turn. Stun Cannot act for a certain number of turns.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "stun",
+              "chance": 0.25,
+              "source": "with a 25% chance to inflict stun",
+              "turns": 1
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Blue Despair",
+          "passive": false,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": 5,
+          "soulGain": 2,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+10% Combat Readiness · -1 turn cooldown",
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 1,
+          "text": "Envelops all enemies with the energy of the deep sea, dispelling two buffs before decreasing Combat Readiness by 15%. Grants an extra turn.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "extraTurn",
+              "source": "Grants an extra turn"
+            },
+            {
+              "kind": "dispelBuff",
+              "count": 2,
+              "source": "dispelling two buffs"
+            },
+            {
+              "kind": "crPushback",
+              "who": "the target",
+              "amount": 15,
+              "atBattleStart": false,
+              "source": "decreasing Combat Readiness by 15%"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Eye of the Abyss",
+          "passive": false,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": 7,
+          "soulGain": 2,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "-3 turn cooldown",
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 3,
+          "text": "7 turns Acquire 2 Soul Animation Official video Pierces the foremost enemy Hero with light, inflicting detain, and when detain is inflicted, grants deterrence to the caster for 3 turns. Grants a barrier (proportional to level) and stealth to the caster for 2 turns.",
+          "textBeforeAwaken": "Pierces the foremost enemy Hero with light, inflicting detain, and when detain is inflicted, grants deterrence to the caster for 3 turns. Grants a barrier (proportional to level) to the caster for 2 turns. Deterrence Maintains detain. Unaffected by cooldown increase and decrease effects.",
+          "effects": [
+            {
+              "kind": "barrier",
+              "source": "barrier",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 53.22,
+            "winRate": 51.59,
+            "games": 188185
+          },
+          {
+            "names": [
+              "Speed",
+              "Hit"
+            ],
+            "pickRate": 36.84,
+            "winRate": 49.78,
+            "games": 130252
+          },
+          {
+            "names": [
+              "Speed",
+              "Critical"
+            ],
+            "pickRate": 3.34,
+            "winRate": 50.88,
+            "games": 11813
+          },
+          {
+            "names": [
+              "Speed",
+              "Immunity"
+            ],
+            "pickRate": 2.54,
+            "winRate": 51.7,
+            "games": 8986
+          },
+          {
+            "names": [
+              "Speed",
+              "Health"
+            ],
+            "pickRate": 1.56,
+            "winRate": 51.95,
+            "games": 5501
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 67.87,
+            "winRate": 50.89,
+            "games": 352049
+          },
+          {
+            "names": [
+              "Hit"
+            ],
+            "pickRate": 25.17,
+            "winRate": 49.75,
+            "games": 130586
+          },
+          {
+            "names": [
+              "Critical"
+            ],
+            "pickRate": 2.28,
+            "winRate": 50.87,
+            "games": 11821
+          },
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 1.89,
+            "winRate": 51.04,
+            "games": 9801
+          },
+          {
+            "names": [
+              "Health"
+            ],
+            "pickRate": 1.13,
+            "winRate": 51.29,
+            "games": 5859
+          },
+          {
+            "names": [
+              "Resist"
+            ],
+            "pickRate": 0.77,
+            "winRate": 48.93,
+            "games": 3979
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Tagehel's Ancient Book"
+            ],
+            "pickRate": 49.67,
+            "winRate": 53.28,
+            "games": 175631
+          },
+          {
+            "names": [
+              "Refracted Desire"
+            ],
+            "pickRate": 42.85,
+            "winRate": 47.69,
+            "games": 151519
+          },
+          {
+            "names": [
+              "Mirrored Lotus Ring"
+            ],
+            "pickRate": 4.28,
+            "winRate": 55.19,
+            "games": 15129
+          },
+          {
+            "names": [
+              "Proof of Valor"
+            ],
+            "pickRate": 1.05,
+            "winRate": 54.16,
+            "games": 3711
+          },
+          {
+            "names": [
+              "Umbral Keystones"
+            ],
+            "pickRate": 0.5,
+            "winRate": 44.53,
+            "games": 1756
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Speed",
+          "Hit"
+        ],
+        "substatPriority": [
+          "Speed",
+          "Effectiveness",
+          "Health",
+          "Defense",
+          "Effect Resistance"
+        ],
+        "substatAvoid": [
+          "Attack",
+          "Attack %",
+          "Critical Hit Chance",
+          "Critical Hit Damage"
+        ],
+        "mainsSentence": "Health % Effectiveness Speed Effectiveness on the ring, Health on the necklace, Speed on the boots"
+      },
+      "reference": {
+        "n": 2919,
+        "dateMin": "2026-06-27",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 1827,
+          "hp": 17438,
+          "defense": 1337,
+          "speed": 302,
+          "crit": 21,
+          "critDamage": 158,
+          "effectiveness": 103,
+          "effectResistance": 23
+        }
+      },
+      "gaps": [],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/eye-of-the-abyss-fumyr/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c5147",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 201817,
+        "losses": 196849,
+        "bans": 45081,
+        "prebans": 88972,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "belian",
+      "code": "c1117",
+      "name": "Belian",
+      "nameZh": "伯里安",
+      "attribute": "light",
+      "attributeZh": "光",
+      "role": "knight",
+      "roleZh": "騎士",
+      "base": {
+        "attack": 821,
+        "hp": 6751,
+        "defense": 648,
+        "speed": 110,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 18,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.11,
+          "B": 0.07,
+          "S": 0.15,
+          "SS": 0.18,
+          "SSS": 0.21
+        },
+        "type": "max_hp_rate"
+      },
+      "skills": {
+        "S1": {
+          "name": "Light of Destruction",
+          "passive": false,
+          "rate": 0.6,
+          "pow": 1.05,
+          "targets": 3,
+          "selfHpScaling": 0.09,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": 10,
+          "soulburnText": "Increases chance of activating Incursion to 100%.",
+          "soulburnEffects": [
+            {
+              "kind": "unparsed",
+              "simulated": false,
+              "source": "Increases chance of activating Incursion to 100%.",
+              "gap": "Soul burn sentence has no number this simulator knows how to apply."
+            }
+          ],
+          "enhanceSummary": "+25% damage dealt",
+          "enhanceDamagePct": 0.25,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul Attacks all enemies with an energy ray and has a 50% chance to dispel one buff. When used on the caster's turn, has a 35% chance to activate Incursion as an extra attack. Damage dealt increases proportional to the caster's max Health.\nIncursion: Attacks all enemies and inflicts decreased Speed and decreased Hit Chance for 1 turn. Damage dealt increases proportional to the caster's max Health.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "extraAttack",
+              "simulated": false,
+              "source": "extra attack",
+              "gap": "Fribbels herodata has no separate multiplier for this extra attack, so its damage is not simulated."
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Shackles of Suppression",
+          "passive": true,
+          "rate": 0.6,
+          "pow": 1.3,
+          "targets": 3,
+          "selfHpScaling": 0.045,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "S1 proc",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "Decreases the amount of Soul acquired by the enemy by 100%. At the start of the turn, has a 70% chance to grant a random buff to the caster for 1 turn.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "soulCut",
+              "ratio": 1.0,
+              "source": "Decreases the amount of Soul acquired by the enemy by 100%"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Apocalypse",
+          "passive": false,
+          "rate": 0.6,
+          "pow": 1.3,
+          "targets": 3,
+          "selfHpScaling": 0.12,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": 5,
+          "soulGain": 3,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "-1 turn cooldown",
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 1,
+          "text": "5 turns Acquire 3 Soul Animation Harmonic Conductor Official video Attacks all enemies with the power of duties, decreasing Combat Readiness by a random amount between 20% and 40% and provokes for 1 turn. Increases Defense of the caster for 2 turns. Damage dealt increases proportional to the caster's max Health.",
+          "textBeforeAwaken": "Attacks all enemies with the power of duties, decreasing Combat Readiness by a random amount between 10% and 30% and provokes for 1 turn. Increases Defense of the caster for 2 turns. Damage dealt increases proportional to the caster's max Health. Increase Defense Increases Defense by 60%. Provoke At the start of the turn, forcibly uses basic skill on the target that inflicted provoke.",
+          "effects": [
+            {
+              "kind": "crPushback",
+              "who": "all enemies",
+              "amountMin": 20,
+              "amountMax": 40,
+              "source": "decreasing Combat Readiness by a random amount between 20% and 40%"
+            },
+            {
+              "kind": "provoke",
+              "chance": 1,
+              "turns": 1,
+              "source": "provokes for 1 turn"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Counter",
+              "Immunity"
+            ],
+            "pickRate": 28.58,
+            "winRate": 51.44,
+            "games": 70929
+          },
+          {
+            "names": [
+              "Speed",
+              "Pursuit"
+            ],
+            "pickRate": 18.45,
+            "winRate": 53.22,
+            "games": 45787
+          },
+          {
+            "names": [
+              "Counter",
+              "Pursuit"
+            ],
+            "pickRate": 15.37,
+            "winRate": 52.0,
+            "games": 38148
+          },
+          {
+            "names": [
+              "Counter",
+              "Health"
+            ],
+            "pickRate": 6.78,
+            "winRate": 49.11,
+            "games": 16831
+          },
+          {
+            "names": [
+              "Protection",
+              "Immunity"
+            ],
+            "pickRate": 6.08,
+            "winRate": 54.39,
+            "games": 15091
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Counter"
+            ],
+            "pickRate": 26.86,
+            "winRate": 51.25,
+            "games": 134359
+          },
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 20.96,
+            "winRate": 51.9,
+            "games": 104865
+          },
+          {
+            "names": [
+              "Pursuit"
+            ],
+            "pickRate": 18.33,
+            "winRate": 52.73,
+            "games": 91709
+          },
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 14.8,
+            "winRate": 52.49,
+            "games": 74032
+          },
+          {
+            "names": [
+              "Health"
+            ],
+            "pickRate": 10.21,
+            "winRate": 49.93,
+            "games": 51083
+          },
+          {
+            "names": [
+              "Protection"
+            ],
+            "pickRate": 4.93,
+            "winRate": 54.36,
+            "games": 24654
+          },
+          {
+            "names": [
+              "Resist"
+            ],
+            "pickRate": 2.03,
+            "winRate": 52.29,
+            "games": 10136
+          },
+          {
+            "names": [
+              "Injury"
+            ],
+            "pickRate": 0.58,
+            "winRate": 43.75,
+            "games": 2905
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "3F"
+            ],
+            "pickRate": 59.84,
+            "winRate": 52.89,
+            "games": 148539
+          },
+          {
+            "names": [
+              "Glorious Throne"
+            ],
+            "pickRate": 24.03,
+            "winRate": 50.61,
+            "games": 59650
+          },
+          {
+            "names": [
+              "Aurius"
+            ],
+            "pickRate": 9.0,
+            "winRate": 53.12,
+            "games": 22340
+          },
+          {
+            "names": [
+              "Elbris Ritual Sword"
+            ],
+            "pickRate": 4.69,
+            "winRate": 45.2,
+            "games": 11652
+          },
+          {
+            "names": [
+              "Bastion of Perlutia"
+            ],
+            "pickRate": 0.79,
+            "winRate": 51.61,
+            "games": 1961
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Counter",
+          "Immunity"
+        ],
+        "substatPriority": [
+          "Health",
+          "Defense",
+          "Critical Hit Chance",
+          "Critical Hit Damage",
+          "Effect Resistance"
+        ],
+        "substatAvoid": [
+          "Attack",
+          "Attack %",
+          "Health",
+          "Attack"
+        ],
+        "mainsSentence": null
+      },
+      "reference": {
+        "n": 3000,
+        "dateMin": "2023-02-05",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 1613,
+          "hp": 26394,
+          "defense": 1414,
+          "speed": 194,
+          "crit": 67,
+          "critDamage": 193,
+          "effectiveness": 48,
+          "effectResistance": 14
+        }
+      },
+      "gaps": [
+        "Belian S1 extra attack is not damaged in the sim: no separate Fribbels multiplier.",
+        "Belian S1 soul burn text was stored but not fully simulated.",
+        "S2 attack rate mismatch: Fribbels 0.6 vs Epic7Tools 1.0. Using Fribbels.",
+        "S2 power mismatch: Fribbels 1.3 vs Epic7Tools 1.0. Using Fribbels."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/belian/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c1117",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 177287,
+        "losses": 168781,
+        "bans": 97850,
+        "prebans": 84989,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "aubade-ludwig",
+      "code": "c5069",
+      "name": "Aubade Ludwig",
+      "nameZh": "黎明的序曲魯特比",
+      "attribute": "ice",
+      "attributeZh": "冰",
+      "role": "ranger",
+      "roleZh": "射手",
+      "base": {
+        "attack": 1003,
+        "hp": 5704,
+        "defense": 585,
+        "speed": 115,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 30,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.14,
+          "B": 0.09,
+          "S": 0.19,
+          "SS": 0.23,
+          "SSS": 0.27
+        },
+        "type": "acc"
+      },
+      "skills": {
+        "S1": {
+          "name": "Moonlight",
+          "passive": false,
+          "rate": 0.7,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "+1 soul Attacks the enemy with moonlight. When the caster is granted dawn, activates Light of Condemnation as an extra attack. Light of Condemnation can only be activated once per turn, during the caster's turn.\nLight of Condemnation (Acquire 5 Soul): Attacks all enemies and consumes all Soul regardless of whether the attack hits, inflicting 1,000 additional damage. Additional damage increases proportional to the amount of consumed Soul, up to 25,000.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "extraAttack",
+              "simulated": false,
+              "source": "extra attack",
+              "gap": "Fribbels herodata has no separate multiplier for this extra attack, so its damage is not simulated."
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Night Greeting the Dawn",
+          "passive": true,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "Increases Defense by 30%. At the end of an ally's turn, when Soul is 10 or higher, increases Combat Readiness of the caster by 15%.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "crPush",
+              "who": "the caster",
+              "amount": 15,
+              "atBattleStart": false,
+              "source": "increases Combat Readiness of the caster by 15%"
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "White Night",
+          "passive": false,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S3 barrier",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 0.25,
+              "targets": 0
+            },
+            {
+              "name": "S3 barrier",
+              "pow": 0,
+              "rate": 0,
+              "selfHpScaling": 0.32,
+              "targets": 0
+            }
+          ],
+          "cooldownShown": 5,
+          "soulGain": 3,
+          "soulburnCost": 10,
+          "soulburnText": "Increases barrier strength.",
+          "soulburnEffects": [
+            {
+              "kind": "unparsed",
+              "simulated": false,
+              "source": "Increases barrier strength.",
+              "gap": "Soul burn sentence has no number this simulator knows how to apply."
+            }
+          ],
+          "enhanceSummary": "+25% effect chance · -1 turn cooldown",
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0.25,
+          "enhanceCooldownCut": 1,
+          "text": "5 turns Acquire 3 Soul Animation Official video Dispels two buffs from all enemies, and has a 60% chance each to inflict block for 2 turns and silence for 1 turn. Grants dawn and a barrier (proportional to max Health) to the caster for 3 turns.",
+          "textBeforeAwaken": "Has a 60% chance each to inflict block for 2 turns and silence for 1 turn on all enemies. Grants dawn and a barrier (proportional to max Health) to the caster for 3 turns. Dawn Increases the amount of Soul acquired by 100%. After attacking, has a 25% chance to inflict stun on the target for 1 turn. Silence When selecting a skill on the bearer's turn, cannot select skills other than the basic skill. Block Unaffected by any buffs, some beneficial effects, and dispel debuff effects except when granted by the bearer. Applies to Heroes only.",
+          "effects": [
+            {
+              "kind": "block",
+              "chance": 0.6,
+              "source": "has a 60% chance each to inflict block",
+              "turns": 2
+            },
+            {
+              "kind": "dispelBuff",
+              "count": 2,
+              "source": "Dispels two buffs"
+            },
+            {
+              "kind": "barrier",
+              "source": "barrier",
+              "scaling": "fribbels-option"
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 10, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Weakening",
+              "Pursuit"
+            ],
+            "pickRate": 67.03,
+            "winRate": 49.84,
+            "games": 142845
+          },
+          {
+            "names": [
+              "Speed",
+              "Pursuit"
+            ],
+            "pickRate": 15.53,
+            "winRate": 48.22,
+            "games": 33086
+          },
+          {
+            "names": [
+              "Weakening",
+              "Hit"
+            ],
+            "pickRate": 7.27,
+            "winRate": 47.75,
+            "games": 15501
+          },
+          {
+            "names": [
+              "Speed",
+              "Hit"
+            ],
+            "pickRate": 5.16,
+            "winRate": 45.76,
+            "games": 11004
+          },
+          {
+            "names": [
+              "Weakening"
+            ],
+            "pickRate": 1.07,
+            "winRate": 48.48,
+            "games": 2275
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Pursuit"
+            ],
+            "pickRate": 41.79,
+            "winRate": 49.51,
+            "games": 176753
+          },
+          {
+            "names": [
+              "Weakening"
+            ],
+            "pickRate": 38.71,
+            "winRate": 49.59,
+            "games": 163736
+          },
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 11.31,
+            "winRate": 47.48,
+            "games": 47858
+          },
+          {
+            "names": [
+              "Hit"
+            ],
+            "pickRate": 6.35,
+            "winRate": 46.94,
+            "games": 26876
+          },
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 0.9,
+            "winRate": 46.7,
+            "games": 3816
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Aubade Orb"
+            ],
+            "pickRate": 75.74,
+            "winRate": 49.59,
+            "games": 161397
+          },
+          {
+            "names": [
+              "Guiding Light"
+            ],
+            "pickRate": 16.41,
+            "winRate": 46.95,
+            "games": 34969
+          },
+          {
+            "names": [
+              "Unseen Observer"
+            ],
+            "pickRate": 5.01,
+            "winRate": 50.89,
+            "games": 10677
+          },
+          {
+            "names": [
+              "Wall of Order"
+            ],
+            "pickRate": 1.07,
+            "winRate": 48.49,
+            "games": 2283
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Weakening",
+          "Pursuit"
+        ],
+        "substatPriority": [
+          "Speed",
+          "Effectiveness",
+          "Health",
+          "Defense",
+          "Effect Resistance"
+        ],
+        "substatAvoid": [
+          "Critical Hit Chance",
+          "Critical Hit Damage"
+        ],
+        "mainsSentence": "Health % Effectiveness Speed Effectiveness on the ring, Health on the necklace for the barrier, Speed on the boots"
+      },
+      "reference": {
+        "n": 3000,
+        "dateMin": "2026-06-11",
+        "dateMax": "2026-11-10",
+        "median": {
+          "attack": 1874,
+          "hp": 17667,
+          "defense": 1672,
+          "speed": 258,
+          "crit": 19,
+          "critDamage": 150,
+          "effectiveness": 162,
+          "effectResistance": 16
+        }
+      },
+      "gaps": [
+        "Aubade Ludwig S1 extra attack is not damaged in the sim: no separate Fribbels multiplier.",
+        "Aubade Ludwig S3 soul burn text was stored but not fully simulated."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/aubade-ludwig/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c5069",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 158304,
+        "losses": 166108,
+        "bans": 111308,
+        "prebans": 46641,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    }
+  ]
+}

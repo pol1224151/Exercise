@@ -1,0 +1,139 @@
+:root {
+  color-scheme: light;
+  --ink: #241c16;
+  --muted: #5e5146;
+  --paper: #f6f1e8;
+  --card: #fffaf3;
+  --line: #d9cbb8;
+  --brass: #8c4a1f;
+  --brass-deep: #5e3014;
+  --warn: #7a2e24;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+  line-height: 1.55;
+}
+
+.top, main, footer {
+  width: min(1080px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.top { padding: 32px 0 8px; }
+
+.eyebrow {
+  margin: 0;
+  letter-spacing: 0.12em;
+  color: var(--brass);
+  font-size: 0.85rem;
+}
+
+h1 { margin: 4px 0 8px; font-size: 2rem; }
+
+h2 { margin: 0 0 8px; font-size: 1.25rem; }
+
+h3 { margin: 0 0 6px; }
+
+.lead, .sources, .note, .meta { color: var(--muted); }
+
+main section {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 18px 8px;
+  margin: 14px 0;
+}
+
+.steps { margin-top: 0; }
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+  margin: 12px 0;
+}
+
+label { display: grid; gap: 4px; font-size: 0.92rem; }
+
+select, button, .file {
+  font: inherit;
+}
+
+select, button {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+button { cursor: pointer; }
+
+button.primary, .file {
+  background: var(--brass);
+  color: white;
+  border-color: var(--brass-deep);
+}
+
+.file input { display: block; margin-top: 6px; }
+
+.check { display: flex; gap: 8px; align-items: center; }
+
+textarea {
+  width: 100%;
+  min-height: 180px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.82rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
+
+.state { font-weight: 700; }
+
+.rate {
+  font-size: 2rem;
+  margin: 0;
+  color: var(--brass-deep);
+}
+
+.warn { color: var(--warn); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: white;
+  margin-bottom: 12px;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.split h4 { margin: 0 0 4px; }
+
+.log, .reasons, #counters { padding-left: 1.2rem; }
+
+footer { padding: 8px 0 28px; color: var(--muted); font-size: 0.9rem; }
+
+@media (max-width: 720px) {
+  .split { grid-template-columns: 1fr; }
+  h1 { font-size: 1.6rem; }
+}

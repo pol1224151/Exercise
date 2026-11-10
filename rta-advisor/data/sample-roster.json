@@ -1,0 +1,421 @@
+{
+  "label": "範例名單",
+  "warning": "這不是你的帳號。面板數字來自 Fribbels Hero Library 的提交配裝中位數；技能強化等級該資料沒有，程式預設不套用強化加成，除非你勾選假設滿強化。",
+  "heroes": [
+    {
+      "name": "Lisette",
+      "sample": true,
+      "speed": 206,
+      "attack": 1518,
+      "hp": 23862,
+      "defense": 1763,
+      "crit": 15,
+      "critDamage": 150,
+      "effectiveness": 17,
+      "effectResistance": 33,
+      "artifact": "War Horn",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Protection",
+        "Health"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Rhianna and Luciella",
+      "sample": true,
+      "speed": 316,
+      "attack": 2975,
+      "hp": 9588,
+      "defense": 870,
+      "crit": 101,
+      "critDamage": 255,
+      "effectiveness": 14,
+      "effectResistance": 0,
+      "artifact": "Violet Talisman",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Speed",
+        "Critical"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Lady of the Scales",
+      "sample": true,
+      "speed": 265,
+      "attack": 1346,
+      "hp": 16387,
+      "defense": 1433,
+      "crit": 15,
+      "critDamage": 150,
+      "effectiveness": 45,
+      "effectResistance": 192,
+      "artifact": "Excommunicant's Censer",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Speed",
+        "Resist"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Notos",
+      "sample": true,
+      "speed": 205,
+      "attack": 1508,
+      "hp": 29189,
+      "defense": 1622,
+      "crit": 52,
+      "critDamage": 176,
+      "effectiveness": 0,
+      "effectResistance": 18,
+      "artifact": "Holy Sacrifice",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Warfare",
+        "Immunity"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Estelle",
+      "sample": true,
+      "speed": 133,
+      "attack": 1647,
+      "hp": 30095,
+      "defense": 1638,
+      "crit": 25,
+      "critDamage": 236,
+      "effectiveness": 7,
+      "effectResistance": 47,
+      "artifact": "Holy Sacrifice",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Counter",
+        "Immunity"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "School Nurse Yulha",
+      "sample": true,
+      "speed": 275,
+      "attack": 1890,
+      "hp": 24399,
+      "defense": 1215,
+      "crit": 15,
+      "critDamage": 150,
+      "effectiveness": 54,
+      "effectResistance": 32,
+      "artifact": "Secret Art - Storm Sword",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Speed",
+        "Health"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Perfumer Byblis",
+      "sample": true,
+      "speed": 216,
+      "attack": 1172,
+      "hp": 21412,
+      "defense": 1699,
+      "crit": 15,
+      "critDamage": 150,
+      "effectiveness": 95,
+      "effectResistance": 91,
+      "artifact": "Veritas",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Speed",
+        "Immunity"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Boss Arunka",
+      "sample": true,
+      "speed": 124,
+      "attack": 1498,
+      "hp": 25765,
+      "defense": 2610,
+      "crit": 15,
+      "critDamage": 150,
+      "effectiveness": 45,
+      "effectResistance": 114,
+      "artifact": "Proof of Valor",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Protection",
+        "Immunity"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Shepherd of the Dark Diene",
+      "sample": true,
+      "speed": 247,
+      "attack": 1882,
+      "hp": 21055,
+      "defense": 1101,
+      "crit": 21,
+      "critDamage": 298,
+      "effectiveness": 81,
+      "effectResistance": 6,
+      "artifact": "Tagehel's Ancient Book",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Speed",
+        "Hit"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Harsetti",
+      "sample": true,
+      "speed": 150,
+      "attack": 1861,
+      "hp": 24636,
+      "defense": 1377,
+      "crit": 98,
+      "critDamage": 256,
+      "effectiveness": 33,
+      "effectResistance": 0,
+      "artifact": "Abyssal Crown",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Weakening",
+        "Hit"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Zio",
+      "sample": true,
+      "speed": 252,
+      "attack": 3558,
+      "hp": 10708,
+      "defense": 1080,
+      "crit": 56,
+      "critDamage": 277,
+      "effectiveness": 64,
+      "effectResistance": 0,
+      "artifact": "Tagehel's Ancient Book",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Speed",
+        "Hit"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Arbiter Vildred",
+      "sample": true,
+      "speed": 221,
+      "attack": 4510,
+      "hp": 8888,
+      "defense": 921,
+      "crit": 100,
+      "critDamage": 313,
+      "effectiveness": 0,
+      "effectResistance": 0,
+      "artifact": "Summer Photogenic",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Destruction",
+        "Torrent"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Tidal Rift Elvira",
+      "sample": true,
+      "speed": 246,
+      "attack": 4048,
+      "hp": 12702,
+      "defense": 1199,
+      "crit": 20,
+      "critDamage": 156,
+      "effectiveness": 89,
+      "effectResistance": 0,
+      "artifact": "Twilight Calamity",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Weakening",
+        "Pursuit"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Eye of the Abyss Fumyr",
+      "sample": true,
+      "speed": 302,
+      "attack": 1827,
+      "hp": 17438,
+      "defense": 1337,
+      "crit": 21,
+      "critDamage": 158,
+      "effectiveness": 103,
+      "effectResistance": 23,
+      "artifact": "Tagehel's Ancient Book",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Speed"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Belian",
+      "sample": true,
+      "speed": 194,
+      "attack": 1613,
+      "hp": 26394,
+      "defense": 1414,
+      "crit": 67,
+      "critDamage": 193,
+      "effectiveness": 48,
+      "effectResistance": 14,
+      "artifact": "3F",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Counter",
+        "Immunity"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    },
+    {
+      "name": "Aubade Ludwig",
+      "sample": true,
+      "speed": 258,
+      "attack": 1874,
+      "hp": 17667,
+      "defense": 1672,
+      "crit": 19,
+      "critDamage": 150,
+      "effectiveness": 162,
+      "effectResistance": 16,
+      "artifact": "Aubade Orb",
+      "artifactLimitBreak": null,
+      "imprint": null,
+      "awakening": 6,
+      "skillEnhance": {
+        "s1": null,
+        "s2": null,
+        "s3": null
+      },
+      "sets": [
+        "Weakening",
+        "Pursuit"
+      ],
+      "note": "範例面板是 Fribbels Hero Library 公開提交配裝的中位數，不是你的角色。套裝與神器是 Epic7RTAStats 該英雄最常見的組合，用來示範裝備對照。"
+    }
+  ]
+}

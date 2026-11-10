@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第七史詩 RTA 顧問</title>
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <header class="top">
+    <p class="eyebrow">第七史詩　世界競技場</p>
+    <h1>RTA 選角與回合顧問</h1>
+    <p class="lead">用你自己的面板，沙盤預禁、選角、最後禁人、技能順序和要不要燒魂。畫面上的勝率是估計，不是保證。</p>
+    <p class="sources">賽季：<span id="season"></span>。假設的遊戲版本：<span id="patch"></span>。技能倍率：<span id="dataLine"></span>。</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>1. 讀取帳號</h2>
+      <p>這個程式不連進遊戲，也不攔截封包。請用 Fribbels Epic 7 Optimizer 把角色和裝備匯出來，再把檔案載入這裡。</p>
+      <ol class="steps">
+        <li>打開 Fribbels，在 Importer 用它的掃描把遊戲資料收進來（開始掃描、進到大廳、停止掃描、存成 gear.txt，再按 Merge）。</li>
+        <li>要連面板、神器和刻印一起帶出來，請在同一個 Importer 頁按 Save all optimizer data，存成 JSON。</li>
+        <li>回到這裡，選擇那個 gear.txt 或 JSON。也可以直接把內容貼進下面的框。</li>
+      </ol>
+      <div class="row">
+        <label class="file">選擇 Fribbels 檔案<input id="file" type="file" accept=".json,.txt,application/json"></label>
+        <button id="loadExample" type="button">載入 Fribbels 格式範例</button>
+        <button id="loadSample" type="button">載入標好的範例名單</button>
+        <button id="applyText" type="button">用框裡的內容</button>
+      </div>
+      <p id="rosterState" class="state">尚未讀取。</p>
+      <textarea id="rosterText" spellcheck="false" aria-label="名單 JSON"></textarea>
+      <p class="note">手動欄位：速度、攻擊、生命、防禦、暴擊、暴擊傷害、效果命中、效果抗性、神器與極限突破、刻印、覺醒、技能強化。範例名單的數字不是你的角色。個人化建議要等你的檔案。</p>
+    </section>
+
+    <section>
+      <h2>2. 規則與估算</h2>
+      <div class="row">
+        <label>順位
+          <select id="first">
+            <option value="first">我先選</option>
+            <option value="second">對手先選</option>
+          </select>
+        </label>
+        <label>分段
+          <select id="rank">
+            <option value="champion">冠軍以上，各預禁 2 名</option>
+            <option value="below">冠軍以下，各預禁 1 名</option>
+          </select>
+        </label>
+        <label class="check"><input id="maxEnhance" type="checkbox"> 技能用滿強化估算（資料沒有你的實際強化等級）</label>
+        <button id="run" type="button" class="primary">跑沙盤並給建議</button>
+      </div>
+      <p class="note">選角是 1-2-2-2-2-1，各 5 名。每人的第 3 選不能被最後那一禁去掉。最後各禁對方 1 名，4 對 4。預禁兩邊同時生效，同一名可以被兩邊都禁。</p>
+    </section>
+
+    <section>
+      <h2>3. 建議</h2>
+      <div id="advice"><p>先讀取名單，再跑沙盤。</p></div>
+    </section>
+
+    <section>
+      <h2>4. 你現在的裝備，和天梯常見的差在哪</h2>
+      <div id="gear" class="grid"></div>
+    </section>
+
+    <section>
+      <h2>5. 對位</h2>
+      <p class="note">下面只列技能原文裡寫得出原因的對位：屬性、速度上限、魂、開場推條。沒有寫進資料的機制不會編成對位。</p>
+      <ul id="counters"></ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>傷害公式沿用 Fribbels StatCalculator：攻擊與能力值係數乘 1.871 與 pow，再除以防禦係數（防禦 × 剩餘穿透 / 300 + 1）。擦傷 0.75、屬性優勢 1.1。效果抗性有 15% 底線。</p>
+  </footer>
+  <script type="module" src="./js/ui.js"></script>
+</body>
+</html>
