@@ -1,11 +1,24 @@
 # 第七史詩 RTA 顧問
 
+Windows 請雙擊 `rta-advisor/RtaAdvisor.exe`。它會在這台電腦啟動顧問並打開 `http://127.0.0.1:8765/`。不要在雙擊之前先開那個網址。
+
+已經會下指令的人：
+
 ```bash
 cd rta-advisor
 python3 server.py
 ```
 
-用 Chrome 或 Edge 打開 `http://127.0.0.1:8765/`。
+然後用 Chrome 或 Edge 打開 `http://127.0.0.1:8765/`。
+
+重新打包 Windows 檔：
+
+```bash
+cd rta-advisor
+GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o RtaAdvisor.exe .
+```
+
+打包前先把 `launcher.go` 的 `packVersion` 加一，新的 exe 才會換掉使用者電腦上已展開的資料。
 
 頁面順序：
 

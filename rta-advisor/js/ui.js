@@ -406,7 +406,7 @@ $("update").addEventListener("click", async () => {
     $("updateState").textContent = "更新完成。重新載入頁面後，建議會用新的版本。";
     location.reload();
   } catch (error) {
-    $("updateState").textContent = "更新沒有連上。請在 rta-advisor 資料夾執行 python3 server.py，再用瀏覽器開 http://127.0.0.1:8765/ 。不要只用 python3 -m http.server。";
+    $("updateState").textContent = "更新沒有連上。請確認 RtaAdvisor.exe 的視窗還開著。頁面本身不用 Python；要更新英雄、倍率與賽季才需要。沒有 Python 的話，請再下載新的 RtaAdvisor.exe。";
   }
 });
 
