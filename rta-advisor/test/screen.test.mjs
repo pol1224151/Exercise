@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { adviseFromScreen, parseRoster, sourceBasis } from "../js/engine.js";
-import { DEFAULT_REGIONS, paintFixture, readFrame } from "../js/screen.js";
+import { DEFAULT_REGIONS, liveStateKey, paintFixture, readFrame } from "../js/screen.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
 const book = JSON.parse(readFileSync(new URL("../data/portrait-signatures.json", import.meta.url)));
@@ -76,5 +76,10 @@ assert.equal(cast.action.kind, "skill");
 assert.match(cast.action.title, /技能/);
 assert.ok(cast.action.burn);
 assert.match(cast.action.burn.text, /燒魂/);
+
+const flickering = { ...battleRead, skillsReady: [false, true, false] };
+assert.equal(liveStateKey(battleRead), liveStateKey(flickering));
+assert.notEqual(liveStateKey(battleRead), liveStateKey({ ...battleRead, actorId: ids[1] }));
+assert.notEqual(liveStateKey(battleRead), liveStateKey({ ...battleRead, user: [ids[1], ...battleRead.user.slice(1)] }));
 
 console.log("screen tests passed", { next: advice.action.title, skill: cast.action.title, burn: cast.action.burn.yes });

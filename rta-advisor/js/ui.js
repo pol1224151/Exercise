@@ -1,5 +1,5 @@
-import { adviseFromScreen, buildGearReport, counterEdges, parseRoster, sourceBasis } from "./engine.js";
-import { DEFAULT_REGIONS, paintFixture, readFrame } from "./screen.js";
+import { adviseFromScreen, buildGearReport, clearAccount, counterEdges, loadAccount, parseRoster, saveAccount, sourceBasis } from "./engine.js";
+import { DEFAULT_REGIONS, liveStateKey, paintFixture, readFrame } from "./screen.js";
 
 const $ = (id) => document.getElementById(id);
 const REGION_KEY = "rta-advisor-regions";
@@ -29,6 +29,7 @@ async function boot() {
   const params = new URLSearchParams(location.search);
   if (params.get("account") === "example" || params.get("fixture")) await loadExample();
   else if (params.get("account") === "sample") await loadSample();
+  else restoreAccount();
   const fixture = params.get("fixture");
   if (fixture) runFixture(fixture);
 }
@@ -73,13 +74,35 @@ async function loadSample() {
   applyRoster(data);
 }
 
-function applyRoster(data) {
+function restoreAccount() {
+  let saved = null;
+  try {
+    saved = loadAccount(localStorage);
+  } catch {
+    saved = null;
+  }
+  if (!saved) return;
+  $("rosterText").value = JSON.stringify(saved, null, 2);
+  applyRoster(saved, "saved");
+}
+
+function applyRoster(data, source = "import") {
   roster = parseRoster(data, catalog);
   const bits = [`已讀入 ${roster.heroes.length} 名可對照的英雄`];
   if (roster.label) bits.unshift(roster.label);
   if (roster.warning) bits.push(roster.warning);
   if (roster.unknown.length) bits.push(`這版賽季模型沒有：${roster.unknown.join("、")}`);
-  $("rosterState").textContent = bits.join("。");
+  if (source === "saved") {
+    bits.push("這是這台瀏覽器上次存的帳號，沒有重新匯入");
+  } else {
+    try {
+      saveAccount(localStorage, data);
+      bits.push("已存在這台瀏覽器，下次打開不用再匯入");
+    } catch {
+      bits.push("這台瀏覽器存不下這份檔，下次還是要再讀一次");
+    }
+  }
+  $("rosterState").textContent = `${bits.map((bit) => bit.replace(/。$/, "")).join("。")}。`;
   renderGear();
   setScreenEnabled(roster.heroes.length > 0);
   lastKey = "";
@@ -94,14 +117,23 @@ function renderGear() {
   const byId = Object.fromEntries(catalog.heroes.map((hero) => [hero.id, hero]));
   root.innerHTML = roster.heroes.map((hero) => {
     const def = byId[hero.id];
-    const report = buildGearReport(hero, def, catalog);
+    const report = buildGearReport(hero, def, catalog, roster);
+    if (report.foreign) {
+      return `<article class="card">
+        <h3>${def.nameZh}</h3>
+        <div class="split">
+          <div><h4>你現在</h4><p>這不是你的面板。</p></div>
+          <div><h4>建議調整</h4>${report.changes.map((line) => `<p>${line}</p>`).join("")}</div>
+        </div>
+        <p class="note">${report.editorialNote}</p>
+      </article>`;
+    }
     const have = report.haveSets.join("、") || "沒有讀到";
-    const meta = report.metaSets.join(" + ") || "這個賽季沒有套裝統計";
     const mains = report.mains || "這個來源沒有寫主屬性";
     const subs = report.substatPriority.join(" → ") || "這個來源沒有寫副屬性優先序";
     return `<article class="card">
       <h3>${def.nameZh}</h3>
-      <p class="meta">速度 ${hero.speed}　攻擊 ${hero.attack}　生命 ${hero.hp}　防禦 ${hero.defense}</p>
+      <p class="meta">你穿上的速度 ${hero.speed}　攻擊 ${hero.attack}　生命 ${hero.hp}　防禦 ${hero.defense}</p>
       <div class="split">
         <div>
           <h4>你現在</h4>
@@ -185,40 +217,25 @@ function startDrag(event, key) {
   event.currentTarget.setPointerCapture?.(event.pointerId);
 }
 
-function names(ids) {
-  const byId = Object.fromEntries(catalog.heroes.map((hero) => [hero.id, hero]));
-  return (ids || []).map((id) => {
-    if (!id || id === "empty") return "空";
-    if (id === "unknown") return "未辨識";
-    return byId[id]?.nameZh || "未收錄";
-  }).join("、");
+function oneAction(result) {
+  const title = result.action?.title || "";
+  if (result.action?.kind !== "skill" || !result.action.burn) return title;
+  return `${title}，${result.action.burn.yes ? "要燒魂" : "不要燒魂"}`;
 }
 
-function renderLive(result, read) {
+function oneReason(result) {
+  if (!result?.ok) return result?.reason || "三項資料還沒齊。";
+  return result.reason?.summary || result.action?.detail || "";
+}
+
+function renderLive(result) {
   const root = $("live");
-  const version = result?.version || sourceBasis(catalog).version;
-  const seen = read ? `<p class="meta">我方 ${names(read.user)}。對方 ${names(read.enemy)}。預禁 ${names(read.prebans)}。現在行動 ${names([read.actorId])}。</p>` : "";
   if (!result?.ok) {
-    root.innerHTML = `<p class="rate">建議無效</p><p class="warn">${result?.reason || "三項資料還沒齊。"}</p>${seen}${versionBlock(version)}`;
+    root.innerHTML = `<p class="action">建議無效</p><p>${oneReason(result)}</p>`;
     return;
   }
-  const rate = result.rate == null ? "" : `<p class="rate">估計勝率 ${Math.round(result.rate * 100)}%</p><p class="warn">這是沙盤試出來的比例，不是必勝。</p>`;
-  const burn = result.action?.burn ? `<p><strong>${result.action.burn.yes ? "要燒魂" : "不要燒魂"}。</strong>${result.action.burn.text}</p>` : "";
-  root.innerHTML = `
-    <p class="action">${result.action?.title || ""}</p>
-    <p>${result.action?.detail || ""}</p>
-    ${burn}
-    ${rate}
-    <p><strong>主要原因：</strong>${result.reason?.summary || ""}</p>
-    <ul class="reasons">${(result.reason?.lines || []).map((line) => `<li>${line}</li>`).join("")}</ul>
-    ${seen}
-    ${versionBlock(version)}
-  `;
-}
-
-function versionBlock(version) {
-  const commit = (version.fribbelsCommit || "").slice(0, 8);
-  return `<p class="note">這一則用的資料：${version.fetchedOn || "無日期"} 更新。賽季 ${version.seasonLabel || "沒有"}。遊戲版本 ${version.patchZh || "沒有"}。Fribbels ${commit}（${version.fribbelsCommitDate || ""}）。英雄資料庫 ${version.heroCount} 名，賽季模型 ${version.metaCount} 名，神器 ${version.artifactCount}。</p>`;
+  const rate = result.rate == null ? "" : `<p class="rate">估計勝率 ${Math.round(result.rate * 100)}%（沙盤估計，不是必勝）</p>`;
+  root.innerHTML = `<p class="action">${oneAction(result)}</p>${rate}<p>${oneReason(result)}</p>`;
 }
 
 function options() {
@@ -232,11 +249,16 @@ function options() {
 }
 
 function consider(read) {
-  const key = JSON.stringify({ read, first: $("first").value, rank: $("rank").value, enhance: $("maxEnhance").checked });
+  const key = JSON.stringify({
+    board: liveStateKey(read),
+    first: $("first").value,
+    rank: $("rank").value,
+    enhance: $("maxEnhance").checked,
+  });
   if (key === lastKey && lastAdvice) return lastAdvice;
   lastKey = key;
   lastAdvice = adviseFromScreen(catalog, read, options());
-  renderLive(lastAdvice, read);
+  renderLive(lastAdvice);
   return lastAdvice;
 }
 
@@ -331,6 +353,16 @@ function runFixture(name) {
   consider(read);
 }
 
+$("forget").addEventListener("click", () => {
+  clearAccount(localStorage);
+  roster = null;
+  $("rosterText").value = "";
+  $("rosterState").textContent = "已忘掉這台瀏覽器裡的帳號。";
+  renderGear();
+  setScreenEnabled(false);
+  lastKey = "";
+  lastAdvice = null;
+});
 $("loadExample").addEventListener("click", () => loadExample().catch(showError));
 $("loadSample").addEventListener("click", () => loadSample().catch(showError));
 $("applyText").addEventListener("click", () => {

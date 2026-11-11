@@ -8,6 +8,16 @@ export const DEFAULT_REGIONS = {
   actor: { x: 0.02, y: 0.02, w: 0.12, h: 0.12, slots: 1, label: "現在行動" },
 };
 
+export function liveStateKey(recognition) {
+  const slot = (id) => (id && id !== "empty" ? id : "");
+  return JSON.stringify({
+    user: (recognition?.user || []).map(slot),
+    enemy: (recognition?.enemy || []).map(slot),
+    prebans: (recognition?.prebans || []).map(slot),
+    actor: slot(recognition?.actorId),
+  });
+}
+
 export function centerDistance(left, right) {
   const center = (values) => {
     const means = [0, 1, 2].map((channel) => {

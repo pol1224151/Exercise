@@ -29,15 +29,16 @@
         <button id="applyText" type="button">用框裡的內容</button>
         <button id="loadExample" type="button">載入 Fribbels 格式範例</button>
         <button id="loadSample" type="button">載入標好的範例名單</button>
+        <button id="forget" type="button">忘掉這台存的帳號</button>
       </div>
       <p id="rosterState" class="state">還沒有帳號。</p>
       <textarea id="rosterText" spellcheck="false" aria-label="帳號 JSON"></textarea>
-      <p class="note">範例檔寫明不是你的角色。個人化的配裝和沙盤要等你的檔案。讀得到的欄位：英雄、套裝、速度、攻擊、生命、防禦、暴擊、暴擊傷害、效果命中、效果抗性、神器與等級。</p>
+      <p class="note">讀入後存在這台瀏覽器，下次打開同一頁會直接用，不會上傳。範例檔寫明不是你的角色。讀得到的欄位：英雄、套裝、速度、攻擊、生命、防禦、暴擊、暴擊傷害、效果命中、效果抗性、神器與等級，以及檔案裡的神器清單和裝備。</p>
     </section>
 
     <section>
       <h2>2. 依這個帳號建議現在的 META 裝備</h2>
-      <p class="note">左邊是檔案裡的裝備，右邊是這個賽季天梯最常見的套裝和神器。主屬性與副屬性是 Epic7Tools 的建議，不是賽季頻率。沙盤不會把還沒穿上的裝備算進你的面板。</p>
+      <p class="note">神器只建議你帳號裡有的。速度只拿你讀得到的裝備去比公開配裝的中位數；到不了就直說，不會把別人的面板寫成你的。主屬性與副屬性是 Epic7Tools 的建議，不是賽季頻率。沙盤用你穿上的數字。</p>
       <div id="gear" class="grid"><p>先讀入帳號，才會對照賽季配裝。</p></div>
     </section>
 
@@ -76,7 +77,7 @@
         </label>
         <label class="check"><input id="maxEnhance" type="checkbox"> 技能用滿強化估算（檔案通常沒有強化等級）</label>
       </div>
-      <div id="live"><p>競技場開始、畫面認出來之後，下一步會出現在這裡。</p></div>
+      <div id="live"><p>競技場開始、畫面認出來之後，這裡只留下一步、估計勝率和一個原因。選角或現在行動的人沒變，就不會重算。</p></div>
     </section>
 
     <section>

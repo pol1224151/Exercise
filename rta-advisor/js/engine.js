@@ -89,9 +89,27 @@ function heroByName(catalog, name) {
   return catalog.heroes.find((h) => h.name.toLowerCase() === key || h.nameZh === name || h.id === key);
 }
 
+export const ACCOUNT_STORAGE_KEY = "rta-advisor-account";
+
+export function saveAccount(storage, data) {
+  storage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify({ data }));
+}
+
+export function loadAccount(storage) {
+  const raw = storage.getItem(ACCOUNT_STORAGE_KEY);
+  if (!raw) return null;
+  const parsed = JSON.parse(raw);
+  return parsed?.data ?? null;
+}
+
+export function clearAccount(storage) {
+  storage.removeItem(ACCOUNT_STORAGE_KEY);
+}
+
 export function parseRoster(input, catalog) {
   const data = typeof input === "string" ? JSON.parse(input) : input;
-  const list = data.heroes || data.units || [];
+  let list = data.heroes || data.units || [];
+  if (!Array.isArray(list) && list && typeof list === "object") list = Object.values(list);
   if (!Array.isArray(list)) throw new Error("找不到 heroes 陣列");
   const heroes = [];
   const unknown = [];
@@ -130,11 +148,17 @@ export function parseRoster(input, catalog) {
       statsAreFinal: finalStats,
     });
   }
+  const ownedArtifacts = collectOwnedArtifacts(data, heroes);
+  const warehouse = Array.isArray(data.items) && data.items.length
+    ? data.items.map(normalizePiece).filter((piece) => piece.slot)
+    : [];
   return {
     label: data.label || data._label || null,
     warning: data.warning || null,
     heroes,
     unknown,
+    ownedArtifacts,
+    gearWarehouse: warehouse,
   };
 }
 
@@ -150,23 +174,128 @@ function limitBreakFromLevel(level) {
   return Math.max(0, Math.round((n - 15) / 3));
 }
 
+function normalizeSlot(slot) {
+  const name = String(slot || "");
+  if (name === "Neck") return "Necklace";
+  return name;
+}
+
+function normalizePiece(item) {
+  if (!item || !item.set) return { slot: null, set: null, main: null, mainValue: null, substats: [] };
+  const set = FRIBBELS_SET[item.set] || String(item.set).replace(/Set$/, "");
+  const main = item.main?.type || (typeof item.main === "string" ? item.main : null);
+  return {
+    slot: normalizeSlot(item.gear || item.slot),
+    set,
+    main,
+    mainValue: item.main?.value ?? item.mainValue ?? null,
+    substats: (item.substats || []).map((sub) => (
+      typeof sub === "string" ? { type: sub, value: null } : { type: sub.type, value: sub.value ?? null }
+    )),
+  };
+}
+
 function readGear(raw) {
   const pieces = [];
   const counts = {};
   const equip = raw.equipment || {};
   for (const item of Object.values(equip)) {
-    if (!item || !item.set) continue;
-    const set = FRIBBELS_SET[item.set] || String(item.set).replace(/Set$/, "");
-    counts[set] = (counts[set] || 0) + 1;
-    pieces.push({
-      slot: item.gear || null,
-      set,
-      main: item.main?.type || null,
-      mainValue: item.main?.value ?? null,
-      substats: (item.substats || []).map((s) => s.type),
-    });
+    const piece = normalizePiece(item);
+    if (!piece.set) continue;
+    counts[piece.set] = (counts[piece.set] || 0) + 1;
+    pieces.push(piece);
   }
   return { pieces, counts, sets: activeSets(counts) };
+}
+
+function collectOwnedArtifacts(data, heroes) {
+  const owned = new Set();
+  for (const hero of heroes) {
+    if (hero.sample || !hero.artifact) continue;
+    owned.add(hero.artifact);
+  }
+  const lists = [data.artifacts, data.artifactInventory, data.artifactList];
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      const name = typeof item === "string" ? item : item?.name || item?.artifactName;
+      if (name) owned.add(name);
+    }
+  }
+  return [...owned];
+}
+
+function isSpeedStat(type) {
+  return type === "Speed" || type === "spd";
+}
+
+function pieceSpeed(piece) {
+  let flat = 0;
+  let missing = false;
+  if (isSpeedStat(piece.main)) {
+    if (Number.isFinite(Number(piece.mainValue))) flat += Number(piece.mainValue);
+    else missing = true;
+  }
+  for (const sub of piece.substats || []) {
+    const type = typeof sub === "string" ? sub : sub.type;
+    const value = typeof sub === "string" ? null : sub.value;
+    if (!isSpeedStat(type)) continue;
+    if (Number.isFinite(Number(value))) flat += Number(value);
+    else missing = true;
+  }
+  return { flat, missing };
+}
+
+const GEAR_SLOTS = ["Weapon", "Helmet", "Armor", "Necklace", "Ring", "Boots"];
+
+export function speedFromPieces(baseSpeed, pieces) {
+  const bySlot = {};
+  let incomplete = false;
+  for (const piece of pieces || []) {
+    if (!GEAR_SLOTS.includes(piece.slot)) continue;
+    const speed = pieceSpeed(piece);
+    if (speed.missing) incomplete = true;
+    (bySlot[piece.slot] ||= []).push({ flat: speed.flat, set: piece.set, missing: speed.missing });
+  }
+  const usable = (slot) => (bySlot[slot] || []).filter((piece) => !piece.missing);
+  if (!GEAR_SLOTS.some((slot) => usable(slot).length)) return null;
+  const best = (list) => list.reduce((left, right) => (right.flat > left.flat ? right : left));
+  const chosen = GEAR_SLOTS.map((slot) => (usable(slot).length ? best(usable(slot)) : null));
+  let flat = chosen.reduce((sum, piece) => sum + (piece?.flat || 0), 0);
+  let bonus = chosen.filter((piece) => piece?.set === "Speed").length >= 4 ? Math.round(baseSpeed * 0.25) : 0;
+  const speedSet = GEAR_SLOTS.map((slot) => {
+    const list = usable(slot).filter((piece) => piece.set === "Speed");
+    return list.length ? best(list) : null;
+  });
+  const ranked = speedSet.map((piece, index) => ({ piece, index })).filter((row) => row.piece);
+  ranked.sort((left, right) => right.piece.flat - left.piece.flat);
+  if (ranked.length >= 4) {
+    const use = new Set(ranked.slice(0, 4).map((row) => row.index));
+    let alt = Math.round(baseSpeed * 0.25);
+    GEAR_SLOTS.forEach((slot, index) => {
+      if (use.has(index)) alt += speedSet[index].flat;
+      else if (usable(slot).length) alt += best(usable(slot)).flat;
+    });
+    if (alt > flat + bonus) {
+      bonus = Math.round(baseSpeed * 0.25);
+      flat = alt - bonus;
+    }
+  }
+  return { speed: baseSpeed + flat + bonus, flat, bonus, incomplete };
+}
+
+export function reachableSpeed(baseSpeed, panelSpeed, pieces, warehouse) {
+  const worn = Number(panelSpeed);
+  const panel = Number.isFinite(worn) ? worn : baseSpeed;
+  if (!warehouse) return { speed: panel, from: "worn", incomplete: false };
+  const built = speedFromPieces(baseSpeed, pieces);
+  if (!built || built.incomplete) return { speed: panel, from: "worn", incomplete: true };
+  return {
+    speed: Math.max(panel, built.speed),
+    from: built.speed > panel ? "inventory" : "worn",
+    built: built.speed,
+    incomplete: false,
+  };
 }
 
 function preparedSkill(heroDef, slot, enhanceMode) {
@@ -342,47 +471,101 @@ function answers(edges, fromId, toId) {
   return edges.filter((e) => e.from === fromId && e.to === toId);
 }
 
-export function buildGearReport(rosterHero, def, catalog) {
+function ownsArtifact(owned, name) {
+  const key = String(name || "").toLowerCase();
+  return (owned || []).some((item) => String(item).toLowerCase() === key);
+}
+
+export function buildGearReport(rosterHero, def, catalog, roster = {}) {
+  const editorial = def.editorialGear || {};
+  const mainLine = translateMains(editorial.mainsSentence);
+  const priority = (editorial.substatPriority || []).map(translateStat);
+  if (rosterHero.sample) {
+    return {
+      foreign: true,
+      haveSets: [],
+      metaSets: [],
+      haveArtifact: null,
+      metaArtifact: null,
+      changes: ["這筆速度、面板和神器是公開配裝的中位數，不是你的裝備。不會把它寫成你現在的面板，也不用它來建議神器或速度。"],
+      mains: null,
+      substatPriority: [],
+      substatAvoid: [],
+      haveSubs: {},
+      speed: null,
+      editorialNote: "範例名單不是你的帳號。",
+      source: def.sources?.rtaGear,
+    };
+  }
   const combo = (def.rtaGear.setCombos || [])[0] || null;
-  const artifact = (def.rtaGear.artifacts || [])[0] || null;
+  const ladder = def.rtaGear.artifacts || [];
   const metaSets = combo?.names || [];
   const haveSets = rosterHero.sets || [];
-  const metaArt = artifact?.names?.[0] || null;
-  const artZh = artifactZh(catalog, metaArt);
   const haveArtZh = artifactZh(catalog, rosterHero.artifact);
   const changes = [];
-  const missing = metaSets.filter((s) => !haveSets.includes(s));
-  const extra = haveSets.filter((s) => !metaSets.includes(s));
+  const missing = metaSets.filter((set) => !haveSets.includes(set));
+  const extra = haveSets.filter((set) => !metaSets.includes(set));
   if (combo && (missing.length || extra.length || !haveSets.length)) {
     changes.push(`套裝：你現在是 ${haveSets.map(setZh).join("、") || "沒有讀到套裝"}。天梯最常見是 ${metaSets.map(setZh).join(" + ")}（${combo.pickRate}%）。`);
   } else if (combo) {
     changes.push(`套裝已經是天梯最常見的 ${metaSets.map(setZh).join(" + ")}。`);
   }
-  if (metaArt && rosterHero.artifact && rosterHero.artifact !== metaArt) {
-    changes.push(`神器：你現在是 ${haveArtZh || rosterHero.artifact}。天梯最常見是 ${artZh}（${artifact.pickRate}%）。模擬仍用你現在的面板，不把沒穿上的神器加成算進去。`);
-  } else if (metaArt && !rosterHero.artifact) {
-    changes.push(`神器：檔案沒有讀到。天梯最常見是 ${artZh}（${artifact.pickRate}%）。`);
-  } else if (metaArt) {
-    changes.push(`神器已經是天梯最常見的 ${artZh}。`);
+  const owned = roster.ownedArtifacts || [];
+  const ownedLadder = ladder.filter((row) => ownsArtifact(owned, row.names?.[0]));
+  const top = ladder[0] || null;
+  const topName = top?.names?.[0] || null;
+  const topZh = artifactZh(catalog, topName);
+  let suggestedArtifact = null;
+  if (!top) {
+    changes.push("神器：這個賽季沒有神器統計。");
+  } else if (!owned.length && !rosterHero.artifact) {
+    changes.push(`神器：檔案沒有讀到你擁有的神器。天梯最常見是 ${topZh}，不會把它當成你有的。`);
+  } else if (ownsArtifact(owned, topName)) {
+    suggestedArtifact = topName;
+    if (rosterHero.artifact === topName) {
+      changes.push(`神器已經是你有的、天梯最常見的 ${topZh}。`);
+    } else {
+      changes.push(`神器：你現在是 ${haveArtZh || "沒有讀到"}。你有天梯最常見的 ${topZh}（${top.pickRate}%），可以換上。模擬仍用你現在的面板。`);
+    }
+  } else if (ownedLadder[0]) {
+    suggestedArtifact = ownedLadder[0].names[0];
+    const altZh = artifactZh(catalog, suggestedArtifact);
+    changes.push(`神器：天梯最常見是 ${topZh}（${top.pickRate}%）。你的帳號沒有這件，不會把它算成你的。你有的裡面，清單上最前面的是 ${altZh}（${ownedLadder[0].pickRate}%）。`);
+  } else {
+    changes.push(`神器：天梯最常見是 ${topZh}（${top.pickRate}%）。你的帳號沒有這件，清單上的其他神器也沒有，所以不建議換神器。`);
   }
-  const editorial = def.editorialGear || {};
-  const mainLine = translateMains(editorial.mainsSentence);
-  const priority = (editorial.substatPriority || []).map(translateStat);
-  const haveSubs = countSubs(rosterHero.gearPieces);
+  const threshold = def.reference?.median?.speed;
+  const warehouse = (roster.gearWarehouse || []).length > 0;
+  const pieces = warehouse ? roster.gearWarehouse : (rosterHero.gearPieces || []);
+  const reached = reachableSpeed(def.base.speed, rosterHero.speed, pieces, warehouse);
+  let speedNote = null;
+  if (typeof threshold === "number") {
+    const proven = reached.speed;
+    if (proven >= threshold) {
+      speedNote = `速度：你穿上的是 ${rosterHero.speed}。公開配裝中位數是 ${threshold}，那是別人的面板，不是你的。以讀得到的裝備，這個門檻達得到。沙盤仍用你穿上的 ${rosterHero.speed}。`;
+    } else if (reached.incomplete) {
+      speedNote = `速度：你穿上的是 ${rosterHero.speed}，低於公開配裝中位數 ${threshold}。未穿裝備的速度沒有數字，不能把 ${threshold} 寫成你達得到的速度，也不會把它當成你的面板。`;
+    } else {
+      speedNote = `速度：你穿上的是 ${rosterHero.speed}。以你帳號裡的裝備計算，上限約 ${proven}，到不了公開配裝中位數 ${threshold}。那是別人的面板，不會寫成你的速度。`;
+    }
+    changes.push(speedNote);
+  }
   return {
+    foreign: false,
     haveSets: haveSets.map(setZh),
     metaSets: metaSets.map(setZh),
     metaSetDetail: combo,
     haveArtifact: haveArtZh || rosterHero.artifact,
-    metaArtifact: artZh,
-    metaArtifactDetail: artifact,
+    metaArtifact: suggestedArtifact ? artifactZh(catalog, suggestedArtifact) : null,
+    suggestedArtifact,
     changes,
     mains: mainLine,
     substatPriority: priority,
     substatAvoid: (editorial.substatAvoid || []).map(translateStat),
-    haveSubs,
-    editorialNote: "主屬性與副屬性優先序來自 Epic7Tools 的配裝建議，頁面沒有標賽季。套裝和神器才是 Epic7RTAStats 的賽季統計。兩邊不一致時，套裝以賽季統計為準。",
-    source: def.sources.rtaGear,
+    haveSubs: countSubs(rosterHero.gearPieces),
+    speed: { threshold: threshold ?? null, reachable: reached.speed, worn: rosterHero.speed, from: reached.from },
+    editorialNote: "主屬性與副屬性優先序來自 Epic7Tools 的配裝建議，頁面沒有標賽季。套裝和神器才是 Epic7RTAStats 的賽季統計。神器只建議你帳號裡有的。速度門檻用你讀得到的裝備來比，比不到就直說，不會拿別人的中位數當你的面板。",
+    source: def.sources?.rtaGear,
   };
 }
 
@@ -431,7 +614,8 @@ function translateMains(sentence) {
 function countSubs(pieces) {
   const counts = {};
   for (const piece of pieces || []) {
-    for (const type of piece.substats || []) {
+    for (const sub of piece.substats || []) {
+      const type = typeof sub === "string" ? sub : sub.type;
       const label = STAT_ZH[type] || type;
       counts[label] = (counts[label] || 0) + 1;
     }
@@ -469,7 +653,7 @@ export function advise(catalog, roster, options = {}) {
   const edges = counterEdges(catalog);
   const byId = Object.fromEntries(catalog.heroes.map((h) => [h.id, h]));
   const owned = roster.heroes.filter((h) => byId[h.id]);
-  const gear = owned.map((h) => ({ hero: h, def: byId[h.id], report: buildGearReport(h, byId[h.id], catalog) }));
+  const gear = owned.map((h) => ({ hero: h, def: byId[h.id], report: buildGearReport(h, byId[h.id], catalog, roster) }));
   if (owned.length < 5) {
     return {
       ok: false,

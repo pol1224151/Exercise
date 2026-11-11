@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { advise, elementRelation, fightFromRoster, parseRoster, skillDamage } from "../js/engine.js";
+import { advise, buildGearReport, clearAccount, elementRelation, fightFromRoster, loadAccount, parseRoster, saveAccount, skillDamage } from "../js/engine.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
 const sample = JSON.parse(readFileSync(new URL("../data/sample-roster.json", import.meta.url)));
@@ -57,5 +57,70 @@ if (draft.userFight.includes("harsetti") || draft.enemyFight.includes("harsetti"
 const partial = parseRoster({ heroes: roster.heroes.slice(0, 3) }, catalog);
 const blocked = advise(catalog, partial, { trials: 1 });
 assert.equal(blocked.ok, false);
+
+const sampleLisette = buildGearReport(
+  roster.heroes.find((hero) => hero.id === "lisette"),
+  catalog.heroes.find((hero) => hero.id === "lisette"),
+  catalog,
+  roster,
+);
+assert.equal(sampleLisette.foreign, true);
+assert.match(sampleLisette.changes.join(" "), /不是你的/);
+assert.doesNotMatch(sampleLisette.changes.join(" "), /你穿上的/);
+
+const lisette = buildGearReport(
+  imported.heroes.find((hero) => hero.id === "lisette"),
+  catalog.heroes.find((hero) => hero.id === "lisette"),
+  catalog,
+  imported,
+);
+assert.match(lisette.changes.join(" "), /你穿上的是 210/);
+assert.match(lisette.changes.join(" "), /不是你的/);
+assert.doesNotMatch(lisette.changes.join(" "), /你穿上的是 206/);
+const harsettiReport = buildGearReport(importedHarsetti, harsetti, catalog, imported);
+assert.match(harsettiReport.changes.join(" "), /到不了/);
+assert.match(harsettiReport.changes.join(" "), /不會寫成你的速度|不會把它當成你的面板/);
+
+const zio = catalog.heroes.find((hero) => hero.id === "zio");
+const slow = parseRoster({
+  heroes: [{ name: "Zio", spd: 180, atk: 1000, hp: 8000, def: 800, cr: 100, cd: 200, eff: 20, res: 0, artifactName: "Bloody Rose" }],
+  items: ["Weapon", "Helmet", "Armor", "Necklace", "Ring", "Boots"].map((gear) => ({
+    gear,
+    set: "HitSet",
+    main: gear === "Boots" ? { type: "Speed", value: 45 } : { type: "Health", value: 100 },
+    substats: [{ type: "Speed", value: 4 }],
+  })),
+}, catalog);
+const slowReport = buildGearReport(slow.heroes[0], zio, catalog, slow);
+assert.equal(slowReport.suggestedArtifact, "Bloody Rose");
+assert.match(slowReport.changes.join(" "), /到不了/);
+assert.match(slowReport.changes.join(" "), /沒有這件/);
+
+const fast = parseRoster({
+  heroes: [{ name: "Zio", spd: 180, atk: 1000, hp: 8000, def: 800, cr: 100, cd: 200, eff: 20, res: 0, artifactName: "Bloody Rose" }],
+  artifacts: ["Tagehel's Ancient Book"],
+  items: ["Weapon", "Helmet", "Armor", "Necklace", "Ring", "Boots"].map((gear) => ({
+    gear,
+    set: "SpeedSet",
+    main: gear === "Boots" ? { type: "Speed", value: 45 } : { type: "Attack", value: 100 },
+    substats: [{ type: "Speed", value: 30 }],
+  })),
+}, catalog);
+const fastReport = buildGearReport(fast.heroes[0], zio, catalog, fast);
+assert.equal(fastReport.suggestedArtifact, "Tagehel's Ancient Book");
+assert.match(fastReport.changes.join(" "), /可以換上/);
+assert.match(fastReport.changes.join(" "), /達得到/);
+assert.match(fastReport.changes.join(" "), /沙盤仍用你穿上的 180/);
+
+const memory = new Map();
+const storage = {
+  getItem: (key) => memory.get(key) ?? null,
+  setItem: (key, value) => memory.set(key, value),
+  removeItem: (key) => memory.delete(key),
+};
+saveAccount(storage, exported);
+assert.equal(loadAccount(storage).heroes[0].name, "Harsetti");
+clearAccount(storage);
+assert.equal(loadAccount(storage), null);
 
 console.log("engine tests passed", { rate: result.best.rate, first: fight.firstActor });
