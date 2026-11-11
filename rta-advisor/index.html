@@ -76,8 +76,12 @@
           </select>
         </label>
         <label class="check"><input id="maxEnhance" type="checkbox"> 技能用滿強化估算（檔案通常沒有強化等級）</label>
+        <label>實戰門檻
+          <input id="cutoff" type="number" min="0" max="100" step="1" value="40"> %
+        </label>
       </div>
-      <div id="live"><p>競技場開始、畫面認出來之後，這裡只留下一步、估計勝率和一個原因。選角或現在行動的人沒變，就不會重算。</p></div>
+      <p class="note">同類型 4 對 4 的實戰勝率低於這個百分比，選角就改推薦沙盤裡的另一組。預設 40。剛好等於門檻不換。還沒記錄過的組別不換。沙盤估計一直顯示。人已經在場上時，技能不因門檻改掉。</p>
+      <div id="live"><p>競技場開始、畫面認出來之後，這裡留下一步、沙盤估計、同類型實戰勝率，和一個原因。實戰低於門檻才會改推薦的組合。</p></div>
     </section>
 
     <section>

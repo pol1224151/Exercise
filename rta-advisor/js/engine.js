@@ -4,6 +4,8 @@
  * Win rate is the share of simulated trials, not a promise.
  */
 
+import { chooseComposition } from "./records.js";
+
 const ADVANTAGE = { fire: "wind", wind: "ice", ice: "fire", light: "dark", dark: "light" };
 
 const PIECES = {
@@ -752,6 +754,7 @@ export function advise(catalog, roster, options = {}) {
     ok: Boolean(best),
     best,
     alternatives: considered.slice(0, 3),
+    considered,
     gear,
     edges,
     unknown: roster.unknown,
@@ -1393,7 +1396,27 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
     lockedEnemy: enemyPicks,
   });
   if (!advice.ok) return invalid(catalog, advice.reason || "建議無效。這一手沙盤排不出 4 對 4。");
-  const best = advice.best;
+  const cutoff = typeof options.cutoff === "number" ? options.cutoff : null;
+  const choice = cutoff == null
+    ? null
+    : chooseComposition(advice.considered || [advice.best], options.history || { matches: [] }, cutoff, userFirst);
+  const best = choice?.line || advice.best;
+  const history = choice ? {
+    key: choice.key,
+    wins: choice.stats.wins,
+    losses: choice.stats.losses,
+    total: choice.stats.total,
+    rate: choice.stats.rate,
+    switched: choice.switched,
+    stuck: choice.stuck,
+    cutoff,
+    replaced: choice.replaced ? {
+      rate: choice.replaced.stats.rate,
+      wins: choice.replaced.stats.wins,
+      losses: choice.replaced.stats.losses,
+      total: choice.replaced.stats.total,
+    } : null,
+  } : null;
   const side = nextSide(userPicks.length, enemyPicks.length, userFirst);
   let action;
   if (phase === "preban" || (userPicks.length === 0 && enemyPicks.length === 0 && phase !== "postban")) {
@@ -1426,7 +1449,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
     action = {
       kind: "wait",
       title: "現在是對手在選",
-      detail: nextUser ? `你的下一手沙盤選 ${byId[nextUser.id].nameZh}。` : "等對手選完。",
+      detail: nextUser ? `你的下一手是 ${byId[nextUser.id].nameZh}。` : "等對手選完。",
       burn: null,
       id: nextUser?.id || null,
     };
@@ -1438,6 +1461,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
     action,
     rate: best.rate,
     reason: best.reason,
+    history,
     version: basis.version,
     basis,
     best,

@@ -99,10 +99,23 @@ textarea {
 
 .state { font-weight: 700; }
 
+.rates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
 .rate {
   font-size: 2rem;
   margin: 0;
   color: var(--brass-deep);
+}
+
+.record {
+  margin: 0;
+  font-size: 1.15rem;
 }
 
 .warn { color: var(--warn); }

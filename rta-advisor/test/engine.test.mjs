@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { advise, buildGearReport, clearAccount, elementRelation, fightFromRoster, loadAccount, parseRoster, saveAccount, skillDamage } from "../js/engine.js";
+import { chooseComposition, draftType } from "../js/records.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
 const sample = JSON.parse(readFileSync(new URL("../data/sample-roster.json", import.meta.url)));
@@ -122,5 +123,14 @@ saveAccount(storage, exported);
 assert.equal(loadAccount(storage).heroes[0].name, "Harsetti");
 clearAccount(storage);
 assert.equal(loadAccount(storage), null);
+
+assert.ok(result.considered.length > 1);
+const sandboxKey = draftType(result.best.draft.userFight, result.best.draft.enemyFight, true).key;
+const avoided = chooseComposition(result.considered, {
+  matches: [{ type: sandboxKey, result: "loss" }, { type: sandboxKey, result: "loss" }],
+}, 0.4, true);
+assert.equal(avoided.switched, true);
+assert.notEqual(avoided.key, sandboxKey);
+assert.ok(avoided.line.rate <= result.best.rate);
 
 console.log("engine tests passed", { rate: result.best.rate, first: fight.firstActor });

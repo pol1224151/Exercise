@@ -1,4 +1,5 @@
 import { adviseFromScreen, buildGearReport, clearAccount, counterEdges, loadAccount, parseRoster, saveAccount, sourceBasis } from "./engine.js";
+import { draftType, loadMatches, rateForType, recordResult, saveMatches } from "./records.js";
 import { DEFAULT_REGIONS, liveStateKey, paintFixture, readFrame } from "./screen.js";
 
 const $ = (id) => document.getElementById(id);
@@ -12,6 +13,8 @@ let stream = null;
 let timer = 0;
 let lastKey = "";
 let lastAdvice = null;
+let lastRead = null;
+let openRecord = null;
 
 async function boot() {
   const [catalogRes, versionRes, portraitRes] = await Promise.all([
@@ -228,14 +231,69 @@ function oneReason(result) {
   return result.reason?.summary || result.action?.detail || "";
 }
 
+function currentType() {
+  if (lastRead?.phase !== "battle") return null;
+  return draftType(lastRead.user, lastRead.enemy, $("first").value === "first");
+}
+
+function historyLine(history) {
+  const cutoff = Math.round(history.cutoff * 100);
+  const own = history.rate == null
+    ? "這一組還沒有實戰記錄。"
+    : `這一組實戰 ${history.wins} 勝 ${history.losses} 負，勝率 ${Math.round(history.rate * 100)}%（${history.total} 場）。`;
+  if (history.switched) {
+    const was = Math.round(history.replaced.rate * 100);
+    return `<p class="record">原本那組實戰 ${was}%，低於門檻 ${cutoff}%，已改推薦另一組。${own}旁邊仍是沙盤估計。</p>`;
+  }
+  if (history.stuck) {
+    return `<p class="record">這一組實戰低於門檻 ${cutoff}%，沙盤沒有另一組達標，這一手仍是沙盤第一組。${own}</p>`;
+  }
+  return `<p class="record">同類型實戰：${own}門檻 ${cutoff}%。沒有低於門檻，人選照沙盤。</p>`;
+}
+
+function recordedLine(result) {
+  if (result?.history) return historyLine(result.history);
+  const type = currentType();
+  if (!type) return `<p class="record">同類型實戰要等這場打成 4 對 4。選角時若低於門檻，會改推薦另一組。</p>`;
+  const stats = rateForType(loadMatches(localStorage), type.key);
+  const cutoff = Math.round(cutoffFraction() * 100);
+  if (stats.rate == null) return `<p class="record">同類型實戰：這組 4 對 4 還沒有記錄。打完按贏或輸。門檻 ${cutoff}%。</p>`;
+  const percent = Math.round(stats.rate * 100);
+  const low = stats.rate < cutoffFraction() ? `低於門檻 ${cutoff}%。人已經在場上，技能仍照沙盤。` : `沒有低於門檻 ${cutoff}%。`;
+  return `<p class="record">同類型實戰 ${stats.wins} 勝 ${stats.losses} 負，勝率 ${percent}%（${stats.total} 場）。${low}</p>`;
+}
+
+function recordButtons() {
+  if (!currentType()) return "";
+  return `<div class="row"><button type="button" id="markWin">這場我贏了</button><button type="button" id="markLoss">這場我輸了</button></div>`;
+}
+
 function renderLive(result) {
   const root = $("live");
+  const rates = `<div class="rates">${result?.rate == null ? "" : `<p class="rate">沙盤估計 ${Math.round(result.rate * 100)}%（不是必勝）</p>`}${recordedLine(result)}</div>${recordButtons()}`;
   if (!result?.ok) {
-    root.innerHTML = `<p class="action">建議無效</p><p>${oneReason(result)}</p>`;
-    return;
+    root.innerHTML = `<p class="action">建議無效</p>${rates}<p>${oneReason(result)}</p>`;
+  } else {
+    root.innerHTML = `<p class="action">${oneAction(result)}</p>${rates}<p>${oneReason(result)}</p>`;
   }
-  const rate = result.rate == null ? "" : `<p class="rate">估計勝率 ${Math.round(result.rate * 100)}%（沙盤估計，不是必勝）</p>`;
-  root.innerHTML = `<p class="action">${oneAction(result)}</p>${rate}<p>${oneReason(result)}</p>`;
+  $("markWin")?.addEventListener("click", () => markMatch("win"));
+  $("markLoss")?.addEventListener("click", () => markMatch("loss"));
+}
+
+function markMatch(result) {
+  const type = currentType();
+  if (!type) return;
+  if (!openRecord || openRecord.type !== type.key) openRecord = { type: type.key, id: null };
+  const saved = recordResult(loadMatches(localStorage), type.key, result, openRecord.id);
+  openRecord.id = saved.id;
+  saveMatches(localStorage, saved);
+  renderLive(lastAdvice);
+}
+
+function cutoffFraction() {
+  const value = Number($("cutoff").value);
+  if (!Number.isFinite(value)) return 0.4;
+  return Math.min(100, Math.max(0, value)) / 100;
 }
 
 function options() {
@@ -245,15 +303,21 @@ function options() {
     assumeMaxEnhance: $("maxEnhance").checked,
     trials: 4,
     roster,
+    history: loadMatches(localStorage),
+    cutoff: cutoffFraction(),
   };
 }
 
 function consider(read) {
+  lastRead = read;
+  const type = currentType();
+  if (!type || openRecord?.type !== type.key) openRecord = type ? { type: type.key, id: null } : null;
   const key = JSON.stringify({
     board: liveStateKey(read),
     first: $("first").value,
     rank: $("rank").value,
     enhance: $("maxEnhance").checked,
+    cutoff: $("cutoff").value,
   });
   if (key === lastKey && lastAdvice) return lastAdvice;
   lastKey = key;
@@ -388,6 +452,11 @@ function showError(error) {
   $("rosterState").textContent = error.message || String(error);
 }
 
+for (const id of ["cutoff", "first", "rank", "maxEnhance"]) {
+  $(id).addEventListener("change", () => {
+    if (lastRead) consider(lastRead);
+  });
+}
 $("share").addEventListener("click", () => shareWindow().catch((error) => {
   $("captureState").textContent = `沒有接上視窗：${error.message || error}`;
 }));

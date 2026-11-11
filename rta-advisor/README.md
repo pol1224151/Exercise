@@ -24,13 +24,14 @@ GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o RtaAdvisor.exe .
 
 1. 讀入 Fribbels 匯出的帳號（英雄和裝備）。讀入後存在這台瀏覽器，下次打開不用再匯入。
 2. 對照這個賽季的配裝。神器只建議帳號裡有的；速度只比你讀得到的裝備，到不了就直說，不把別人的面板寫成你的。
-3. 世界競技場開打後才分享遊戲視窗。畫面上只留下一步、估計勝率和一個原因。選角或現在行動的人沒變，就不重算。
+3. 世界競技場開打後才分享遊戲視窗。沙盤估計一直顯示。同類型 4 對 4 的實戰勝率低於畫面上的門檻（預設 40%）時，選角改推薦另一組。人已經在場上時，技能仍照沙盤。
 
 「更新英雄、倍率與賽季」會重新抓 Fribbels 的英雄資料庫、技能倍率和神器，以及 Epic7RTAStats 的賽季模型，並把版本寫在頁面上方。
 
 ```bash
 node rta-advisor/test/engine.test.mjs
 node rta-advisor/test/screen.test.mjs
+node rta-advisor/test/records.test.mjs
 ```
 
 技能倍率來自 Fribbels。賽季套裝與神器來自 Epic7RTAStats。頁面上的版本列會寫 commit、賽季代號和假設的遊戲版本。
