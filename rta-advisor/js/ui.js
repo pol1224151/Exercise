@@ -253,11 +253,6 @@ function oneAction(result) {
   return `${title}，${result.action.burn.yes ? "要燒魂" : "不要燒魂"}`;
 }
 
-function oneReason(result) {
-  if (!result?.ok) return result?.reason || "三項資料還沒齊。";
-  return result.reason?.summary || result.action?.detail || "";
-}
-
 function currentType() {
   if (lastRead?.phase !== "battle") return null;
   if (typeof lastRead.firstPick !== "boolean") return null;
