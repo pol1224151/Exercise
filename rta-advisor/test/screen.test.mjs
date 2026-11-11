@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { adviseFromScreen, parseRoster, sourceBasis } from "../js/engine.js";
-import { DEFAULT_REGIONS, liveStateKey, paintFixture, readFrame } from "../js/screen.js";
+import { adviseFromScreen, detectFirstPick, parseRoster, sourceBasis } from "../js/engine.js";
+import { DEFAULT_REGIONS, inferPhase, liveStateKey, paintFixture, readFrame } from "../js/screen.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
 const book = JSON.parse(readFileSync(new URL("../data/portrait-signatures.json", import.meta.url)));
@@ -45,17 +45,73 @@ const noiseRead = readFrame(noise, 960, 540, DEFAULT_REGIONS, book);
 assert.equal(noiseRead.user[0], "unknown");
 const blocked = adviseFromScreen(catalog, noiseRead, { trials: 1, roster });
 assert.equal(blocked.ok, false);
-assert.match(blocked.reason, /建議無效/);
+assert.equal(blocked.action.title, "認不出畫面上的英雄");
+assert.match(blocked.reason.summary, /不會把空位猜成/);
 assert.equal(blocked.version.season, catalog.provenance.rtaSeason);
 
 const needsAccount = adviseFromScreen(catalog, draftRead, { trials: 1 });
 assert.equal(needsAccount.ok, false);
-assert.match(needsAccount.reason, /帳號/);
+assert.equal(needsAccount.action.title, "先讀入帳號");
+assert.match(needsAccount.reason.summary, /還沒有讀入帳號/);
 
-const advice = adviseFromScreen(catalog, draftRead, { trials: 2, firstPick: true, rank: "champion", roster });
-assert.equal(advice.ok, true, advice.reason);
+const advice = adviseFromScreen(catalog, draftRead, { trials: 2, rank: "champion", roster });
+assert.equal(advice.ok, true, advice.reason?.summary || advice.reason);
+assert.equal(advice.firstPick, true);
 assert.ok(["pick", "wait", "preban", "ban"].includes(advice.action.kind));
-assert.match(advice.action.title, /選|預禁|禁|對手/);
+assert.match(advice.action.title, /選|預禁|禁/);
+assert.ok(advice.action.title.length > 0);
+assert.ok(advice.reason.summary);
+
+const withStrayActor = adviseFromScreen(catalog, { ...draftRead, actorId: "unknown" }, { trials: 2, rank: "champion", roster });
+assert.equal(withStrayActor.ok, true, withStrayActor.reason?.summary);
+assert.equal(inferPhase({ ...draftRead, actorId: ids[3], skillsReady: [false, false, false] }), "pick");
+
+const second = adviseFromScreen(catalog, {
+  user: ["empty"],
+  enemy: [ids[1]],
+  prebans: [],
+  actorId: "empty",
+  skillsReady: [false, false, false],
+  phase: "pick",
+}, { trials: 2, rank: "champion", roster });
+assert.equal(second.ok, true, second.reason?.summary);
+assert.equal(second.firstPick, false);
+assert.match(second.action.title, /選/);
+
+const unseen = adviseFromScreen(catalog, {
+  user: [],
+  enemy: [],
+  prebans: [],
+  actorId: "empty",
+  phase: "unknown",
+  skillsReady: [],
+}, { trials: 1, roster });
+assert.equal(unseen.ok, false);
+assert.equal(unseen.action.title, "畫面上還沒有選角");
+
+const opening = adviseFromScreen(catalog, {
+  user: ["empty"],
+  enemy: ["empty"],
+  prebans: [],
+  actorId: "empty",
+  phase: "preban",
+  turnSide: "user",
+  skillsReady: [],
+}, { trials: 1, rank: "champion", roster });
+assert.equal(opening.ok, true, opening.reason?.summary);
+assert.equal(opening.firstPick, true);
+assert.match(opening.action.title, /預禁|選/);
+
+assert.deepEqual(detectFirstPick(1, 2, null, null), { firstPick: true, source: "counts" });
+assert.deepEqual(detectFirstPick(0, 1, null, null), { firstPick: false, source: "counts" });
+assert.equal(detectFirstPick(0, 0, null, "enemy").firstPick, false);
+assert.equal(detectFirstPick(0, 0, "user", null).firstPick, true);
+assert.equal(detectFirstPick(1, 1, null, null).firstPick, null);
+
+const lead = paintFixture(960, 540, DEFAULT_REGIONS, book, { lead: "user" });
+assert.equal(readFrame(lead, 960, 540, DEFAULT_REGIONS, book).leadSide, "user");
+const lit = paintFixture(960, 540, DEFAULT_REGIONS, book, { turn: "enemy" });
+assert.equal(readFrame(lit, 960, 540, DEFAULT_REGIONS, book).turnSide, "enemy");
 assert.ok(advice.rate >= 0 && advice.rate <= 1);
 assert.match(JSON.stringify(advice.reason), /不是保證|估計/);
 assert.match(advice.version.patchZh, /8\.7/);

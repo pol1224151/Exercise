@@ -1,5 +1,5 @@
 import { adviseFromScreen, buildGearReport, clearAccount, counterEdges, loadAccount, parseRoster, saveAccount, sourceBasis } from "./engine.js";
-import { draftType, loadMatches, rateForType, recordResult, saveMatches } from "./records.js";
+import { draftType, loadMatches, recordResult, saveMatches } from "./records.js";
 import { DEFAULT_REGIONS, liveStateKey, paintFixture, readFrame } from "./screen.js";
 
 const $ = (id) => document.getElementById(id);
@@ -15,6 +15,8 @@ let lastKey = "";
 let lastAdvice = null;
 let lastRead = null;
 let openRecord = null;
+let orderLock = null;
+let reading = false;
 
 async function boot() {
   const [catalogRes, versionRes, portraitRes] = await Promise.all([
@@ -109,6 +111,7 @@ function applyRoster(data, source = "import") {
   renderGear();
   setScreenEnabled(roster.heroes.length > 0);
   lastKey = "";
+  if (!reading) showReadyCard();
 }
 
 function renderGear() {
@@ -159,12 +162,36 @@ function setScreenEnabled(on) {
   $("share").disabled = !on;
   $("read").disabled = !on;
   $("screenLock").hidden = on;
-  if (!on) {
-    $("captureState").textContent = "畫面判讀還沒開。先讀入帳號。";
-    $("live").innerHTML = "<p>競技場開始、而且帳號已經讀入之後，下一步才會出現在這裡。</p>";
-  } else if (!stream) {
-    $("captureState").textContent = "帳號已讀入。等世界競技場開打，再分享遊戲視窗。";
+  if (!on) $("captureState").textContent = "畫面判讀還沒開。先讀入帳號。";
+  else if (!stream) $("captureState").textContent = "帳號已讀入。等世界競技場開打，再分享遊戲視窗。";
+}
+
+function showCard({ action, rate, reason, click }) {
+  const button = $("liveAction");
+  button.textContent = action || "這一手沒有建議";
+  button.disabled = !click;
+  button.dataset.click = click || "";
+  $("liveRate").textContent = rate || "尚無勝率";
+  $("liveReason").textContent = reason || "";
+}
+
+function showReadyCard() {
+  if (!roster?.heroes.length) {
+    showCard({ action: "先讀入帳號", rate: "尚無勝率", reason: "還沒有讀入帳號。", click: "import" });
+    return;
   }
+  if (!stream) {
+    showCard({ action: "分享遊戲視窗", rate: "尚無勝率", reason: "帳號已讀入。競技場開打後再分享遊戲視窗。", click: "share" });
+    return;
+  }
+  if (!reading) {
+    showCard({ action: "開始判讀", rate: "尚無勝率", reason: "視窗已接上。開始判讀後，下一步會留在這裡。", click: "read" });
+  }
+}
+
+function syncStage() {
+  const open = $("setup").open;
+  (open ? $("stageSlot") : $("videoHold")).append($("stage"));
 }
 
 function renderCounters() {
@@ -233,51 +260,45 @@ function oneReason(result) {
 
 function currentType() {
   if (lastRead?.phase !== "battle") return null;
-  return draftType(lastRead.user, lastRead.enemy, $("first").value === "first");
+  if (typeof lastRead.firstPick !== "boolean") return null;
+  return draftType(lastRead.user, lastRead.enemy, lastRead.firstPick);
 }
 
-function historyLine(history) {
-  const cutoff = Math.round(history.cutoff * 100);
-  const own = history.rate == null
-    ? "這一組還沒有實戰記錄。"
-    : `這一組實戰 ${history.wins} 勝 ${history.losses} 負，勝率 ${Math.round(history.rate * 100)}%（${history.total} 場）。`;
-  if (history.switched) {
-    const was = Math.round(history.replaced.rate * 100);
-    return `<p class="record">原本那組實戰 ${was}%，低於門檻 ${cutoff}%，已改推薦另一組。${own}旁邊仍是沙盤估計。</p>`;
+function oneReason(result) {
+  if (!result?.ok) return result?.reason?.summary || result?.action?.detail || "這一手沒有建議。";
+  if (result.history?.switched) {
+    const was = Math.round(result.history.replaced.rate * 100);
+    const cutoff = Math.round(result.history.cutoff * 100);
+    return `原本那組實戰 ${was}%，低於門檻 ${cutoff}%，所以改這一組。`;
   }
-  if (history.stuck) {
-    return `<p class="record">這一組實戰低於門檻 ${cutoff}%，沙盤沒有另一組達標，這一手仍是沙盤第一組。${own}</p>`;
-  }
-  return `<p class="record">同類型實戰：${own}門檻 ${cutoff}%。沒有低於門檻，人選照沙盤。</p>`;
+  if (result.history?.stuck) return "這一組實戰低於門檻，沙盤沒有另一組達標，仍用這一組。";
+  return result.reason?.summary || result.action?.detail || "";
 }
 
-function recordedLine(result) {
-  if (result?.history) return historyLine(result.history);
-  const type = currentType();
-  if (!type) return `<p class="record">同類型實戰要等這場打成 4 對 4。選角時若低於門檻，會改推薦另一組。</p>`;
-  const stats = rateForType(loadMatches(localStorage), type.key);
-  const cutoff = Math.round(cutoffFraction() * 100);
-  if (stats.rate == null) return `<p class="record">同類型實戰：這組 4 對 4 還沒有記錄。打完按贏或輸。門檻 ${cutoff}%。</p>`;
-  const percent = Math.round(stats.rate * 100);
-  const low = stats.rate < cutoffFraction() ? `低於門檻 ${cutoff}%。人已經在場上，技能仍照沙盤。` : `沒有低於門檻 ${cutoff}%。`;
-  return `<p class="record">同類型實戰 ${stats.wins} 勝 ${stats.losses} 負，勝率 ${percent}%（${stats.total} 場）。${low}</p>`;
-}
-
-function recordButtons() {
-  if (!currentType()) return "";
-  return `<div class="row"><button type="button" id="markWin">這場我贏了</button><button type="button" id="markLoss">這場我輸了</button></div>`;
+function rateLine(result) {
+  const sandbox = result?.rate == null ? "尚無勝率" : `沙盤估計 ${Math.round(result.rate * 100)}%`;
+  const history = result?.history;
+  if (!history) return sandbox;
+  if (history.rate == null) return `${sandbox}　實戰尚無`;
+  return `${sandbox}　實戰 ${Math.round(history.rate * 100)}%`;
 }
 
 function renderLive(result) {
-  const root = $("live");
-  const rates = `<div class="rates">${result?.rate == null ? "" : `<p class="rate">沙盤估計 ${Math.round(result.rate * 100)}%（不是必勝）</p>`}${recordedLine(result)}</div>${recordButtons()}`;
   if (!result?.ok) {
-    root.innerHTML = `<p class="action">建議無效</p>${rates}<p>${oneReason(result)}</p>`;
+    const title = result?.action?.title || "這一手沒有建議";
+    showCard({
+      action: title,
+      rate: "尚無勝率",
+      reason: oneReason(result),
+      click: title === "先讀入帳號" ? "import" : "",
+    });
   } else {
-    root.innerHTML = `<p class="action">${oneAction(result)}</p>${rates}<p>${oneReason(result)}</p>`;
+    showCard({ action: oneAction(result), rate: rateLine(result), reason: oneReason(result) });
   }
-  $("markWin")?.addEventListener("click", () => markMatch("win"));
-  $("markLoss")?.addEventListener("click", () => markMatch("loss"));
+  const type = currentType();
+  const canRecord = Boolean(type);
+  $("markWin").disabled = !canRecord;
+  $("markLoss").disabled = !canRecord;
 }
 
 function markMatch(result) {
@@ -287,6 +308,7 @@ function markMatch(result) {
   const saved = recordResult(loadMatches(localStorage), type.key, result, openRecord.id);
   openRecord.id = saved.id;
   saveMatches(localStorage, saved);
+  $("recordState").textContent = result === "win" ? "已記下這場勝利。" : "已記下這場落敗。";
   renderLive(lastAdvice);
 }
 
@@ -298,32 +320,50 @@ function cutoffFraction() {
 
 function options() {
   return {
-    firstPick: $("first").value === "first",
     rank: $("rank").value,
     assumeMaxEnhance: $("maxEnhance").checked,
     trials: 4,
     roster,
     history: loadMatches(localStorage),
     cutoff: cutoffFraction(),
+    heldFirstPick: orderLock,
   };
 }
 
+function boardIsEmpty(read) {
+  const filled = (ids) => (ids || []).some((id) => id && id !== "empty" && id !== "unknown");
+  return !filled(read?.user) && !filled(read?.enemy) && !filled(read?.prebans) && !read?.turnSide && !read?.leadSide;
+}
+
 function consider(read) {
-  lastRead = read;
-  const type = currentType();
-  if (!type || openRecord?.type !== type.key) openRecord = type ? { type: type.key, id: null } : null;
-  const key = JSON.stringify({
-    board: liveStateKey(read),
-    first: $("first").value,
-    rank: $("rank").value,
-    enhance: $("maxEnhance").checked,
-    cutoff: $("cutoff").value,
-  });
-  if (key === lastKey && lastAdvice) return lastAdvice;
-  lastKey = key;
-  lastAdvice = adviseFromScreen(catalog, read, options());
-  renderLive(lastAdvice);
-  return lastAdvice;
+  try {
+    if (boardIsEmpty(read)) orderLock = null;
+    lastRead = read;
+    const key = JSON.stringify({
+      board: liveStateKey(read),
+      turn: read.turnSide || "",
+      lead: read.leadSide || "",
+      held: orderLock,
+      rank: $("rank").value,
+      enhance: $("maxEnhance").checked,
+      cutoff: $("cutoff").value,
+    });
+    if (key === lastKey && lastAdvice) return lastAdvice;
+    lastKey = key;
+    lastAdvice = adviseFromScreen(catalog, read, options());
+    if (lastAdvice?.orderSource === "mismatch") orderLock = null;
+    else if (typeof lastAdvice?.firstPick === "boolean" && lastAdvice.orderSource !== "locked" && lastAdvice.orderSource !== "held") {
+      orderLock = lastAdvice.firstPick;
+    }
+    lastRead.firstPick = typeof lastAdvice?.firstPick === "boolean" ? lastAdvice.firstPick : orderLock;
+    const type = currentType();
+    if (!type || openRecord?.type !== type.key) openRecord = type ? { type: type.key, id: null } : null;
+    renderLive(lastAdvice);
+    return lastAdvice;
+  } catch (error) {
+    showCard({ action: "這一手沒有建議", rate: "尚無勝率", reason: error.message || "判讀時發生錯誤。" });
+    return null;
+  }
 }
 
 async function shareWindow() {
@@ -342,9 +382,13 @@ async function shareWindow() {
   $("board").hidden = true;
   await video.play();
   $("captureState").textContent = "已接到視窗。把色框拖到頭像和技能上，按記住框線，再按開始判讀。";
+  if (!reading) showReadyCard();
   stream.getVideoTracks()[0].addEventListener("ended", () => {
     $("captureState").textContent = "分享已停。要繼續的話再按一次分享遊戲視窗。";
+    reading = false;
     clearInterval(timer);
+    timer = 0;
+    showReadyCard();
   });
 }
 
@@ -356,8 +400,10 @@ function rememberRegions() {
 function startReading() {
   if (!roster?.heroes.length) {
     $("captureState").textContent = "請先讀入帳號。";
+    showReadyCard();
     return;
   }
+  reading = true;
   clearInterval(timer);
   timer = setInterval(sampleVideo, 700);
   sampleVideo();
@@ -365,7 +411,10 @@ function startReading() {
 
 function sampleVideo() {
   const video = $("game");
-  if (!video.videoWidth) return;
+  if (!video.videoWidth) {
+    showCard({ action: "還沒接到畫面", rate: "尚無勝率", reason: "遊戲視窗還沒畫出來。確認分享的是第七史詩那個視窗。" });
+    return;
+  }
   const board = $("board");
   board.width = video.videoWidth;
   board.height = video.videoHeight;
@@ -426,6 +475,8 @@ $("forget").addEventListener("click", () => {
   setScreenEnabled(false);
   lastKey = "";
   lastAdvice = null;
+  orderLock = null;
+  showReadyCard();
 });
 $("loadExample").addEventListener("click", () => loadExample().catch(showError));
 $("loadSample").addEventListener("click", () => loadSample().catch(showError));
@@ -452,11 +503,34 @@ function showError(error) {
   $("rosterState").textContent = error.message || String(error);
 }
 
-for (const id of ["cutoff", "first", "rank", "maxEnhance"]) {
+for (const id of ["cutoff", "rank", "maxEnhance"]) {
   $(id).addEventListener("change", () => {
     if (lastRead) consider(lastRead);
   });
 }
+$("openSetup").addEventListener("click", () => {
+  $("setup").showModal();
+  syncStage();
+});
+$("closeSetup").addEventListener("click", () => {
+  $("setup").close();
+  syncStage();
+});
+$("liveAction").addEventListener("click", () => {
+  const click = $("liveAction").dataset.click;
+  if (click === "import") {
+    $("setup").showModal();
+    syncStage();
+  } else if (click === "share") {
+    shareWindow().catch((error) => {
+      $("captureState").textContent = `沒有接上視窗：${error.message || error}`;
+    });
+  } else if (click === "read") {
+    startReading();
+  }
+});
+$("markWin").addEventListener("click", () => markMatch("win"));
+$("markLoss").addEventListener("click", () => markMatch("loss"));
 $("share").addEventListener("click", () => shareWindow().catch((error) => {
   $("captureState").textContent = `沒有接上視窗：${error.message || error}`;
 }));
@@ -479,6 +553,10 @@ $("update").addEventListener("click", async () => {
   }
 });
 
-boot().catch((error) => {
-  $("live").innerHTML = `<p class="rate">建議無效</p><p class="warn">資料沒載入：${error.message || error}</p>`;
+syncStage();
+boot().then(() => {
+  syncStage();
+  if (!reading && !lastAdvice) showReadyCard();
+}).catch((error) => {
+  showCard({ action: "資料沒載入", rate: "尚無勝率", reason: error.message || String(error) });
 });

@@ -8,6 +8,11 @@ export const DEFAULT_REGIONS = {
   actor: { x: 0.02, y: 0.02, w: 0.12, h: 0.12, slots: 1, label: "現在行動" },
 };
 
+export const LEAD_BANDS = {
+  user: { x: 0.02, y: 0.105, w: 0.12, h: 0.05 },
+  enemy: { x: 0.86, y: 0.105, w: 0.12, h: 0.05 },
+};
+
 export function liveStateKey(recognition) {
   const slot = (id) => (id && id !== "empty" ? id : "");
   return JSON.stringify({
@@ -74,8 +79,16 @@ export function signatureFromRgba(data, imageWidth, originX, originY, width, hei
   return cells;
 }
 
+function spatialStdev(rgb) {
+  const lumas = [];
+  for (let index = 0; index < rgb.length; index += 3) {
+    lumas.push((rgb[index] + rgb[index + 1] + rgb[index + 2]) / 3);
+  }
+  return stdev(lumas);
+}
+
 export function matchPortrait(rgb, book) {
-  if (stdev(rgb) < (book.emptyStdevBelow ?? 18)) return "empty";
+  if (spatialStdev(rgb) < (book.emptyStdevBelow ?? 18)) return "empty";
   let best = null;
   let second = null;
   for (const portrait of book.portraits) {
@@ -124,13 +137,82 @@ function skillReady(data, imageWidth, imageHeight, region) {
   return ready;
 }
 
+function filledCount(ids) {
+  return (ids || []).filter((id) => id && id !== "empty").length;
+}
+
 export function inferPhase(read) {
-  if (read.actorId && read.actorId !== "empty") return "battle";
-  const picked = [...read.user, ...read.enemy].filter((id) => id && id !== "empty").length;
-  if (picked >= 10) return "postban";
-  if (picked > 0) return "pick";
+  const userN = filledCount(read.user);
+  const enemyN = filledCount(read.enemy);
+  const actorKnown = read.actorId && read.actorId !== "empty" && read.actorId !== "unknown";
+  const skillsLit = (read.skillsReady || []).some(Boolean);
+  if (userN === 4 && enemyN === 4 && (actorKnown || skillsLit)) return "battle";
+  if (skillsLit && actorKnown && userN >= 1 && enemyN >= 1) return "battle";
+  if (userN + enemyN >= 10) return "postban";
+  if (userN + enemyN > 0) return "pick";
   if ((read.prebans || []).some((id) => id && id !== "empty")) return "preban";
   return "unknown";
+}
+
+function boxMean(data, imageWidth, box) {
+  let sum = 0;
+  let count = 0;
+  const x1 = Math.min(imageWidth, box.x + box.w);
+  const y1 = box.y + box.h;
+  for (let y = box.y; y < y1; y += 2) {
+    for (let x = box.x; x < x1; x += 2) {
+      const offset = (y * imageWidth + x) * 4;
+      sum += data[offset] + data[offset + 1] + data[offset + 2];
+      count += 3;
+    }
+  }
+  return count ? sum / count : 0;
+}
+
+function firstEmptyIndex(ids, slots) {
+  for (let index = 0; index < slots; index += 1) {
+    if (!ids[index] || ids[index] === "empty") return index;
+  }
+  return -1;
+}
+
+export function readTurnSide(data, imageWidth, imageHeight, regions, userIds, enemyIds) {
+  const userIndex = firstEmptyIndex(userIds, regions.user.slots);
+  const enemyIndex = firstEmptyIndex(enemyIds, regions.enemy.slots);
+  if (userIndex < 0 || enemyIndex < 0) return null;
+  const userMean = boxMean(data, imageWidth, slotBox(regions.user, userIndex, imageWidth, imageHeight));
+  const enemyMean = boxMean(data, imageWidth, slotBox(regions.enemy, enemyIndex, imageWidth, imageHeight));
+  if (userMean >= enemyMean + 28 && userMean >= 70) return "user";
+  if (enemyMean >= userMean + 28 && enemyMean >= 70) return "enemy";
+  return null;
+}
+
+function goldFraction(data, imageWidth, imageHeight, rect) {
+  const x0 = Math.round(rect.x * imageWidth);
+  const y0 = Math.round(rect.y * imageHeight);
+  const x1 = Math.round((rect.x + rect.w) * imageWidth);
+  const y1 = Math.round((rect.y + rect.h) * imageHeight);
+  let gold = 0;
+  let count = 0;
+  for (let y = y0; y < y1; y += 2) {
+    for (let x = x0; x < x1; x += 2) {
+      const offset = (y * imageWidth + x) * 4;
+      const red = data[offset];
+      const green = data[offset + 1];
+      const blue = data[offset + 2];
+      count += 1;
+      if (red > 180 && green > 140 && blue < 110 && red + green > blue * 3) gold += 1;
+    }
+  }
+  return count ? gold / count : 0;
+}
+
+export function readLeadSide(data, imageWidth, imageHeight) {
+  const user = goldFraction(data, imageWidth, imageHeight, LEAD_BANDS.user);
+  const enemy = goldFraction(data, imageWidth, imageHeight, LEAD_BANDS.enemy);
+  if (user >= 0.12 && user >= enemy * 2.5) return "user";
+  if (enemy >= 0.12 && enemy >= user * 2.5) return "enemy";
+  return null;
 }
 
 export function readFrame(data, imageWidth, imageHeight, regions, book) {
@@ -146,6 +228,8 @@ export function readFrame(data, imageWidth, imageHeight, regions, book) {
     actorId: actor,
     skillsReady,
     yourTurn: skillsReady.some(Boolean) && actor && actor !== "empty" && actor !== "unknown",
+    turnSide: readTurnSide(data, imageWidth, imageHeight, regions, user, enemy),
+    leadSide: readLeadSide(data, imageWidth, imageHeight),
   };
   read.phase = inferPhase(read);
   return read;
@@ -207,10 +291,35 @@ export function paintFixture(imageWidth, imageHeight, regions, book, assignment)
       });
     }
   };
+  const fillRect = (rect, color) => {
+    const x0 = Math.round(rect.x * imageWidth);
+    const y0 = Math.round(rect.y * imageHeight);
+    const x1 = Math.round((rect.x + rect.w) * imageWidth);
+    const y1 = Math.round((rect.y + rect.h) * imageHeight);
+    for (let y = y0; y < y1; y += 1) {
+      for (let x = x0; x < x1; x += 1) {
+        const offset = (y * imageWidth + x) * 4;
+        data[offset] = color[0];
+        data[offset + 1] = color[1];
+        data[offset + 2] = color[2];
+        data[offset + 3] = 255;
+      }
+    }
+  };
+  if (assignment.lead === "user" || assignment.lead === "enemy") fillRect(LEAD_BANDS[assignment.lead], [212, 170, 60]);
   paintIds(regions.user, assignment.user);
   paintIds(regions.enemy, assignment.enemy);
   paintIds(regions.preban, assignment.prebans);
   paintIds(regions.actor, assignment.actor ? [assignment.actor] : []);
   paintIds(regions.skills, assignment.skills);
+  if (assignment.turn === "user" || assignment.turn === "enemy") {
+    const region = regions[assignment.turn];
+    const ids = assignment[assignment.turn] || [];
+    let index = 0;
+    while (ids[index]) index += 1;
+    if (index < region.slots) {
+      fillSlot(data, imageWidth, slotBox(region, index, imageWidth, imageHeight), () => [236, 222, 170]);
+    }
+  }
   return data;
 }
