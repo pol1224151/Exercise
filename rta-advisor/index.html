@@ -10,32 +10,57 @@
   <header class="top">
     <p class="eyebrow">第七史詩　世界競技場</p>
     <h1>RTA 選角與回合顧問</h1>
-    <p class="lead">用你自己的面板，沙盤預禁、選角、最後禁人、技能順序和要不要燒魂。畫面上的勝率是估計，不是保證。</p>
-    <p class="sources">賽季：<span id="season"></span>。假設的遊戲版本：<span id="patch"></span>。技能倍率：<span id="dataLine"></span>。</p>
+    <p class="lead">先讀你的英雄和裝備，再對照這個賽季的配裝。世界競技場開打之後，才看畫面建議禁誰、選誰、放哪個技能、要不要燒魂。勝率是估計，不是必勝。</p>
+    <p class="sources">賽季：<span id="season"></span>。遊戲版本：<span id="patch"></span>。技能倍率：<span id="dataLine"></span>。</p>
+    <p id="versionLine" class="note"></p>
   </header>
 
   <main>
     <section>
-      <h2>1. 讀取帳號</h2>
-      <p>這個程式不連進遊戲，也不攔截封包。請用 Fribbels Epic 7 Optimizer 把角色和裝備匯出來，再把檔案載入這裡。</p>
+      <h2>1. 讀入帳號</h2>
+      <p>先把角色和裝備放進來。還沒有這份帳號時，下面的配裝和畫面建議都不會開始。</p>
       <ol class="steps">
-        <li>打開 Fribbels，在 Importer 用它的掃描把遊戲資料收進來（開始掃描、進到大廳、停止掃描、存成 gear.txt，再按 Merge）。</li>
-        <li>要連面板、神器和刻印一起帶出來，請在同一個 Importer 頁按 Save all optimizer data，存成 JSON。</li>
-        <li>回到這裡，選擇那個 gear.txt 或 JSON。也可以直接把內容貼進下面的框。</li>
+        <li>打開 Fribbels Epic 7 Optimizer。在 Importer 開始掃描，進到大廳，停止掃描，存成 gear.txt，再按 Merge。</li>
+        <li>同一個 Importer 頁按 Save all optimizer data，存成 JSON。這份才有面板、神器和刻印。</li>
+        <li>回到這裡，選擇那個 JSON 或 gear.txt，或把內容貼進下面的框再按「用框裡的內容」。</li>
       </ol>
       <div class="row">
         <label class="file">選擇 Fribbels 檔案<input id="file" type="file" accept=".json,.txt,application/json"></label>
+        <button id="applyText" type="button">用框裡的內容</button>
         <button id="loadExample" type="button">載入 Fribbels 格式範例</button>
         <button id="loadSample" type="button">載入標好的範例名單</button>
-        <button id="applyText" type="button">用框裡的內容</button>
       </div>
-      <p id="rosterState" class="state">尚未讀取。</p>
-      <textarea id="rosterText" spellcheck="false" aria-label="名單 JSON"></textarea>
-      <p class="note">手動欄位：速度、攻擊、生命、防禦、暴擊、暴擊傷害、效果命中、效果抗性、神器與極限突破、刻印、覺醒、技能強化。範例名單的數字不是你的角色。個人化建議要等你的檔案。</p>
+      <p id="rosterState" class="state">還沒有帳號。</p>
+      <textarea id="rosterText" spellcheck="false" aria-label="帳號 JSON"></textarea>
+      <p class="note">範例檔寫明不是你的角色。個人化的配裝和沙盤要等你的檔案。讀得到的欄位：英雄、套裝、速度、攻擊、生命、防禦、暴擊、暴擊傷害、效果命中、效果抗性、神器與等級。</p>
     </section>
 
     <section>
-      <h2>2. 規則與估算</h2>
+      <h2>2. 依這個帳號建議現在的 META 裝備</h2>
+      <p class="note">左邊是檔案裡的裝備，右邊是這個賽季天梯最常見的套裝和神器。主屬性與副屬性是 Epic7Tools 的建議，不是賽季頻率。沙盤不會把還沒穿上的裝備算進你的面板。</p>
+      <div id="gear" class="grid"><p>先讀入帳號，才會對照賽季配裝。</p></div>
+    </section>
+
+    <section id="screenSection">
+      <h2>3. 競技場開始後才看畫面</h2>
+      <p id="screenLock" class="warn">請先完成第 1 步。帳號讀進來之後，等世界競技場開打，再分享遊戲視窗。</p>
+      <ol class="steps">
+        <li>在 <code>rta-advisor</code> 執行 <code>python3 server.py</code>，用 Chrome 或 Edge 打開 <code>http://127.0.0.1:8765/</code>。</li>
+        <li>競技場畫面出現後，按「分享遊戲視窗」。在系統清單選第七史詩或模擬器那個視窗，不要選別的程式，然後按分享。</li>
+        <li>遊戲維持 16:9。語言用繁體中文即可，辨識看頭像不看文字。第一次把色框拖到我方五個頭像、對方五個頭像、預禁兩格、現在行動的頭像、底下三個技能鈕，再按「記住框線」。</li>
+        <li>按「開始判讀」。建議用的是你讀入的面板，加上英雄資料庫、Fribbels 倍率和這個賽季的模型。</li>
+      </ol>
+      <div class="row">
+        <button id="share" type="button" class="primary" disabled>分享遊戲視窗</button>
+        <button id="remember" type="button">記住框線</button>
+        <button id="read" type="button" disabled>開始判讀</button>
+      </div>
+      <p id="captureState" class="state">畫面判讀還沒開。</p>
+      <div id="stage" class="stage">
+        <video id="game" autoplay playsinline muted></video>
+        <canvas id="board" hidden></canvas>
+        <div id="boxes"></div>
+      </div>
       <div class="row">
         <label>順位
           <select id="first">
@@ -49,31 +74,27 @@
             <option value="below">冠軍以下，各預禁 1 名</option>
           </select>
         </label>
-        <label class="check"><input id="maxEnhance" type="checkbox"> 技能用滿強化估算（資料沒有你的實際強化等級）</label>
-        <button id="run" type="button" class="primary">跑沙盤並給建議</button>
+        <label class="check"><input id="maxEnhance" type="checkbox"> 技能用滿強化估算（檔案通常沒有強化等級）</label>
       </div>
-      <p class="note">選角是 1-2-2-2-2-1，各 5 名。每人的第 3 選不能被最後那一禁去掉。最後各禁對方 1 名，4 對 4。預禁兩邊同時生效，同一名可以被兩邊都禁。</p>
+      <div id="live"><p>競技場開始、畫面認出來之後，下一步會出現在這裡。</p></div>
     </section>
 
     <section>
-      <h2>3. 建議</h2>
-      <div id="advice"><p>先讀取名單，再跑沙盤。</p></div>
-    </section>
-
-    <section>
-      <h2>4. 你現在的裝備，和天梯常見的差在哪</h2>
-      <div id="gear" class="grid"></div>
+      <h2>4. 更新英雄、倍率與賽季</h2>
+      <p>Smilegate 出新英雄、平衡改版或新神器時，按這顆重新抓 Fribbels 的英雄資料庫和倍率，以及 Epic7RTAStats 的賽季模型。抓完上面會換成新的版本。</p>
+      <button id="update" type="button">更新英雄、倍率與賽季</button>
+      <p id="updateState" class="note">現在用的是已標版本的一份資料。按更新才會向來源要新的。</p>
     </section>
 
     <section>
       <h2>5. 對位</h2>
-      <p class="note">下面只列技能原文裡寫得出原因的對位：屬性、速度上限、魂、開場推條。沒有寫進資料的機制不會編成對位。</p>
+      <p class="note">只列技能原文裡寫得出原因的對位。沒有寫進資料的機制不會編成對位。</p>
       <ul id="counters"></ul>
     </section>
   </main>
 
   <footer>
-    <p>傷害公式沿用 Fribbels StatCalculator：攻擊與能力值係數乘 1.871 與 pow，再除以防禦係數（防禦 × 剩餘穿透 / 300 + 1）。擦傷 0.75、屬性優勢 1.1。效果抗性有 15% 底線。</p>
+    <p>傷害公式沿用 Fribbels StatCalculator。沒有英雄資料庫、Fribbels 倍率，或這個賽季的模型時，不給建議。沒有讀入帳號時，不看畫面。</p>
   </footer>
   <script type="module" src="./js/ui.js"></script>
 </body>

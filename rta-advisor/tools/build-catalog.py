@@ -21,6 +21,8 @@ import urllib.request
 from html import unescape
 from pathlib import Path
 
+from live_data import build_database, validate_catalog, write_signatures, write_version
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 FRIBBELS_COMMIT = "cd69229c7c60547e85cb12f3135a724f01516aa0"
@@ -100,11 +102,11 @@ ROLE_ZH = {
 CACHE = Path("/tmp/rta-advisor-cache")
 
 
-def fetch(url: str, data: bytes | None = None, timeout: int = 60) -> bytes:
+def fetch(url: str, data: bytes | None = None, timeout: int = 60, fresh: bool = False, headers: dict | None = None) -> bytes:
     CACHE.mkdir(parents=True, exist_ok=True)
-    key = re.sub(r"[^a-zA-Z0-9._-]+", "_", url + (data.decode() if data else ""))[:180]
+    key = re.sub(r"[^a-zA-Z0-9._-]+", "_", url + (data.decode() if data else "") + str(headers or ""))[:180]
     cached = CACHE / key
-    if cached.exists() and cached.stat().st_size > 0:
+    if not fresh and cached.exists() and cached.stat().st_size > 0:
         return cached.read_bytes()
     last = None
     for attempt in range(4):
@@ -112,7 +114,7 @@ def fetch(url: str, data: bytes | None = None, timeout: int = 60) -> bytes:
             req = urllib.request.Request(
                 url,
                 data=data,
-                headers={"User-Agent": "rta-advisor-catalog/1.0"},
+                headers={"User-Agent": "rta-advisor-catalog/1.0", **(headers or {})},
             )
             with urllib.request.urlopen(req, timeout=timeout) as res:
                 body = res.read()
@@ -495,39 +497,48 @@ def median(values: list[float]) -> int:
     return int(round(statistics.median(values)))
 
 
-def main() -> None:
+def main(fresh: bool = False, commit: str | None = None, commit_date: str | None = None, commit_message: str | None = None, reuse_reference: bool = False, core_codes: list[str] | None = None, presence_by_code: dict | None = None, season_code: str | None = None, season_label: str | None = None, patch_text: str | None = None) -> None:
     print("fetch fribbels")
-    heroes = json.loads(fetch(HERO_URL))
-    artifacts = json.loads(fetch(ARTIFACT_URL))
-    zh = json.loads(fetch(ZH_URL))
+    heroes = json.loads(fetch(HERO_URL, fresh=fresh))
+    artifacts = json.loads(fetch(ARTIFACT_URL, fresh=fresh))
+    zh = json.loads(fetch(ZH_URL, fresh=fresh))
     by_code = {h["code"]: h for h in heroes.values()}
     art_by_code = {a["code"]: name for name, a in artifacts.items()}
 
+    previous_catalog = {}
+    if (DATA / "catalog.json").exists():
+        previous_catalog = json.loads((DATA / "catalog.json").read_text())
+    previous_by_code = {h["code"]: h for h in previous_catalog.get("heroes", [])}
+
     catalog_heroes = []
-    for code in CORE:
+    for code in (core_codes or CORE):
         hero = by_code[code]
         name = hero["name"]
         slug = hero["_id"]
         print("hero", name)
-        tools_html = fetch(f"https://epic7tools.dev/heroes/{slug}/").decode("utf-8", "replace")
-        rta_html = fetch(f"https://www.epic7rtastats.com/heroes/{code}").decode("utf-8", "replace")
+        tools_html = fetch(f"https://epic7tools.dev/heroes/{slug}/", fresh=fresh).decode("utf-8", "replace")
+        rta_html = fetch(f"https://www.epic7rtastats.com/heroes/{code}", fresh=fresh).decode("utf-8", "replace")
+        prev = previous_by_code.get(code)
         rows = []
-        try:
-            builds_raw = json.loads(fetch(BUILDS_URL, data=name.encode()))
-            rows = builds_raw.get("data") or []
-        except Exception as exc:  # noqa: BLE001
-            print("builds failed", name, exc)
-            previous = DATA / "catalog.json"
-            if previous.exists():
-                old = json.loads(previous.read_text())
-                prev = next((h for h in old.get("heroes", []) if h["code"] == code), None)
+        if reuse_reference and prev and prev.get("reference"):
+            hero["_previousReference"] = prev["reference"]
+        else:
+            try:
+                builds_raw = json.loads(fetch(BUILDS_URL, data=name.encode(), fresh=fresh, timeout=90))
+                rows = builds_raw.get("data") or []
+            except Exception as exc:  # noqa: BLE001
+                print("builds failed", name, exc)
                 if prev and prev.get("reference"):
-                    rows = []
-                    # Reuse the previous median by synthesizing nothing; filled below from prev.
                     hero["_previousReference"] = prev["reference"]
         skills_txt = parse_skills(tools_html)
         gear = parse_rta_gear(rta_html)
         editorial = parse_editorial(tools_html)
+        kept_previous_gear = False
+        if not gear.get("setCombos") and prev and (prev.get("rtaGear") or {}).get("setCombos"):
+            gear = prev["rtaGear"]
+            kept_previous_gear = True
+        if not editorial.get("substatPriority") and prev and (prev.get("editorialGear") or {}).get("substatPriority"):
+            editorial = prev["editorialGear"]
         base = hero["calculatedStatus"]["lv60SixStarFullyAwakened"]
         skills_out = {}
         gaps = []
@@ -585,6 +596,8 @@ def main() -> None:
             }
             if not tx:
                 gaps.append(f"{name} {slot} has Fribbels multipliers but no Epic7Tools text, so effects were not added.")
+        if kept_previous_gear:
+            gaps.append(f"{name} 這次沒有從 Epic7RTAStats 讀到套裝表，沿用上次的賽季套裝。")
 
         dates = [r.get("createDate") for r in rows if r.get("createDate")]
         ref = hero.pop("_previousReference", None)
@@ -634,10 +647,13 @@ def main() -> None:
             "rtaGear": gear,
             "editorialGear": editorial,
             "reference": ref,
-            "rtaPresence": (json.loads((DATA / "rta-presence.json").read_text()).get(code) if (DATA / "rta-presence.json").exists() else None),
+            "rtaPresence": (
+                (presence_by_code or {}).get(code)
+                or (json.loads((DATA / "rta-presence.json").read_text()).get(code) if (DATA / "rta-presence.json").exists() else None)
+            ),
             "gaps": gaps,
             "sources": {
-                "multipliers": f"https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/{FRIBBELS_COMMIT}/data/cache/herodata.json",
+                "multipliers": f"https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/{commit or FRIBBELS_COMMIT}/data/cache/herodata.json",
                 "skillText": f"https://epic7tools.dev/heroes/{slug}/",
                 "rtaGear": f"https://www.epic7rtastats.com/heroes/{code}",
                 "referenceBuilds": BUILDS_URL,
@@ -646,12 +662,14 @@ def main() -> None:
 
     catalog = {
         "provenance": {
-            "fetchedOn": "2026-11-10",
-            "fribbelsCommit": FRIBBELS_COMMIT,
-            "fribbelsCommitDate": "2026-11-07",
-            "gamePatchAssumed": "8.7 content update on 2026-10-29, plus the 2026-11-05 bugfix patch. The 2026-11-19 balance preview is not applied.",
-            "rtaSeason": "pvp_rta_ss21",
-            "rtaSeasonLabel": "2026 秋季賽季（Fall 2026），Champion+",
+            "fetchedOn": __import__("datetime").datetime.utcnow().strftime("%Y-%m-%d"),
+            "fribbelsCommit": commit or FRIBBELS_COMMIT,
+            "fribbelsCommitDate": commit_date or "2026-11-07",
+            "fribbelsCommitMessage": commit_message or "Update E7 hero and artifact data for 291fabdab9f046be8fb6870bddf5bed0 (#264)",
+            "gamePatchAssumed": patch_text or "8.7 content update on 2026-10-29, plus the 2026-11-05 bugfix patch. The 2026-11-19 balance preview is not applied.",
+            "gamePatchAssumedZh": "8.7 內容更新（2026-10-29）加上 2026-11-05 的修正檔。2026-11-19 的平衡預告沒有算進去。" if not patch_text else patch_text,
+            "rtaSeason": season_code or "pvp_rta_ss21",
+            "rtaSeasonLabel": season_label or "2026 秋季賽季（Fall 2026），Champion+",
             "damageFormula": "Fribbels StatCalculator.getSkillValue at the same commit: ((atk * rate + hp/atk/def/spd scalings) * 1.871 * pow * (1+increasedValue) * hit) / (def * (1-pen) / 300 + 1). The extra dmgUpMod = 1 + selfSpdScaling * spd term in that function is not applied, because selfSpdScaling is already inside the flat scaling and would be counted twice.",
             "element": "Advantage multiplies damage by 1.1 (comment in Fribbels damageCalc.js). Disadvantage uses the miss hit type 0.75 and cannot crit or land the skill's debuff; the 50% glance chance is the long-standing attribute rule that selects that hit type.",
             "resist": "Debuff resist chance is max(15%, effect resistance - effectiveness), capped at 100%. Proc chance in the skill text is rolled first.",
@@ -670,20 +688,29 @@ def main() -> None:
                     "https://epic7db.com/news/115-thu-patch-information",
                 ],
             },
-            "accountImport": {
-                "method": "Fribbels Epic 7 Optimizer gear.txt or Save-all JSON",
-                "schema": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/app/js/lib/importer.js",
-                "notDone": "This app does not capture game traffic. The user exports the file in Fribbels, then loads it here.",
+            "screen": {
+                "method": "Browser getDisplayMedia. The user picks the Epic Seven window once per session, then drags portrait boxes once.",
+                "recognition": "8x8 color signatures of Fribbels small portraits from the same commit. An unknown or ambiguous face makes that step's advice invalid.",
+                "notDone": "Gear numbers are not read off the screen. The fight uses Fribbels library medians, or the database's awakened base when a median was not returned.",
             },
         },
         "setZh": SET_ZH,
         "artifactNames": {code: {"name": name, "nameZh": zh.get(name, name)} for code, name in art_by_code.items()},
+        "database": build_database(heroes, zh),
         "heroes": catalog_heroes,
     }
     DATA.mkdir(parents=True, exist_ok=True)
+    problems = validate_catalog(catalog)
+    if problems:
+        raise SystemExit("catalog refused: " + "; ".join(problems[:8]))
     out = DATA / "catalog.json"
     out.write_text(json.dumps(catalog, ensure_ascii=False, indent=2))
-    print("wrote", out, "heroes", len(catalog_heroes))
+    try:
+        write_signatures(catalog, commit or FRIBBELS_COMMIT, fetch, fresh=fresh)
+    except Exception as exc:  # noqa: BLE001
+        print("signatures skipped", exc)
+    write_version(catalog)
+    print("wrote", out, "heroes", len(catalog_heroes), "database", len(catalog["database"]))
 
     sample_heroes = []
     for hero in catalog_heroes:
@@ -720,4 +747,18 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--refresh", action="store_true", help="Download the latest Fribbels commit and the current RTA ladder")
+    parser.add_argument("--attach", action="store_true", help="Attach the Fribbels hero database to the current catalog")
+    args = parser.parse_args()
+    if args.refresh:
+        import sys
+        from live_data import refresh_all
+        refresh_all(sys.modules[__name__])
+    elif args.attach:
+        from live_data import attach_database
+        attach_database(fetch, HERO_URL, ARTIFACT_URL, ZH_URL)
+    else:
+        main()

@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "fetchedOn": "2026-11-10",
+  "fribbelsCommit": "cd69229c7c60547e85cb12f3135a724f01516aa0",
+  "fribbelsCommitDate": "2026-11-07",
+  "fribbelsCommitMessage": "Update E7 hero and artifact data for 291fabdab9f046be8fb6870bddf5bed0 (#264)",
+  "patch": "8.7 content update on 2026-10-29, plus the 2026-11-05 bugfix patch. The 2026-11-19 balance preview is not applied.",
+  "patchZh": "8.7 內容更新（2026-10-29）加上 2026-11-05 的修正檔。2026-11-19 的平衡預告沒有算進去。",
+  "season": "pvp_rta_ss21",
+  "seasonLabel": "2026 秋季賽季（Fall 2026），Champion+",
+  "heroCount": 393,
+  "metaCount": 16,
+  "artifactCount": 283,
+  "portraitCount": 16
+}

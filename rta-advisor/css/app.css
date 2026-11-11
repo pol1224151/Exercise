@@ -133,6 +133,62 @@ textarea {
 
 footer { padding: 8px 0 28px; color: var(--muted); font-size: 0.9rem; }
 
+.stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #16130f;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.stage video,
+.stage canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #16130f;
+}
+
+#boxes { position: absolute; inset: 0; }
+
+.box {
+  position: absolute;
+  border: 2px solid #c4552a;
+  color: white;
+  background: rgba(196, 85, 42, 0.18);
+  font-size: 12px;
+  touch-action: none;
+  cursor: move;
+}
+
+.box span {
+  display: inline-block;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.box i {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  background: white;
+  cursor: nwse-resize;
+}
+
+.action {
+  font-size: 1.8rem;
+  margin: 0 0 8px;
+  color: var(--brass-deep);
+}
+
+code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.92em;
+}
+
 @media (max-width: 720px) {
   .split { grid-template-columns: 1fr; }
   h1 { font-size: 1.6rem; }

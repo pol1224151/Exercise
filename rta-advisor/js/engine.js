@@ -480,7 +480,7 @@ export function advise(catalog, roster, options = {}) {
     };
   }
 
-  const enemyPre = [...catalog.heroes]
+  let enemyPre = [...catalog.heroes]
     .sort((a, b) => b.rtaPresence.prebans - a.rtaPresence.prebans)
     .slice(0, prebansEach)
     .map((h) => h.id);
@@ -488,9 +488,37 @@ export function advise(catalog, roster, options = {}) {
     .sort((a, b) => b.rtaPresence.prebans - a.rtaPresence.prebans)
     .filter((h) => !enemyPre.includes(h.id))
     .slice(0, prebansEach === 1 ? 4 : 5);
-  const userPairs = prebansEach === 1
+  let userPairs = prebansEach === 1
     ? userCandidates.map((h) => [h.id])
     : combinations(userCandidates.map((h) => h.id), 2);
+  const lockedUserPre = options.lockedUserPre || [];
+  const taken = new Set([...(options.lockedUser || []), ...(options.lockedEnemy || []), ...lockedUserPre]);
+  if (taken.size) {
+    const ranked = [...catalog.heroes].sort((a, b) => b.rtaPresence.prebans - a.rtaPresence.prebans).map((h) => h.id);
+    const ownedIds = new Set(owned.map((hero) => hero.id));
+    const unseen = ranked.filter((id) => !taken.has(id) && !ownedIds.has(id));
+    const open = ranked.filter((id) => !taken.has(id));
+    enemyPre = (unseen.length >= prebansEach ? unseen : open).slice(0, prebansEach);
+  }
+  if (lockedUserPre.length) {
+    if (lockedUserPre.length > prebansEach || lockedUserPre.some((id) => !byId[id])) {
+      return {
+        ok: false,
+        reason: "畫面上的預禁對不上這個分段，或是不在賽季模型裡，這步建議無效。",
+        gear,
+        edges,
+        unknown: roster.unknown,
+      };
+    }
+    const ranked = [...catalog.heroes].sort((a, b) => b.rtaPresence.prebans - a.rtaPresence.prebans).map((h) => h.id);
+    const rest = prebansEach - lockedUserPre.length;
+    const pool = ranked.filter((id) => !taken.has(id) && !enemyPre.includes(id));
+    const ownedIds = new Set(owned.map((hero) => hero.id));
+    const unowned = pool.filter((id) => !ownedIds.has(id));
+    const partners = (unowned.length ? unowned : pool).slice(0, 8);
+    const extras = rest === 0 ? [[]] : combinations(partners, rest);
+    userPairs = extras.map((extra) => [...lockedUserPre, ...extra]);
+  }
 
   const plans = [
     { id: "s3-burn", order: ["S3", "S2", "S1"], burn: true },
@@ -505,6 +533,8 @@ export function advise(catalog, roster, options = {}) {
   for (const userPre of userPairs) {
     const drafted = runDraft({
       catalog, owned, byId, edges, userPre, enemyPre, userFirst,
+      lockedUser: options.lockedUser || [],
+      lockedEnemy: options.lockedEnemy || [],
     });
     if (!drafted) continue;
     let bestPlan = null;
@@ -551,26 +581,42 @@ export function advise(catalog, roster, options = {}) {
   };
 }
 
-function runDraft({ catalog, owned, byId, edges, userPre, enemyPre, userFirst }) {
+function runDraft({ catalog, owned, byId, edges, userPre, enemyPre, userFirst, lockedUser = [], lockedEnemy = [] }) {
   const banned = new Set([...userPre, ...enemyPre]);
   const ownedIds = new Set(owned.map((h) => h.id));
   const picked = { user: [], enemy: [] };
   const pattern = [1, 2, 2, 2, 2, 1];
   let side = userFirst ? "user" : "enemy";
   const steps = [];
+  let userLock = 0;
+  let enemyLock = 0;
   for (const n of pattern) {
     for (let i = 0; i < n; i += 1) {
-      const pool = catalog.heroes.filter((h) => !banned.has(h.id) && !picked.user.includes(h.id) && !picked.enemy.includes(h.id));
-      const legal = side === "user" ? pool.filter((h) => ownedIds.has(h.id)) : pool;
-      if (!legal.length) return null;
-      const choice = legal
-        .map((h) => ({ h, score: pickScore(h, side, picked, edges, byId) }))
-        .sort((a, b) => b.score - a.score)[0].h;
-      picked[side].push(choice.id);
-      steps.push({ side, id: choice.id, protected: picked[side].length === 3 });
+      const locked = side === "user" ? lockedUser[userLock] : lockedEnemy[enemyLock];
+      let choiceId;
+      if (locked) {
+        if (banned.has(locked) || picked.user.includes(locked) || picked.enemy.includes(locked)) return null;
+        if (side === "user" && !ownedIds.has(locked)) return null;
+        if (side === "enemy" && !byId[locked]) return null;
+        choiceId = locked;
+        if (side === "user") userLock += 1;
+        else enemyLock += 1;
+      } else {
+        const pool = catalog.heroes.filter((h) => !banned.has(h.id) && !picked.user.includes(h.id) && !picked.enemy.includes(h.id));
+        const available = side === "user" ? pool.filter((h) => ownedIds.has(h.id)) : pool;
+        const unowned = available.filter((h) => !ownedIds.has(h.id));
+        const legal = side === "enemy" && unowned.length ? unowned : available;
+        if (!legal.length) return null;
+        choiceId = legal
+          .map((h) => ({ h, score: pickScore(h, side, picked, edges, byId) }))
+          .sort((a, b) => b.score - a.score)[0].h.id;
+      }
+      picked[side].push(choiceId);
+      steps.push({ side, id: choiceId, protected: picked[side].length === 3 });
     }
     side = side === "user" ? "enemy" : "user";
   }
+  if (userLock !== lockedUser.length || enemyLock !== lockedEnemy.length) return null;
   const userBan = choosePostban(picked.enemy, picked.user, edges, byId);
   const enemyBan = choosePostban(picked.user, picked.enemy, edges, byId);
   const userFight = picked.user.filter((id) => id !== enemyBan);
@@ -908,6 +954,310 @@ function tickDebuffs(actor) {
     d.turns -= 1;
     return d.turns > 0;
   });
+}
+
+export function sourceBasis(catalog) {
+  const provenance = catalog?.provenance || {};
+  const problems = [];
+  if (!provenance.fribbelsCommit) problems.push("沒有 Fribbels 英雄資料庫的版本");
+  if (!provenance.gamePatchAssumed) problems.push("沒有標示遊戲版本");
+  if (!provenance.rtaSeason || !provenance.rtaSeasonLabel) problems.push("沒有賽季");
+  const database = catalog?.database || [];
+  if (database.length < 100) problems.push(`英雄資料庫只有 ${database.length} 名`);
+  const codes = new Set(database.map((row) => row.code));
+  const heroes = catalog?.heroes || [];
+  if (heroes.length < 10) problems.push("賽季核心不足，建議無效");
+  for (const hero of heroes) {
+    if (!codes.has(hero.code)) problems.push(`${hero.nameZh || hero.code} 不在英雄資料庫`);
+    for (const slot of ["S1", "S2", "S3"]) {
+      const skill = hero.skills?.[slot];
+      if (!skill || typeof skill.rate !== "number" || typeof skill.pow !== "number") {
+        problems.push(`${hero.nameZh || hero.code} 的 ${slot} 沒有 Fribbels 倍率`);
+      }
+    }
+    if (typeof hero.rtaPresence?.prebans !== "number") problems.push(`${hero.nameZh} 沒有賽季預禁數`);
+    if (!hero.rtaGear?.setCombos?.length) problems.push(`${hero.nameZh} 沒有賽季套裝`);
+    if (typeof hero.reference?.median?.speed !== "number" && typeof hero.base?.speed !== "number") {
+      problems.push(`${hero.nameZh} 沒有可用的速度`);
+    }
+  }
+  if (!catalog?.artifactNames || !Object.keys(catalog.artifactNames).length) problems.push("沒有神器資料");
+  return {
+    ok: problems.length === 0,
+    problems,
+    version: versionOf(catalog),
+  };
+}
+
+export function versionOf(catalog) {
+  const provenance = catalog?.provenance || {};
+  return {
+    fetchedOn: provenance.fetchedOn || null,
+    fribbelsCommit: provenance.fribbelsCommit || null,
+    fribbelsCommitDate: provenance.fribbelsCommitDate || null,
+    patch: provenance.gamePatchAssumed || null,
+    patchZh: provenance.gamePatchAssumedZh || provenance.gamePatchAssumed || null,
+    season: provenance.rtaSeason || null,
+    seasonLabel: provenance.rtaSeasonLabel || null,
+    heroCount: catalog?.database?.length || 0,
+    metaCount: catalog?.heroes?.length || 0,
+    artifactCount: catalog?.artifactNames ? Object.keys(catalog.artifactNames).length : 0,
+  };
+}
+
+function metaRoster(catalog) {
+  return {
+    label: "賽季參考面板",
+    warning: "畫面上看不到裝備數字。沙盤用 Fribbels Hero Library 的中位數；沒有中位數時用資料庫裡的滿覺醒基礎值，不另編數字。",
+    heroes: catalog.heroes.map((hero) => {
+      const median = hero.reference?.median;
+      const stats = median || hero.base;
+      const combo = hero.rtaGear?.setCombos?.[0];
+      const artifact = hero.rtaGear?.artifacts?.[0]?.names?.[0] || null;
+      return {
+        name: hero.name,
+        speed: stats.speed,
+        attack: stats.attack,
+        hp: stats.hp,
+        defense: stats.defense,
+        crit: stats.crit,
+        critDamage: stats.critDamage,
+        effectiveness: stats.effectiveness,
+        effectResistance: stats.effectResistance,
+        artifact,
+        sets: combo?.names || [],
+        sample: !median,
+      };
+    }),
+  };
+}
+
+function countsArePrefix(userCount, enemyCount, userFirst) {
+  if (userCount === 0 && enemyCount === 0) return true;
+  const pattern = [1, 2, 2, 2, 2, 1];
+  let side = userFirst ? "user" : "enemy";
+  let user = 0;
+  let enemy = 0;
+  for (const count of pattern) {
+    for (let i = 0; i < count; i += 1) {
+      if (side === "user") user += 1;
+      else enemy += 1;
+      if (user === userCount && enemy === enemyCount) return true;
+      if ((side === "user" && user > userCount) || (side === "enemy" && enemy > enemyCount)) return false;
+    }
+    side = side === "user" ? "enemy" : "user";
+  }
+  return user === userCount && enemy === enemyCount;
+}
+
+function nextSide(userCount, enemyCount, userFirst) {
+  const pattern = [1, 2, 2, 2, 2, 1];
+  let side = userFirst ? "user" : "enemy";
+  let user = 0;
+  let enemy = 0;
+  for (const count of pattern) {
+    for (let i = 0; i < count; i += 1) {
+      if (user === userCount && enemy === enemyCount) return side;
+      if (side === "user") user += 1;
+      else enemy += 1;
+    }
+    side = side === "user" ? "enemy" : "user";
+  }
+  return null;
+}
+
+function burnDecision(skill, plan) {
+  const effects = skill?.soulburnEffects || [];
+  const usable = effects.some((effect) => effect.simulated !== false && effect.kind !== "unparsed");
+  if (!plan?.burn || !skill?.soulburnCost || !usable) {
+    return { yes: false, cost: null, text: "不要燒魂。這條沙盤沒有可計算的燒魂效果，或燒了勝率更低。" };
+  }
+  return { yes: true, cost: skill.soulburnCost, text: `要燒魂，消耗 ${skill.soulburnCost}。` };
+}
+
+function invalid(catalog, reason) {
+  return { ok: false, reason, action: null, version: versionOf(catalog), basis: sourceBasis(catalog) };
+}
+
+export function adviseFromScreen(catalog, recognition, options = {}) {
+  const basis = sourceBasis(catalog);
+  if (!basis.ok) {
+    return invalid(catalog, `建議無效。${basis.problems.slice(0, 4).join("；")}`);
+  }
+  const byId = Object.fromEntries(catalog.heroes.map((hero) => [hero.id, hero]));
+  const known = (id) => id && id !== "unknown" && id !== "empty" && byId[id];
+  const slots = [...(recognition.user || []), ...(recognition.enemy || []), ...(recognition.prebans || [])];
+  if (slots.includes("unknown") || recognition.actorId === "unknown") {
+    return invalid(catalog, "建議無效。畫面上有認不出或不在這份資料裡的英雄，不能把空位猜成某個人。");
+  }
+  const outside = slots.filter((id) => id && id !== "empty" && !byId[id]);
+  if (outside.length || (recognition.actorId && recognition.actorId !== "empty" && !byId[recognition.actorId])) {
+    return invalid(catalog, "建議無效。畫面上的英雄沒有同時具備資料庫、倍率和這個賽季的模型。");
+  }
+  const userFirst = options.firstPick !== false;
+  const roster = options.roster;
+  if (!roster?.heroes?.length) {
+    return invalid(catalog, "建議無效。請先讀入帳號的英雄和裝備，等競技場開始再看畫面。");
+  }
+  const ownedIds = new Set(roster.heroes.map((hero) => hero.id));
+  const missingOwn = (recognition.user || []).filter((id) => known(id) && !ownedIds.has(id));
+  if (missingOwn.length) {
+    const names = missingOwn.map((id) => byId[id].nameZh).join("、");
+    return invalid(catalog, `建議無效。帳號裡沒有${names}，不會拿參考面板冒充你的裝備。`);
+  }
+  const phase = recognition.phase;
+  if (phase === "battle") {
+    const user = (recognition.user || []).filter(known);
+    const enemy = (recognition.enemy || []).filter(known);
+    if (user.length !== 4 || enemy.length !== 4) {
+      return invalid(catalog, "建議無效。戰鬥畫面沒有認滿兩邊各 4 名。");
+    }
+    if (!recognition.yourTurn) {
+      return {
+        ok: true,
+        phase,
+        action: {
+          kind: "wait",
+          title: "現在不是你的回合",
+          detail: "技能列是暗的，先不要按。",
+          burn: null,
+        },
+        rate: null,
+        reason: { summary: "這一瞬間沒有你的行動。", lines: ["技能鍵沒有亮，所以不建議放技能或燒魂。"] },
+        version: basis.version,
+        basis,
+      };
+    }
+    if (!known(recognition.actorId) || !user.includes(recognition.actorId)) {
+      return invalid(catalog, "建議無效。看不出現在是你的哪一名在動。");
+    }
+    const draft = {
+      steps: [],
+      picked: { user, enemy },
+      userBan: null,
+      enemyBan: null,
+      userFight: user,
+      enemyFight: enemy,
+      userFirst,
+    };
+    const plans = [
+      { id: "s3-burn", order: ["S3", "S2", "S1"], burn: true },
+      { id: "s3", order: ["S3", "S2", "S1"], burn: false },
+      { id: "s1-burn", order: ["S1", "S3", "S2"], burn: true },
+      { id: "s1", order: ["S1", "S3", "S2"], burn: false },
+    ];
+    const trials = options.trials || 4;
+    let best = null;
+    let seed = 1;
+    const enhanceMode = options.assumeMaxEnhance ? "max" : "base";
+    for (const plan of plans) {
+      let wins = 0;
+      let sampleLog = null;
+      for (let trial = 0; trial < trials; trial += 1) {
+        const fight = fightFromRoster(draft, roster, catalog, plan, enhanceMode, mulberry32(seed));
+        seed += 1;
+        if (fight.winner === "user") wins += 1;
+        if (!sampleLog || (fight.winner === "user" && sampleLog.winner !== "user")) sampleLog = fight;
+      }
+      const rate = wins / trials;
+      if (!best || rate > best.rate) best = { plan, rate, log: sampleLog };
+    }
+    const actor = byId[recognition.actorId];
+    const ready = recognition.skillsReady || [true, true, true];
+    const index = { S1: 0, S2: 1, S3: 2 };
+    const slot = best.plan.order.find((name) => ready[index[name]] && actor.skills[name] && !actor.skills[name].passive);
+    if (!slot) return invalid(catalog, "建議無效。這一動沒有亮著、而且資料裡能放的技能。");
+    const skill = actor.skills[slot];
+    const burn = burnDecision(skill, best.plan);
+    const label = { S1: "1 技能", S2: "2 技能", S3: "3 技能" }[slot];
+    return {
+      ok: true,
+      phase,
+      action: {
+        kind: "skill",
+        title: `${actor.nameZh} 放${label}`,
+        detail: skill.name ? `技能名稱沿用資料原文：${skill.name}` : label,
+        burn,
+        slot,
+      },
+      rate: best.rate,
+      reason: {
+        summary: `${actor.nameZh}這一動用${label}。${burn.text}`,
+        lines: [
+          "估計勝率來自沙盤，不是保證。",
+          "你的面板用這次讀入的帳號。對手用 Fribbels 參考中位數，不是畫面上的裝備。",
+          burn.text,
+        ],
+      },
+      version: basis.version,
+      basis,
+      draft,
+    };
+  }
+
+  const userPicks = (recognition.user || []).filter(known);
+  const enemyPicks = (recognition.enemy || []).filter(known);
+  const lockedPre = (recognition.prebans || []).filter(known);
+  if (!countsArePrefix(userPicks.length, enemyPicks.length, userFirst)) {
+    return invalid(catalog, "建議無效。兩邊已選的人數對不上現在的選角順序，不能硬排下一步。");
+  }
+  const advice = advise(catalog, roster, {
+    ...options,
+    trials: options.trials || 4,
+    lockedUserPre: lockedPre,
+    lockedUser: userPicks,
+    lockedEnemy: enemyPicks,
+  });
+  if (!advice.ok) return invalid(catalog, advice.reason || "建議無效。這一手沙盤排不出 4 對 4。");
+  const best = advice.best;
+  const side = nextSide(userPicks.length, enemyPicks.length, userFirst);
+  let action;
+  if (phase === "preban" || (userPicks.length === 0 && enemyPicks.length === 0 && phase !== "postban")) {
+    const next = best.userPre.find((id) => !lockedPre.includes(id));
+    action = next
+      ? { kind: "preban", title: `預禁 ${byId[next].nameZh}`, detail: `賽季預禁數 ${byId[next].rtaPresence.prebans}。`, burn: null, id: next }
+      : { kind: "wait", title: "預禁已經選完", detail: "等選角開始。", burn: null };
+  } else if (!side) {
+    const ban = best.draft.userBan;
+    action = { kind: "ban", title: `最後禁 ${byId[ban].nameZh}`, detail: "不能禁對方的第 3 選。", burn: null, id: ban };
+  } else if (side === "user") {
+    let seen = 0;
+    let next = null;
+    for (const step of best.draft.steps) {
+      if (step.side !== "user") continue;
+      if (seen === userPicks.length) next = step;
+      seen += 1;
+    }
+    action = next
+      ? { kind: "pick", title: `選 ${byId[next.id].nameZh}`, detail: next.protected ? "這格是你的第 3 選，選下去就不能被最後禁掉。" : "這一手輪到你。", burn: null, id: next.id }
+      : { kind: "wait", title: "這一手沒有可選的人", detail: "", burn: null };
+  } else {
+    let seenUser = 0;
+    let nextUser = null;
+    for (const step of best.draft.steps) {
+      if (step.side !== "user") continue;
+      if (seenUser === userPicks.length) nextUser = step;
+      seenUser += 1;
+    }
+    action = {
+      kind: "wait",
+      title: "現在是對手在選",
+      detail: nextUser ? `你的下一手沙盤選 ${byId[nextUser.id].nameZh}。` : "等對手選完。",
+      burn: null,
+      id: nextUser?.id || null,
+    };
+  }
+  best.reason.lines.push("你的面板用這次讀入的帳號。對手用 Fribbels 參考中位數。");
+  return {
+    ok: true,
+    phase: phase || (side ? "pick" : "postban"),
+    action,
+    rate: best.rate,
+    reason: best.reason,
+    version: basis.version,
+    basis,
+    best,
+  };
 }
 
 export function describePlan(plan) {
