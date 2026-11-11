@@ -27,11 +27,31 @@ body {
 
 .top { padding: 28px 0 0; }
 
-.bar, .dialog-bar {
+.bar, .dialog-bar, .bar-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+
+.import-account {
+  display: inline-flex;
+  align-items: center;
+  background: var(--brass);
+  color: white;
+  border: 1px solid var(--brass-deep);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.import-account input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
 #now {

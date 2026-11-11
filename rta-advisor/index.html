@@ -13,7 +13,12 @@
         <p class="eyebrow">第七史詩　世界競技場</p>
         <h1>下一步</h1>
       </div>
-      <button id="openSetup" type="button">帳號與設定</button>
+      <div class="bar-actions">
+        <label class="import-account">匯入帳號
+          <input id="importFile" type="file" accept=".txt,.json,application/json,text/plain">
+        </label>
+        <button id="openSetup" type="button">帳號與設定</button>
+      </div>
     </div>
   </header>
 
@@ -21,7 +26,7 @@
     <section id="now">
       <button id="liveAction" type="button" class="action" disabled>先讀入帳號</button>
       <p id="liveRate" class="rate">尚無勝率</p>
-      <p id="liveReason">還沒有讀入帳號。</p>
+      <p id="liveReason">按「匯入帳號」，選 gear.txt 或 Fribbels 的 Save all JSON。</p>
     </section>
   </main>
 

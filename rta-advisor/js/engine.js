@@ -108,8 +108,27 @@ export function clearAccount(storage) {
   storage.removeItem(ACCOUNT_STORAGE_KEY);
 }
 
+export function readAccountText(text) {
+  const trimmed = String(text || "").replace(/^\uFEFF/, "").trim();
+  let data;
+  try {
+    data = JSON.parse(trimmed);
+  } catch {
+    throw new Error("這個檔不是 gear.txt，也不是 Fribbels 的 Save all JSON。");
+  }
+  if (Array.isArray(data)) data = { items: data };
+  const heroes = data.heroes || data.units;
+  const hasHeroes = Array.isArray(heroes)
+    ? heroes.length > 0
+    : Boolean(heroes && typeof heroes === "object" && Object.keys(heroes).length);
+  if (!hasHeroes) {
+    throw new Error("這份 gear.txt 只有裝備、沒有英雄。請改匯入 Fribbels 的 Save all optimizer data。");
+  }
+  return data;
+}
+
 export function parseRoster(input, catalog) {
-  const data = typeof input === "string" ? JSON.parse(input) : input;
+  const data = typeof input === "string" ? readAccountText(input) : input;
   let list = data.heroes || data.units || [];
   if (!Array.isArray(list) && list && typeof list === "object") list = Object.values(list);
   if (!Array.isArray(list)) throw new Error("找不到 heroes 陣列");

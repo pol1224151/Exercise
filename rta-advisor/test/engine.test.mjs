@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { advise, buildGearReport, clearAccount, elementRelation, fightFromRoster, loadAccount, parseRoster, saveAccount, skillDamage } from "../js/engine.js";
+import { advise, buildGearReport, clearAccount, elementRelation, fightFromRoster, loadAccount, parseRoster, readAccountText, saveAccount, skillDamage } from "../js/engine.js";
 import { chooseComposition, draftType } from "../js/records.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
@@ -120,6 +120,10 @@ const storage = {
   removeItem: (key) => memory.delete(key),
 };
 saveAccount(storage, exported);
+const gearTxt = readAccountText(JSON.stringify({ heroes: [{ name: "Zio", spd: 200, atk: 1000, hp: 8000, def: 800 }], items: [] }));
+assert.equal(gearTxt.heroes[0].name, "Zio");
+assert.throws(() => readAccountText(JSON.stringify({ items: [{ gear: "Weapon", set: "SpeedSet" }] })), /沒有英雄/);
+assert.throws(() => readAccountText("Weapon,85,Speed"), /gear\.txt/);
 assert.equal(loadAccount(storage).heroes[0].name, "Harsetti");
 clearAccount(storage);
 assert.equal(loadAccount(storage), null);

@@ -1,4 +1,4 @@
-import { adviseFromScreen, buildGearReport, clearAccount, counterEdges, loadAccount, parseRoster, saveAccount, sourceBasis } from "./engine.js";
+import { adviseFromScreen, buildGearReport, clearAccount, counterEdges, loadAccount, parseRoster, readAccountText, saveAccount, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, recordResult, saveMatches } from "./records.js";
 import { DEFAULT_REGIONS, liveStateKey, paintFixture, readFrame } from "./screen.js";
 
@@ -111,7 +111,12 @@ function applyRoster(data, source = "import") {
   renderGear();
   setScreenEnabled(roster.heroes.length > 0);
   lastKey = "";
-  if (!reading) showReadyCard();
+  if (!reading && !roster.heroes.length) {
+    const missing = roster.unknown.length ? `這版賽季模型沒有：${roster.unknown.slice(0, 4).join("、")}。` : "檔案裡沒有可對照的英雄。";
+    showCard({ action: "匯入沒有對上英雄", rate: "尚無勝率", reason: missing, click: "import" });
+  } else if (!reading) {
+    showReadyCard();
+  }
 }
 
 function renderGear() {
@@ -177,7 +182,7 @@ function showCard({ action, rate, reason, click }) {
 
 function showReadyCard() {
   if (!roster?.heroes.length) {
-    showCard({ action: "先讀入帳號", rate: "尚無勝率", reason: "還沒有讀入帳號。", click: "import" });
+    showCard({ action: "先讀入帳號", rate: "尚無勝率", reason: "按「匯入帳號」，選 gear.txt 或 Fribbels 的 Save all JSON。", click: "import" });
     return;
   }
   if (!stream) {
@@ -477,21 +482,33 @@ $("loadExample").addEventListener("click", () => loadExample().catch(showError))
 $("loadSample").addEventListener("click", () => loadSample().catch(showError));
 $("applyText").addEventListener("click", () => {
   try {
-    applyRoster(JSON.parse($("rosterText").value));
+    applyRoster(readAccountText($("rosterText").value));
   } catch (error) {
     showError(error);
   }
 });
-$("file").addEventListener("change", async (event) => {
-  const file = event.target.files?.[0];
+async function importAccountFile(file) {
   if (!file) return;
   try {
     const text = await file.text();
-    $("rosterText").value = text;
-    applyRoster(JSON.parse(text));
+    const data = readAccountText(text);
+    $("rosterText").value = JSON.stringify(data, null, 2);
+    applyRoster(data);
   } catch (error) {
     showError(error);
+    showCard({ action: "匯入沒有成功", rate: "尚無勝率", reason: error.message || "這個檔讀不了。", click: "import" });
   }
+}
+
+$("file").addEventListener("change", (event) => {
+  importAccountFile(event.target.files?.[0]).finally(() => {
+    event.target.value = "";
+  });
+});
+$("importFile").addEventListener("change", (event) => {
+  importAccountFile(event.target.files?.[0]).finally(() => {
+    event.target.value = "";
+  });
 });
 
 function showError(error) {
@@ -514,8 +531,7 @@ $("closeSetup").addEventListener("click", () => {
 $("liveAction").addEventListener("click", () => {
   const click = $("liveAction").dataset.click;
   if (click === "import") {
-    $("setup").showModal();
-    syncStage();
+    $("importFile").click();
   } else if (click === "share") {
     shareWindow().catch((error) => {
       $("captureState").textContent = `沒有接上視窗：${error.message || error}`;
