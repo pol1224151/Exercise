@@ -87,12 +87,54 @@ function spatialStdev(rgb) {
   return stdev(lumas);
 }
 
-export function matchPortrait(rgb, book) {
-  if (spatialStdev(rgb) < (book.emptyStdevBelow ?? 18)) return "empty";
+export function patternDistance(left, right) {
+  const normalize = (values) => {
+    const stats = [0, 1, 2].map((channel) => {
+      const samples = [];
+      for (let index = channel; index < values.length; index += 3) samples.push(values[index]);
+      const mean = samples.reduce((sum, value) => sum + value, 0) / samples.length;
+      const deviation = stdev(samples) || 1;
+      return { mean, deviation };
+    });
+    return values.map((value, index) => (value - stats[index % 3].mean) / stats[index % 3].deviation);
+  };
+  const a = normalize(left);
+  const b = normalize(right);
+  let sum = 0;
+  const length = Math.min(a.length, b.length);
+  for (let index = 0; index < length; index += 1) {
+    const delta = a[index] - b[index];
+    sum += delta * delta;
+  }
+  return Math.sqrt(sum);
+}
+
+const CROP_INSETS = [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.32, 0.34, 0.36];
+const CROP_PHASES = [0, 0.25];
+const FULL_LIMIT = 4;
+const INNER_LIMIT = 0.9;
+const ACCEPT_RATIO = 2;
+const CORRECTION_LIMIT = 4.8;
+
+function maskedDistance(left, right, margin) {
+  if (!margin) return patternDistance(left, right);
+  const a = [];
+  const b = [];
+  for (let y = margin; y < 8 - margin; y += 1) {
+    for (let x = margin; x < 8 - margin; x += 1) {
+      const index = (y * 8 + x) * 3;
+      a.push(left[index], left[index + 1], left[index + 2]);
+      b.push(right[index], right[index + 1], right[index + 2]);
+    }
+  }
+  return patternDistance(a, b);
+}
+
+function rankSignature(rgb, book, margin, limit) {
   let best = null;
   let second = null;
   for (const portrait of book.portraits) {
-    const distance = centerDistance(rgb, portrait.rgb);
+    const distance = maskedDistance(rgb, portrait.rgb, margin);
     const row = { id: portrait.id, distance };
     if (!best || distance < best.distance) {
       second = best;
@@ -101,9 +143,131 @@ export function matchPortrait(rgb, book) {
       second = row;
     }
   }
-  if (!best || best.distance > book.maxDistance) return "unknown";
-  if (second && second.distance < best.distance * 1.2) return "unknown";
-  return best.id;
+  if (!best) return null;
+  const ratio = second && best.distance > 0 ? second.distance / best.distance : Infinity;
+  return {
+    id: best.id,
+    distance: best.distance,
+    ratio,
+    accepted: best.distance <= limit && ratio >= ACCEPT_RATIO,
+  };
+}
+
+function nearestCorrection(rgb, corrections) {
+  let best = null;
+  for (const row of corrections || []) {
+    if (!row?.id || !row.rgb) continue;
+    const distance = patternDistance(rgb, row.rgb);
+    if (!best || distance < best.distance) best = { id: row.id, distance };
+  }
+  return best;
+}
+
+export function rememberCorrection(list, rgb, id) {
+  const next = (list || []).filter((row) => !row?.rgb || patternDistance(row.rgb, rgb) > 1.2);
+  next.push({ id, rgb: [...rgb] });
+  return next.slice(-40);
+}
+
+export function matchPortrait(rgb, book) {
+  if (spatialStdev(rgb) < (book.emptyStdevBelow ?? 18)) return "empty";
+  const picks = [rankSignature(rgb, book, 0, FULL_LIMIT), rankSignature(rgb, book, 2, INNER_LIMIT)].filter((row) => row?.accepted);
+  if (!picks.length) return "unknown";
+  picks.sort((left, right) => left.distance - right.distance);
+  if (picks.length > 1 && picks[0].id !== picks[1].id && picks[1].distance < picks[0].distance * 1.5) return "unknown";
+  return picks[0].id;
+}
+
+function signatureShifted(data, imageWidth, originX, originY, width, height, phase) {
+  if (!phase) return signatureFromRgba(data, imageWidth, originX, originY, width, height);
+  const cells = [];
+  const xEnd = Math.floor(originX + width);
+  const yEnd = Math.floor(originY + height);
+  for (let gy = 0; gy < 8; gy += 1) {
+    for (let gx = 0; gx < 8; gx += 1) {
+      const x0 = Math.floor(originX + (gx + phase) * width / 8);
+      const x1 = Math.max(x0 + 1, Math.floor(originX + (gx + 1 + phase) * width / 8));
+      const y0 = Math.floor(originY + (gy + phase) * height / 8);
+      const y1 = Math.max(y0 + 1, Math.floor(originY + (gy + 1 + phase) * height / 8));
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      let count = 0;
+      for (let y = Math.max(y0, Math.floor(originY)); y < y1 && y < yEnd; y += 1) {
+        for (let x = Math.max(x0, Math.floor(originX)); x < x1 && x < xEnd; x += 1) {
+          const offset = (y * imageWidth + x) * 4;
+          red += data[offset];
+          green += data[offset + 1];
+          blue += data[offset + 2];
+          count += 1;
+        }
+      }
+      cells.push(count ? Math.round(red / count) : 0, count ? Math.round(green / count) : 0, count ? Math.round(blue / count) : 0);
+    }
+  }
+  return cells;
+}
+
+function cropSignature(data, imageWidth, box, insetX, insetY, phase) {
+  const dx = box.w * insetX;
+  const dy = box.h * insetY;
+  return signatureShifted(
+    data,
+    imageWidth,
+    box.x + dx,
+    box.y + dy,
+    Math.max(8, box.w - dx * 2),
+    Math.max(8, box.h - dy * 2),
+    phase,
+  );
+}
+
+function judgeCrop(rgb, book, corrections, margin, limit) {
+  const ranked = rankSignature(rgb, book, margin, limit);
+  const correction = nearestCorrection(rgb, corrections);
+  if (correction && correction.distance <= CORRECTION_LIMIT && (!ranked?.accepted || correction.distance <= ranked.distance)) {
+    return { id: correction.id, distance: correction.distance, source: "correction" };
+  }
+  if (ranked?.accepted) return { id: ranked.id, distance: ranked.distance, source: "catalog" };
+  return null;
+}
+
+function matchBox(data, imageWidth, box, book, corrections) {
+  const full = signatureFromRgba(data, imageWidth, box.x, box.y, box.w, box.h);
+  if (spatialStdev(full) < (book.emptyStdevBelow ?? 18)) return { id: "empty", rgb: full };
+  const remembered = nearestCorrection(full, corrections);
+  if (remembered && remembered.distance <= CORRECTION_LIMIT) return { id: remembered.id, rgb: full };
+  let best = null;
+  let rival = null;
+  const offer = (found) => {
+    if (!found) return false;
+    if (found.source === "correction") {
+      if (!best || found.distance <= best.distance) best = found;
+      return found.distance <= 0.35;
+    }
+    if (best?.source === "correction" && best.distance <= found.distance) return false;
+    if (!best || found.distance < best.distance) {
+      if (best && best.id !== found.id) rival = best;
+      best = found;
+    } else if (found.id !== best.id && (!rival || found.distance < rival.distance)) {
+      rival = found;
+    }
+    return found.distance <= 0.35;
+  };
+  for (const inset of CROP_INSETS) {
+    let settled = false;
+    for (const phase of CROP_PHASES) {
+      settled = offer(judgeCrop(cropSignature(data, imageWidth, box, inset, inset, phase), book, corrections, 0, FULL_LIMIT));
+      if (settled) break;
+    }
+    if (settled) break;
+    if (!inset) continue;
+    if (offer(judgeCrop(cropSignature(data, imageWidth, box, inset, 0, 0), book, corrections, 0, FULL_LIMIT))) break;
+    if (offer(judgeCrop(cropSignature(data, imageWidth, box, 0, inset, 0), book, corrections, 0, FULL_LIMIT))) break;
+  }
+  if (!(best && best.distance <= 0.35)) offer(judgeCrop(full, book, corrections, 2, INNER_LIMIT));
+  if (best?.source === "catalog" && rival && rival.distance < best.distance * 1.5) return { id: "unknown", rgb: full };
+  return { id: best?.id || "unknown", rgb: full };
 }
 
 function slotBox(region, index, imageWidth, imageHeight) {
@@ -116,12 +280,11 @@ function slotBox(region, index, imageWidth, imageHeight) {
   };
 }
 
-function readSlots(data, imageWidth, imageHeight, region, book) {
+function readSlots(data, imageWidth, imageHeight, region, book, corrections) {
   const found = [];
   for (let index = 0; index < region.slots; index += 1) {
     const box = slotBox(region, index, imageWidth, imageHeight);
-    const rgb = signatureFromRgba(data, imageWidth, box.x, box.y, box.w, box.h);
-    found.push(matchPortrait(rgb, book));
+    found.push(matchBox(data, imageWidth, box, book, corrections));
   }
   return found;
 }
@@ -215,11 +378,32 @@ export function readLeadSide(data, imageWidth, imageHeight) {
   return null;
 }
 
-export function readFrame(data, imageWidth, imageHeight, regions, book) {
-  const user = readSlots(data, imageWidth, imageHeight, regions.user, book);
-  const enemy = readSlots(data, imageWidth, imageHeight, regions.enemy, book);
-  const prebans = readSlots(data, imageWidth, imageHeight, regions.preban, book);
-  const actor = readSlots(data, imageWidth, imageHeight, regions.actor, book)[0];
+function faceFrom(side, slots, region, imageWidth, imageHeight) {
+  return slots.flatMap((slot, index) => {
+    if (!slot?.id || slot.id === "empty") return [];
+    const box = slotBox(region, index, imageWidth, imageHeight);
+    return [{
+      side,
+      index,
+      id: slot.id,
+      rgb: slot.rgb,
+      x: box.x / imageWidth,
+      y: box.y / imageHeight,
+      w: box.w / imageWidth,
+      h: box.h / imageHeight,
+    }];
+  });
+}
+
+export function readFrame(data, imageWidth, imageHeight, regions, book, corrections = []) {
+  const userSlots = readSlots(data, imageWidth, imageHeight, regions.user, book, corrections);
+  const enemySlots = readSlots(data, imageWidth, imageHeight, regions.enemy, book, corrections);
+  const prebanSlots = readSlots(data, imageWidth, imageHeight, regions.preban, book, corrections);
+  const actorSlot = readSlots(data, imageWidth, imageHeight, regions.actor, book, corrections)[0];
+  const user = userSlots.map((slot) => slot.id);
+  const enemy = enemySlots.map((slot) => slot.id);
+  const prebans = prebanSlots.map((slot) => slot.id);
+  const actor = actorSlot?.id;
   const skillsReady = skillReady(data, imageWidth, imageHeight, regions.skills);
   const read = {
     user,
@@ -230,6 +414,12 @@ export function readFrame(data, imageWidth, imageHeight, regions, book) {
     yourTurn: skillsReady.some(Boolean) && actor && actor !== "empty" && actor !== "unknown",
     turnSide: readTurnSide(data, imageWidth, imageHeight, regions, user, enemy),
     leadSide: readLeadSide(data, imageWidth, imageHeight),
+    faces: [
+      ...faceFrom("user", userSlots, regions.user, imageWidth, imageHeight),
+      ...faceFrom("enemy", enemySlots, regions.enemy, imageWidth, imageHeight),
+      ...faceFrom("preban", prebanSlots, regions.preban, imageWidth, imageHeight),
+      ...faceFrom("actor", actorSlot ? [actorSlot] : [], regions.actor, imageWidth, imageHeight),
+    ],
   };
   read.phase = inferPhase(read);
   return read;
@@ -285,10 +475,51 @@ export function paintFixture(imageWidth, imageHeight, regions, book, assignment)
       const portrait = byId[id];
       if (!portrait) continue;
       const scale = assignment.scale || 1;
-      fillSlot(data, imageWidth, box, (gx, gy) => {
-        const offset = (gy * 8 + gx) * 3;
-        return [0, 1, 2].map((channel) => Math.max(0, Math.min(255, Math.round(portrait.rgb[offset + channel] * scale))));
-      });
+      const paintPortrait = (target) => {
+        fillSlot(data, imageWidth, target, (gx, gy) => {
+          const offset = (gy * 8 + gx) * 3;
+          return [0, 1, 2].map((channel) => Math.max(0, Math.min(255, Math.round(portrait.rgb[offset + channel] * scale))));
+        });
+      };
+      if (assignment.fit) {
+        const frame = assignment.fit;
+        for (let y = Math.round(box.y); y < Math.round(box.y + box.h); y += 1) {
+          for (let x = Math.round(box.x); x < Math.round(box.x + box.w); x += 1) {
+            const offset = (y * imageWidth + x) * 4;
+            data[offset] = 212;
+            data[offset + 1] = 170;
+            data[offset + 2] = 60;
+            data[offset + 3] = 255;
+          }
+        }
+        paintPortrait({
+          x: box.x + box.w * frame,
+          y: box.y + box.h * frame,
+          w: box.w * (1 - frame * 2),
+          h: box.h * (1 - frame * 2),
+        });
+        continue;
+      }
+      paintPortrait(box);
+      if (assignment.border) {
+        const x0 = Math.round(box.x);
+        const y0 = Math.round(box.y);
+        const x1 = Math.round(box.x + box.w);
+        const y1 = Math.round(box.y + box.h);
+        const mx = Math.round(box.w * 0.22);
+        const my = Math.round(box.h * 0.22);
+        for (let y = y0; y < y1; y += 1) {
+          for (let x = x0; x < x1; x += 1) {
+            if (x < x0 + mx || x >= x1 - mx || y < y0 + my || y >= y1 - my) {
+              const offset = (y * imageWidth + x) * 4;
+              data[offset] = 12;
+              data[offset + 1] = 10;
+              data[offset + 2] = 16;
+              data[offset + 3] = 255;
+            }
+          }
+        }
+      }
     }
   };
   const fillRect = (rect, color) => {

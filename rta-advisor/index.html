@@ -27,6 +27,7 @@
       <button id="liveAction" type="button" class="action" disabled>先讀入帳號</button>
       <p id="liveRate" class="rate">尚無勝率</p>
       <p id="liveReason">按「匯入帳號」，選 gear.txt 或 Fribbels 的 Save all JSON。</p>
+      <div id="faces" class="faces" hidden></div>
     </section>
   </main>
 
@@ -72,6 +73,7 @@
           <li>競技場畫面出現後，按「分享遊戲視窗」。在系統清單選第七史詩或模擬器那個視窗，然後按分享。</li>
           <li>遊戲維持 16:9。第一次把色框拖到我方五個頭像、對方五個頭像、預禁兩格、現在行動的頭像、底下三個技能鈕，再按「記住框線」。</li>
           <li>按「開始判讀」。先後手由畫面判斷，不用手選。</li>
+          <li>認錯或認不出時，點那張臉，選對的英雄。這台會記住。</li>
         </ol>
         <div class="row">
           <button id="share" type="button" class="primary" disabled>分享遊戲視窗</button>
@@ -124,6 +126,18 @@
         <p class="note">只列技能原文裡寫得出原因的對位。沒有寫進資料的機制不會編成對位。</p>
         <ul id="counters"></ul>
       </section>
+    </div>
+  </dialog>
+
+  <dialog id="picker">
+    <div class="dialog-bar">
+      <h2>這張臉是誰</h2>
+      <button id="closePicker" type="button">關閉</button>
+    </div>
+    <div class="dialog-body">
+      <p class="note">點對的英雄。這台瀏覽器會記住這張臉，之後同一張用你選的人。</p>
+      <input id="pickerSearch" type="search" placeholder="輸入英雄名字" aria-label="尋找英雄">
+      <div id="pickerList" class="picker-list"></div>
     </div>
   </dialog>
 

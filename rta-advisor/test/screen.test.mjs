@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { adviseFromScreen, detectFirstPick, parseRoster, sourceBasis } from "../js/engine.js";
-import { DEFAULT_REGIONS, inferPhase, liveStateKey, paintFixture, readFrame } from "../js/screen.js";
+import { DEFAULT_REGIONS, inferPhase, liveStateKey, matchPortrait, paintFixture, readFrame, rememberCorrection } from "../js/screen.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
 const book = JSON.parse(readFileSync(new URL("../data/portrait-signatures.json", import.meta.url)));
@@ -137,5 +137,26 @@ const flickering = { ...battleRead, skillsReady: [false, true, false] };
 assert.equal(liveStateKey(battleRead), liveStateKey(flickering));
 assert.notEqual(liveStateKey(battleRead), liveStateKey({ ...battleRead, actorId: ids[1] }));
 assert.notEqual(liveStateKey(battleRead), liveStateKey({ ...battleRead, user: [ids[1], ...battleRead.user.slice(1)] }));
+
+const dim = paintFixture(960, 540, DEFAULT_REGIONS, book, { user: [ids[4]], scale: 0.72 });
+assert.equal(readFrame(dim, 960, 540, DEFAULT_REGIONS, book).user[0], ids[4]);
+const framed = paintFixture(960, 540, DEFAULT_REGIONS, book, { user: [ids[5]], border: true });
+const framedRead = readFrame(framed, 960, 540, DEFAULT_REGIONS, book);
+assert.equal(framedRead.user[0], ids[5], framedRead.user[0]);
+assert.equal(framedRead.faces[0].side, "user");
+const fitted = paintFixture(960, 540, DEFAULT_REGIONS, book, { user: [ids[7]], fit: 0.22 });
+assert.equal(readFrame(fitted, 960, 540, DEFAULT_REGIONS, book).user[0], ids[7]);
+const wide = paintFixture(1920, 1080, DEFAULT_REGIONS, book, { user: [ids[8]], fit: 0.18 });
+assert.equal(readFrame(wide, 1920, 1080, DEFAULT_REGIONS, book).user[0], ids[8]);
+assert.equal(matchPortrait(book.portraits[0].rgb.map((value) => Math.round(value * 0.72)), book), book.portraits[0].id);
+const mixed = book.portraits[0].rgb.map((value, index) => Math.round((value + book.portraits[8].rgb[index]) / 2));
+assert.equal(matchPortrait(mixed, book), "unknown");
+
+const saved = rememberCorrection([], framedRead.faces[0].rgb, ids[6]);
+const corrected = readFrame(framed, 960, 540, DEFAULT_REGIONS, book, saved);
+assert.equal(corrected.user[0], ids[6]);
+const again = rememberCorrection(JSON.parse(JSON.stringify(saved)), corrected.faces[0].rgb, ids[6]);
+assert.equal(again.length, 1);
+assert.equal(again[0].id, ids[6]);
 
 console.log("screen tests passed", { next: advice.action.title, skill: cast.action.title, burn: cast.action.burn.yes });

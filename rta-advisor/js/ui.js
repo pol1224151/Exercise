@@ -1,9 +1,11 @@
 import { adviseFromScreen, buildGearReport, clearAccount, counterEdges, loadAccount, parseRoster, readAccountText, saveAccount, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, recordResult, saveMatches } from "./records.js";
-import { DEFAULT_REGIONS, liveStateKey, paintFixture, readFrame } from "./screen.js";
+import { DEFAULT_REGIONS, liveStateKey, paintFixture, readFrame, rememberCorrection } from "./screen.js";
 
 const $ = (id) => document.getElementById(id);
 const REGION_KEY = "rta-advisor-regions";
+const FACE_KEY = "rta-advisor-faces";
+const FACE_SIDE = { user: "我方", enemy: "對方", preban: "預禁", actor: "行動" };
 
 let catalog = null;
 let book = null;
@@ -17,6 +19,8 @@ let lastRead = null;
 let openRecord = null;
 let orderLock = null;
 let reading = false;
+let corrections = loadCorrections();
+let pendingFace = null;
 
 async function boot() {
   const [catalogRes, versionRes, portraitRes] = await Promise.all([
@@ -37,6 +41,16 @@ async function boot() {
   else restoreAccount();
   const fixture = params.get("fixture");
   if (fixture) runFixture(fixture);
+}
+
+function loadCorrections() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FACE_KEY) || "[]");
+    if (Array.isArray(saved)) return saved.filter((row) => row?.id && Array.isArray(row.rgb));
+  } catch {
+    /* start with an empty memory */
+  }
+  return [];
 }
 
 function loadRegions() {
@@ -181,6 +195,7 @@ function showCard({ action, rate, reason, click }) {
 }
 
 function showReadyCard() {
+  renderFaces([]);
   if (!roster?.heroes.length) {
     showCard({ action: "先讀入帳號", rate: "尚無勝率", reason: "按「匯入帳號」，選 gear.txt 或 Fribbels 的 Save all JSON。", click: "import" });
     return;
@@ -243,9 +258,11 @@ function startDrag(event, key) {
     }
     placeBox(event.currentTarget, region);
   };
-  const up = () => {
+  const up = (ev) => {
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", up);
+    const moved = Math.hypot(ev.clientX - origin.px, ev.clientY - origin.py);
+    if (moved < 6 && ev.target?.dataset?.resize !== "1") openFaceAt(key, ev);
   };
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", up);
@@ -281,6 +298,92 @@ function rateLine(result) {
   if (!history) return sandbox;
   if (history.rate == null) return `${sandbox}　實戰尚無`;
   return `${sandbox}　實戰 ${Math.round(history.rate * 100)}%`;
+}
+
+function heroName(id) {
+  if (!id || id === "unknown") return "認不出";
+  return catalog.heroes.find((hero) => hero.id === id)?.nameZh || id;
+}
+
+function swatchColor(rgb) {
+  if (!rgb?.length) return "#8a7b6c";
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let count = 0;
+  for (let index = 0; index < rgb.length; index += 3) {
+    red += rgb[index];
+    green += rgb[index + 1];
+    blue += rgb[index + 2];
+    count += 1;
+  }
+  return `rgb(${Math.round(red / count)}, ${Math.round(green / count)}, ${Math.round(blue / count)})`;
+}
+
+function renderFaces(faces) {
+  const root = $("faces");
+  const shown = (faces || []).filter((face) => face?.id && face.id !== "empty");
+  root.hidden = shown.length === 0;
+  root.replaceChildren();
+  for (const face of shown) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "face";
+    const swatch = document.createElement("i");
+    swatch.style.background = swatchColor(face.rgb);
+    const where = FACE_SIDE[face.side] || "";
+    button.append(swatch, document.createTextNode(`${where} ${face.index + 1} ${heroName(face.id)}`));
+    button.addEventListener("click", () => openPicker(face));
+    root.appendChild(button);
+  }
+}
+
+function fillPicker(query = "") {
+  const needle = query.trim();
+  const list = $("pickerList");
+  list.replaceChildren();
+  const heroes = [...catalog.heroes].sort((left, right) => left.nameZh.localeCompare(right.nameZh, "zh-Hant"));
+  for (const hero of heroes) {
+    if (needle && !hero.nameZh.includes(needle) && !hero.id.includes(needle)) continue;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = hero.nameZh;
+    button.addEventListener("click", () => chooseFace(hero.id));
+    list.appendChild(button);
+  }
+}
+
+function openPicker(face) {
+  pendingFace = face;
+  $("pickerSearch").value = "";
+  fillPicker("");
+  if (!$("picker").open) $("picker").showModal();
+}
+
+function openFaceAt(key, event) {
+  if (!lastRead?.faces?.length) return;
+  const stage = $("stage").getBoundingClientRect();
+  const x = (event.clientX - stage.left) / stage.width;
+  const y = (event.clientY - stage.top) / stage.height;
+  const hit = (lastRead.faces || []).find((row) => row.side === key && x >= row.x && x <= row.x + row.w && y >= row.y && y <= row.y + row.h);
+  if (hit) openPicker(hit);
+}
+
+function chooseFace(heroId) {
+  const face = pendingFace;
+  $("picker").close();
+  pendingFace = null;
+  if (!face?.rgb || !heroId) return;
+  corrections = rememberCorrection(corrections, face.rgb, heroId);
+  localStorage.setItem(FACE_KEY, JSON.stringify(corrections));
+  if (!lastRead) return;
+  if (face.side === "actor") lastRead.actorId = heroId;
+  else if (face.side === "preban") lastRead.prebans[face.index] = heroId;
+  else if (lastRead[face.side]) lastRead[face.side][face.index] = heroId;
+  const chip = (lastRead.faces || []).find((row) => row.side === face.side && row.index === face.index);
+  if (chip) chip.id = heroId;
+  lastKey = "";
+  consider(lastRead);
 }
 
 function renderLive(result) {
@@ -359,6 +462,7 @@ function consider(read) {
     const type = currentType();
     if (!type || openRecord?.type !== type.key) openRecord = type ? { type: type.key, id: null } : null;
     renderLive(lastAdvice);
+    renderFaces(read.faces);
     return lastAdvice;
   } catch (error) {
     showCard({ action: "這一手沒有建議", rate: "尚無勝率", reason: error.message || "判讀時發生錯誤。" });
@@ -421,7 +525,7 @@ function sampleVideo() {
   const ctx = board.getContext("2d", { willReadFrequently: true });
   ctx.drawImage(video, 0, 0);
   const frame = ctx.getImageData(0, 0, board.width, board.height);
-  const read = readFrame(frame.data, board.width, board.height, regions, book);
+  const read = readFrame(frame.data, board.width, board.height, regions, book, corrections);
   consider(read);
 }
 
@@ -461,7 +565,7 @@ function runFixture(name) {
   const ctx = board.getContext("2d");
   ctx.putImageData(new ImageData(data, width, height), 0, 0);
   $("game").hidden = true;
-  const read = readFrame(data, width, height, DEFAULT_REGIONS, book);
+  const read = readFrame(data, width, height, DEFAULT_REGIONS, book, corrections);
   $("captureState").textContent = "這張是內建檢查畫面，不是你的遊戲。正式使用請分享遊戲視窗。";
   consider(read);
 }
@@ -528,6 +632,8 @@ $("closeSetup").addEventListener("click", () => {
   $("setup").close();
   syncStage();
 });
+$("closePicker").addEventListener("click", () => $("picker").close());
+$("pickerSearch").addEventListener("input", (event) => fillPicker(event.target.value));
 $("liveAction").addEventListener("click", () => {
   const click = $("liveAction").dataset.click;
   if (click === "import") {
