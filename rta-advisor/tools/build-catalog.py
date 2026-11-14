@@ -319,14 +319,15 @@ def effects_from_text(text: str) -> list[dict]:
         add(entry)
 
     for m in re.finditer(
-        r"(increases|decreases|decreasing) (?:the )?Combat Readiness(?: of (the caster|all allies|all enemies|the enemy))? by (\d+)%(?!\s+of the amount)",
+        r"(increases|increasing|decreases|decreasing) (?:the )?Combat Readiness(?: of (the caster|all allies|all enemies|the enemy))? by (\d+)%(?!\s+of the amount)",
         text,
         re.I,
     ):
         verb = m.group(1).lower()
         who = (m.group(2) or "").lower()
+        # "increasing" does not start with "increase" (increas + ing, not increase + ing).
         add({
-            "kind": "crPush" if verb.startswith("increase") else "crPushback",
+            "kind": "crPush" if verb.startswith("increas") else "crPushback",
             "who": who or "the target",
             "amount": int(m.group(3)),
             "atBattleStart": "at the start" in text[max(0, m.start() - 80) : m.start()].lower(),

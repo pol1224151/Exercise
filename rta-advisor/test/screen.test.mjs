@@ -487,6 +487,42 @@ assert.match(brief.reason.summary, /先打|先動/);
 assert.match(brief.reason.summary, /開大/);
 assert.match(brief.reason.summary, /先殺|不指定先殺/);
 assert.equal(brief.reason.summary.includes("擦傷"), false);
+
+const added = ["lone-crescent-bellona", "midnight-gala-lilias", "sylvan-sage-vivian"];
+for (const id of added) {
+  const hero = catalog.heroes.find((row) => row.id === id);
+  assert.ok(hero, id);
+  assert.equal(hero.skills.S1.soulburnCost, 10);
+  assert.equal(hero.skills.S3.penetration, 0);
+  assert.equal(typeof hero.skills.S3.cooldownShown, "number");
+  assert.ok(hero.skills.S1.rate > 0 && hero.skills.S1.pow > 0);
+  assert.ok(hero.skills.S3.rate > 0 && hero.skills.S3.pow > 0);
+}
+const bellona = catalog.heroes.find((row) => row.id === "lone-crescent-bellona");
+assert.equal(bellona.skills.S1.rate, 1);
+assert.equal(bellona.skills.S3.rate, 1.6);
+assert.equal(bellona.skills.S3.cooldownShown, 3);
+const gala = catalog.heroes.find((row) => row.id === "midnight-gala-lilias");
+assert.equal(gala.skills.S1.rate, 1.1);
+assert.equal(gala.skills.S3.rate, 0.5);
+assert.equal(gala.skills.S3.cooldownShown, 4);
+assert.equal(gala.skills.S3.effects.find((effect) => effect.kind === "penetrate").simulated, false);
+const sage = catalog.heroes.find((row) => row.id === "sylvan-sage-vivian");
+assert.equal(sage.skills.S1.rate, 1);
+assert.equal(sage.skills.S1.targets, 1);
+assert.equal(sage.skills.S3.rate, 1.1);
+assert.equal(sage.skills.S3.targets, 3);
+assert.equal(sage.skills.S3.cooldownShown, 5);
+assert.equal(sage.skills.S1.effects.find((effect) => effect.kind === "crPush").amount, 15);
+assert.equal(gala.skills.S2.effects.find((effect) => effect.amount === 15).simulated, false);
+const filled = battleBrief(catalog, roster, {
+  userFirst: true,
+  userFight: [...added, heroIds[0]],
+  enemyFight: heroIds.slice(1, 5),
+});
+assert.equal(filled.ok, true, filled.reason?.summary);
+assert.equal(filled.reason.summary.includes("沒有技能倍率"), false);
+assert.match(filled.reason.summary, /先打|先動/);
 const protectedBan = heroIds[7];
 assert.equal(lastBan.action.id === protectedBan, false);
 

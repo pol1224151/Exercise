@@ -6897,6 +6897,1197 @@
         "prebans": 46641,
         "source": "https://www.epic7rtastats.com/heroes"
       }
+    },
+    {
+      "id": "lone-crescent-bellona",
+      "code": "c2071",
+      "name": "Lone Crescent Bellona",
+      "nameZh": "一輪孤月維爾蘿娜",
+      "attribute": "dark",
+      "attributeZh": "暗",
+      "role": "warrior",
+      "roleZh": "戰士",
+      "base": {
+        "attack": 1208,
+        "hp": 6488,
+        "defense": 616,
+        "speed": 102,
+        "crit": 15,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.11,
+          "B": 0.07,
+          "S": 0.15,
+          "SS": 0.18,
+          "SSS": 0.21
+        },
+        "type": "att_rate"
+      },
+      "skills": {
+        "S1": {
+          "name": "Delicate Crescent",
+          "passive": false,
+          "rate": 1,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": 10,
+          "soulburnText": "Increases damage dealt, and injuries can be inflicted up to 20%.",
+          "soulburnEffects": [
+            {
+              "kind": "unparsed",
+              "simulated": false,
+              "source": "Increases damage dealt, and injuries can be inflicted up to 20%.",
+              "gap": "The injury cap in this sentence is stored and not applied. The damage increase has no published multiplier."
+            },
+            {
+              "kind": "injury",
+              "simulated": false,
+              "source": "injuries can be inflicted up to 20%",
+              "ratio": 0.2
+            }
+          ],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "Attacks the enemy with a fan, absorbing some of the damage dealt as Health, and inflicts up to 10% injuries. A successful attack always results in a critical hit.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "alwaysCrit",
+              "source": "always results in a critical hit"
+            },
+            {
+              "kind": "injury",
+              "simulated": false,
+              "source": "up to 10% injuries",
+              "ratio": 0.1
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Waxing Crescent",
+          "passive": true,
+          "rate": 0.8,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "For every surviving ally, increases Evasion by 15%. When an ally is attacked, gains 20 Fighting Spirit, and when Fighting Spirit is full, activates All Eyes on Me.\nAll Eyes on Me (consumes 100 Fighting Spirit): Attacks all enemies, inflicting up to 15% injuries, and increases Combat Readiness of the caster by 30%. A successful attack always results in a critical hit.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "alwaysCrit",
+              "source": "always results in a critical hit"
+            },
+            {
+              "kind": "crPush",
+              "who": "the caster",
+              "amount": 30,
+              "atBattleStart": false,
+              "source": "increases Combat Readiness of the caster by 30%"
+            },
+            {
+              "kind": "evasion",
+              "simulated": false,
+              "source": "increases Evasion by 15%",
+              "ratio": 0.15
+            },
+            {
+              "kind": "injury",
+              "simulated": false,
+              "source": "up to 15% injuries",
+              "ratio": 0.15
+            },
+            {
+              "kind": "fightingSpirit",
+              "simulated": false,
+              "source": "gains 20 Fighting Spirit",
+              "amount": 20
+            },
+            {
+              "kind": "fightingSpirit",
+              "simulated": false,
+              "source": "consumes 100 Fighting Spirit",
+              "amount": 100
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Quixotic Crescent",
+          "passive": false,
+          "rate": 1.6,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": 3,
+          "soulGain": 2,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "After granting vigor to the caster for 3 turns, attacks the enemy by moving unpredictably, and grants immunity to the caster for 2 turns. A successful attack always results in a critical hit.",
+          "textBeforeAwaken": "Attacks the enemy by moving unpredictably, before granting immunity to the caster for 2 turns. A successful attack always results in a critical hit. Immunity Cannot be affected by any debuffs or some harmful effects.",
+          "effects": [
+            {
+              "kind": "alwaysCrit",
+              "source": "always results in a critical hit"
+            },
+            {
+              "kind": "vigor",
+              "simulated": false,
+              "source": "vigor to the caster for 3 turns",
+              "turns": 3
+            },
+            {
+              "kind": "immunity",
+              "simulated": false,
+              "source": "grants immunity to the caster for 2 turns",
+              "turns": 2
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 14, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Destruction",
+              "Immunity"
+            ],
+            "pickRate": 43.25,
+            "winRate": 51.56,
+            "games": 43178
+          },
+          {
+            "names": [
+              "Destruction",
+              "Penetration"
+            ],
+            "pickRate": 19.4,
+            "winRate": 47.26,
+            "games": 19366
+          },
+          {
+            "names": [
+              "Riposte",
+              "Immunity"
+            ],
+            "pickRate": 10.05,
+            "winRate": 49.01,
+            "games": 10030
+          },
+          {
+            "names": [
+              "Riposte",
+              "Penetration"
+            ],
+            "pickRate": 7.35,
+            "winRate": 47.93,
+            "games": 7340
+          },
+          {
+            "names": [
+              "Counter",
+              "Immunity"
+            ],
+            "pickRate": 6.08,
+            "winRate": 50.17,
+            "games": 6069
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Destruction"
+            ],
+            "pickRate": 32.86,
+            "winRate": 50.12,
+            "games": 64811
+          },
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 31.4,
+            "winRate": 50.87,
+            "games": 61946
+          },
+          {
+            "names": [
+              "Penetration"
+            ],
+            "pickRate": 16.67,
+            "winRate": 47.6,
+            "games": 32890
+          },
+          {
+            "names": [
+              "Riposte"
+            ],
+            "pickRate": 9.11,
+            "winRate": 48.5,
+            "games": 17977
+          },
+          {
+            "names": [
+              "Counter"
+            ],
+            "pickRate": 5.69,
+            "winRate": 49.84,
+            "games": 11219
+          },
+          {
+            "names": [
+              "Lifesteal"
+            ],
+            "pickRate": 1.52,
+            "winRate": 46.72,
+            "games": 2990
+          },
+          {
+            "names": [
+              "Health"
+            ],
+            "pickRate": 0.66,
+            "winRate": 48.32,
+            "games": 1310
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Sigurd Scythe"
+            ],
+            "pickRate": 93.12,
+            "winRate": 50.25,
+            "games": 92969
+          },
+          {
+            "names": [
+              "Golden Rose"
+            ],
+            "pickRate": 3.57,
+            "winRate": 45.12,
+            "games": 3562
+          },
+          {
+            "names": [
+              "Uberius's Tooth"
+            ],
+            "pickRate": 1.78,
+            "winRate": 47.87,
+            "games": 1780
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Destruction",
+          "Penetration"
+        ],
+        "substatPriority": [
+          "Critical Hit Damage",
+          "Attack",
+          "Defense",
+          "Health",
+          "Speed"
+        ],
+        "substatAvoid": [
+          "Critical Hit Chance",
+          "Effectiveness",
+          "Effect Resistance"
+        ],
+        "mainsSentence": "Attack % Defense % Crit damage on the necklace, Attack on the ring, Defense on the boots to last until All Eyes on Me"
+      },
+      "reference": {
+        "n": 2880,
+        "dateMin": "2023-02-26",
+        "dateMax": "2026-11-14",
+        "median": {
+          "attack": 4058,
+          "hp": 18194,
+          "defense": 1415,
+          "speed": 169,
+          "crit": 20,
+          "critDamage": 329,
+          "effectiveness": 0,
+          "effectResistance": 0
+        }
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 68667,
+        "losses": 69277,
+        "bans": 38102,
+        "prebans": 1074,
+        "games": 139018,
+        "source": "https://www.epic7rtastats.com/heroes"
+      },
+      "gaps": [
+        "Lone Crescent Bellona S1 soul burn text was stored but not fully simulated.",
+        "Lone Crescent Bellona S2 text says this attack hits all enemies, but Fribbels target count is 1, so the target count stays."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/lone-crescent-bellona/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c2071",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      }
+    },
+    {
+      "id": "midnight-gala-lilias",
+      "code": "c5089",
+      "name": "Midnight Gala Lilias",
+      "nameZh": "夜宴莉莉亞斯",
+      "attribute": "wind",
+      "attributeZh": "木",
+      "role": "assassin",
+      "roleZh": "刺客",
+      "base": {
+        "attack": 1208,
+        "hp": 5178,
+        "defense": 508,
+        "speed": 121,
+        "crit": 15,
+        "critDamage": 165,
+        "effectiveness": 0,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.11,
+          "B": 0.07,
+          "S": 0.15,
+          "SS": 0.18,
+          "SSS": 0.21
+        },
+        "type": "att_rate"
+      },
+      "skills": {
+        "S1": {
+          "name": "Go, Kyla!",
+          "passive": false,
+          "rate": 1.1,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S1 heal",
+              "pow": 0,
+              "rate": 0,
+              "selfAtkScaling": 0.4
+            }
+          ],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": 10,
+          "soulburnText": "Increases damage dealt.",
+          "soulburnEffects": [
+            {
+              "kind": "unparsed",
+              "simulated": false,
+              "source": "Increases damage dealt.",
+              "gap": "Soul burn sentence has no number this simulator knows how to apply."
+            }
+          ],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "Attacks the enemy with Kyla, and recovers Health proportional to Attack. A successful attack always results in a critical hit.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "alwaysCrit",
+              "source": "always results in a critical hit"
+            },
+            {
+              "kind": "heal",
+              "full": false,
+              "source": "recover Health",
+              "scaling": "fribbels-option"
+            },
+            {
+              "kind": "speedUp",
+              "simulated": false,
+              "source": "Increases Speed by 30%",
+              "ratio": 0.3
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Elaborate Scheme",
+          "passive": true,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "At the start of battle and at the end of the turn, grants damage limit to the caster for 1 turn. After attacking on the caster's turn, when the target's Health is 50% or less, activates Now or Never!.\nNow or Never!: Grants increased Attack to all allies except for the caster for 2 turns before increasing Combat Readiness by 15%, and increases Combat Readiness of the caster by 50%.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "crPush",
+              "who": "the target",
+              "amount": 15,
+              "atBattleStart": false,
+              "source": "increasing Combat Readiness by 15%",
+              "simulated": false,
+              "gap": "The sentence gives a Combat Readiness percent but does not name who receives it."
+            },
+            {
+              "kind": "crPush",
+              "who": "the caster",
+              "amount": 50,
+              "atBattleStart": false,
+              "source": "increases Combat Readiness of the caster by 50%"
+            },
+            {
+              "kind": "attackUp",
+              "simulated": false,
+              "source": "increased Attack to all allies except for the caster for 2 turns",
+              "turns": 2
+            },
+            {
+              "kind": "damageLimit",
+              "simulated": false,
+              "source": "damage limit to the caster for 1 turn",
+              "turns": 1
+            },
+            {
+              "kind": "healthThreshold",
+              "simulated": false,
+              "source": "Health is 50% or less",
+              "ratio": 0.5
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Take the Lead",
+          "passive": false,
+          "rate": 0.5,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": 4,
+          "soulGain": 2,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+30% damage dealt · -1 turn cooldown",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 1,
+          "text": "After granting increased Attack to the caster for 3 turns, attacks the enemy by exploiting their weakness. When the target is a Hero, ignores damage reduction and damage sharing effect. When the target's max Health is greater than the caster's max Health, penetrates Defense proportionally, up to 100%. A successful attack always results in a critical hit.",
+          "textBeforeAwaken": "After granting increased Attack to the caster for 3 turns, attacks the enemy by exploiting their weakness. When the target's max Health is greater than the caster's max Health, penetrates Defense proportionally, up to 100%. A successful attack always results in a critical hit.",
+          "effects": [
+            {
+              "kind": "alwaysCrit",
+              "source": "always results in a critical hit"
+            },
+            {
+              "kind": "attackUp",
+              "simulated": false,
+              "source": "increased Attack to the caster for 3 turns",
+              "turns": 3
+            },
+            {
+              "kind": "penetrate",
+              "simulated": false,
+              "ratio": 1.0,
+              "source": "penetrates Defense proportionally, up to 100%",
+              "gap": "The cap is proportional to the Health difference. Fribbels publishes no penetration coefficient, so this is not applied as flat penetration."
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 14, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Speed",
+              "Torrent"
+            ],
+            "pickRate": 68.22,
+            "winRate": 48.95,
+            "games": 63073
+          },
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 9.93,
+            "winRate": 49.27,
+            "games": 9185
+          },
+          {
+            "names": [
+              "Speed",
+              "Immunity"
+            ],
+            "pickRate": 5.56,
+            "winRate": 48.89,
+            "games": 5136
+          },
+          {
+            "names": [
+              "Speed",
+              "Penetration"
+            ],
+            "pickRate": 2.51,
+            "winRate": 45.18,
+            "games": 2322
+          },
+          {
+            "names": [
+              "Speed",
+              "Resist"
+            ],
+            "pickRate": 2.06,
+            "winRate": 45.24,
+            "games": 1903
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 46.98,
+            "winRate": 48.9,
+            "games": 84024
+          },
+          {
+            "names": [
+              "Torrent"
+            ],
+            "pickRate": 40.18,
+            "winRate": 49.0,
+            "games": 71864
+          },
+          {
+            "names": [
+              "Immunity"
+            ],
+            "pickRate": 3.89,
+            "winRate": 49.24,
+            "games": 6952
+          },
+          {
+            "names": [
+              "Resist"
+            ],
+            "pickRate": 3.18,
+            "winRate": 46.42,
+            "games": 5683
+          },
+          {
+            "names": [
+              "Destruction"
+            ],
+            "pickRate": 1.84,
+            "winRate": 47.29,
+            "games": 3299
+          },
+          {
+            "names": [
+              "Penetration"
+            ],
+            "pickRate": 1.81,
+            "winRate": 45.75,
+            "games": 3233
+          },
+          {
+            "names": [
+              "Critical"
+            ],
+            "pickRate": 0.88,
+            "winRate": 50.35,
+            "games": 1573
+          },
+          {
+            "names": [
+              "Lifesteal"
+            ],
+            "pickRate": 0.58,
+            "winRate": 44.32,
+            "games": 1038
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Shadow Winds 7"
+            ],
+            "pickRate": 43.16,
+            "winRate": 51.73,
+            "games": 39902
+          },
+          {
+            "names": [
+              "Hostess of the Banquet"
+            ],
+            "pickRate": 26.0,
+            "winRate": 46.3,
+            "games": 24041
+          },
+          {
+            "names": [
+              "Wind Rider"
+            ],
+            "pickRate": 14.39,
+            "winRate": 48.54,
+            "games": 13301
+          },
+          {
+            "names": [
+              "Dark Blood Keeper"
+            ],
+            "pickRate": 3.11,
+            "winRate": 44.18,
+            "games": 2877
+          },
+          {
+            "names": [
+              "Feed of Criticism"
+            ],
+            "pickRate": 2.45,
+            "winRate": 47.15,
+            "games": 2263
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Speed",
+          "Torrent"
+        ],
+        "substatPriority": [
+          "Speed",
+          "Attack",
+          "Critical Hit Damage",
+          "Defense"
+        ],
+        "substatAvoid": [
+          "Critical Hit Chance",
+          "Health",
+          "Health %",
+          "Health",
+          "Defense"
+        ],
+        "mainsSentence": "Attack % Speed Crit damage on the necklace, Attack on the ring, Speed on the boots"
+      },
+      "reference": {
+        "n": 2887,
+        "dateMin": "2023-09-26",
+        "dateMax": "2026-11-14",
+        "median": {
+          "attack": 4058,
+          "hp": 8279,
+          "defense": 917,
+          "speed": 264,
+          "crit": 43,
+          "critDamage": 316,
+          "effectiveness": 0,
+          "effectResistance": 14
+        }
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 55807,
+        "losses": 59347,
+        "bans": 22703,
+        "prebans": 897,
+        "games": 116051,
+        "source": "https://www.epic7rtastats.com/heroes"
+      },
+      "gaps": [
+        "Midnight Gala Lilias S1 soul burn text was stored but not fully simulated.",
+        "Midnight Gala Lilias S3 proportional Defense penetration is stored and not applied."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/midnight-gala-lilias/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c5089",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      }
+    },
+    {
+      "id": "sylvan-sage-vivian",
+      "code": "c2088",
+      "name": "Sylvan Sage Vivian",
+      "nameZh": "森之賢者薇薇安",
+      "attribute": "light",
+      "attributeZh": "光",
+      "role": "mage",
+      "roleZh": "法師",
+      "base": {
+        "attack": 1359,
+        "hp": 4895,
+        "defense": 652,
+        "speed": 110,
+        "crit": 23,
+        "critDamage": 150,
+        "effectiveness": 0,
+        "effectResistance": 0
+      },
+      "imprint": {
+        "grades": {
+          "A": 0.09,
+          "B": 0.06,
+          "S": 0.12,
+          "SS": 0.15,
+          "SSS": 0.18
+        },
+        "type": "cri"
+      },
+      "skills": {
+        "S1": {
+          "name": "Mana Attunement",
+          "passive": false,
+          "rate": 1,
+          "pow": 1,
+          "targets": 1,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 1,
+          "soulburnCost": 10,
+          "soulburnText": "Attacks all enemies. This attack does not trigger a Dual Attack.",
+          "soulburnEffects": [
+            {
+              "kind": "unparsed",
+              "simulated": false,
+              "source": "Attacks all enemies. This attack does not trigger a Dual Attack.",
+              "gap": "Soul burn says this attack hits all enemies, but Fribbels publishes no separate multiplier, so the single-target rate and target count stay."
+            }
+          ],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "Attacks the enemy with mana, before increasing Combat Readiness of the caster by 15% and increasing Attack by 20%. Increased Attack effect can stack up to 3 times. On the caster's turn, when Focus is full, activates the same skill as an extra attack.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "crPush",
+              "who": "the caster",
+              "amount": 15,
+              "atBattleStart": false,
+              "source": "increasing Combat Readiness of the caster by 15%"
+            },
+            {
+              "kind": "extraAttack",
+              "simulated": false,
+              "source": "extra attack",
+              "gap": "Fribbels herodata has no separate multiplier for this extra attack, so its damage is not simulated."
+            },
+            {
+              "kind": "attackUp",
+              "simulated": false,
+              "source": "increasing Attack by 20%",
+              "ratio": 0.2,
+              "stacks": 3
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S2": {
+          "name": "Insight",
+          "passive": true,
+          "rate": 0,
+          "pow": 0,
+          "targets": 0,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [],
+          "cooldownShown": null,
+          "soulGain": 0,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": null,
+          "enhanceDamagePct": 0,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "At the start of the first battle, fully recovers Focus, and at the end of the turn, gains 1 Focus. When Focus is 3 or higher, immune to debuffs. When attacked, if expected damage suffered is equivalent to 30% or more of max Health, consumes 1 Focus, granting 50% damage reduction. Insight only applies to PVP.",
+          "textBeforeAwaken": null,
+          "effects": [
+            {
+              "kind": "focus",
+              "simulated": false,
+              "source": "gains 1 Focus",
+              "amount": 1
+            },
+            {
+              "kind": "focus",
+              "simulated": false,
+              "source": "Focus is 3 or higher",
+              "amount": 3
+            },
+            {
+              "kind": "damageThreshold",
+              "simulated": false,
+              "source": "equivalent to 30% or more of max Health",
+              "ratio": 0.3
+            },
+            {
+              "kind": "damageReduction",
+              "simulated": false,
+              "source": "granting 50% damage reduction",
+              "ratio": 0.5
+            }
+          ],
+          "fribbelsOnly": false
+        },
+        "S3": {
+          "name": "Nature's Judgment",
+          "passive": false,
+          "rate": 1.1,
+          "pow": 1,
+          "targets": 3,
+          "selfHpScaling": 0,
+          "selfAtkScaling": 0,
+          "selfDefScaling": 0,
+          "selfSpdScaling": 0,
+          "penetration": 0,
+          "increasedValue": 0,
+          "cdmgIncrease": 0,
+          "note": "",
+          "options": [
+            {
+              "name": "S3 heal",
+              "pow": 0,
+              "rate": 0,
+              "selfAtkScaling": 0.65
+            }
+          ],
+          "cooldownShown": 5,
+          "soulGain": 3,
+          "soulburnCost": null,
+          "soulburnText": null,
+          "soulburnEffects": [],
+          "enhanceSummary": "+30% damage dealt",
+          "enhanceDamagePct": 0.3,
+          "enhanceEffectPct": 0,
+          "enhanceCooldownCut": 0,
+          "text": "Attacks all enemies by bringing forth the power of nature, before decreasing skill cooldowns of all allies by 1 turn and recovering Health proportional to the caster's Attack.",
+          "textBeforeAwaken": "Attacks all enemies by bringing forth the power of nature, before recovering Health of all allies proportional to the caster's Attack.",
+          "effects": [
+            {
+              "kind": "heal",
+              "full": false,
+              "source": "recover Health",
+              "scaling": "fribbels-option"
+            },
+            {
+              "kind": "cooldownCut",
+              "simulated": false,
+              "source": "decreasing skill cooldowns of all allies by 1 turn",
+              "turns": 1
+            }
+          ],
+          "fribbelsOnly": false
+        }
+      },
+      "rtaGear": {
+        "updated": "Nov 14, 2026",
+        "setCombos": [
+          {
+            "names": [
+              "Destruction",
+              "Torrent"
+            ],
+            "pickRate": 31.08,
+            "winRate": 39.89,
+            "games": 569
+          },
+          {
+            "names": [
+              "Speed",
+              "Torrent"
+            ],
+            "pickRate": 17.42,
+            "winRate": 36.05,
+            "games": 319
+          },
+          {
+            "names": [
+              "Lifesteal",
+              "Torrent"
+            ],
+            "pickRate": 12.62,
+            "winRate": 34.2,
+            "games": 231
+          },
+          {
+            "names": [
+              "Lifesteal",
+              "Critical"
+            ],
+            "pickRate": 11.91,
+            "winRate": 33.49,
+            "games": 218
+          },
+          {
+            "names": [
+              "Speed",
+              "Critical"
+            ],
+            "pickRate": 7.37,
+            "winRate": 36.3,
+            "games": 135
+          }
+        ],
+        "sets": [
+          {
+            "names": [
+              "Torrent"
+            ],
+            "pickRate": 31.01,
+            "winRate": 37.61,
+            "games": 1162
+          },
+          {
+            "names": [
+              "Destruction"
+            ],
+            "pickRate": 17.85,
+            "winRate": 669.0,
+            "games": 669
+          },
+          {
+            "names": [
+              "Lifesteal"
+            ],
+            "pickRate": 15.32,
+            "winRate": 574.0,
+            "games": 574
+          },
+          {
+            "names": [
+              "Speed"
+            ],
+            "pickRate": 14.41,
+            "winRate": 540.0,
+            "games": 540
+          },
+          {
+            "names": [
+              "Critical"
+            ],
+            "pickRate": 11.26,
+            "winRate": 422.0,
+            "games": 422
+          },
+          {
+            "names": [
+              "Penetration"
+            ],
+            "pickRate": 4.43,
+            "winRate": 166.0,
+            "games": 166
+          },
+          {
+            "names": [
+              "Health"
+            ],
+            "pickRate": 2.22,
+            "winRate": 83.0,
+            "games": 83
+          },
+          {
+            "names": [
+              "Counter"
+            ],
+            "pickRate": 2.19,
+            "winRate": 82.0,
+            "games": 82
+          }
+        ],
+        "artifacts": [
+          {
+            "names": [
+              "Chatty"
+            ],
+            "pickRate": 48.82,
+            "winRate": 930.0,
+            "games": 930
+          },
+          {
+            "names": [
+              "Tagehel's Ancient Book"
+            ],
+            "pickRate": 26.35,
+            "winRate": 502.0,
+            "games": 502
+          },
+          {
+            "names": [
+              "Butterfly Hair Ornament"
+            ],
+            "pickRate": 10.6,
+            "winRate": 202.0,
+            "games": 202
+          },
+          {
+            "names": [
+              "Time Matter"
+            ],
+            "pickRate": 3.41,
+            "winRate": 65.0,
+            "games": 65
+          },
+          {
+            "names": [
+              "Mirrored Lotus Ring"
+            ],
+            "pickRate": 1.73,
+            "winRate": 33.0,
+            "games": 33
+          }
+        ]
+      },
+      "editorialGear": {
+        "gameSets": [
+          "Destruction",
+          "Torrent"
+        ],
+        "substatPriority": [],
+        "substatAvoid": [],
+        "mainsSentence": null
+      },
+      "reference": {
+        "n": 2909,
+        "dateMin": "2023-02-06",
+        "dateMax": "2026-11-14",
+        "median": {
+          "attack": 4078,
+          "hp": 10717,
+          "defense": 1159,
+          "speed": 207,
+          "crit": 101,
+          "critDamage": 293,
+          "effectiveness": 0,
+          "effectResistance": 0
+        }
+      },
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 775,
+        "losses": 1338,
+        "bans": 208,
+        "prebans": 0,
+        "games": 2113,
+        "source": "https://www.epic7rtastats.com/heroes/c2088"
+      },
+      "gaps": [
+        "Sylvan Sage Vivian S1 extra attack is not damaged in the sim: no separate Fribbels multiplier.",
+        "Sylvan Sage Vivian S1 soul burn text was stored but not fully simulated.",
+        "Sylvan Sage Vivian is not on the Champion+ hero list. Presence sums 97 daily rows on her Epic7RTAStats page. Every one of those rows shows 0 prebans."
+      ],
+      "sources": {
+        "multipliers": "https://github.com/fribbels/Fribbels-Epic-7-Optimizer/blob/cd69229c7c60547e85cb12f3135a724f01516aa0/data/cache/herodata.json",
+        "skillText": "https://epic7tools.dev/heroes/sylvan-sage-vivian/",
+        "rtaGear": "https://www.epic7rtastats.com/heroes/c2088",
+        "referenceBuilds": "https://krivpfvxi0.execute-api.us-west-2.amazonaws.com/dev/getBuilds"
+      }
     }
   ],
   "database": [
