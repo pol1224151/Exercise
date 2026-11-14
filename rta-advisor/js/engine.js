@@ -1345,6 +1345,15 @@ function invalid(catalog, title, reason) {
   };
 }
 
+function orderFromTurn(userCount, enemyCount, turnSide) {
+  if (turnSide !== "user" && turnSide !== "enemy") return null;
+  const userTurn = nextSide(userCount, enemyCount, true);
+  const enemyTurn = nextSide(userCount, enemyCount, false);
+  if (userTurn === turnSide && enemyTurn !== turnSide) return { firstPick: true, source: "turn" };
+  if (enemyTurn === turnSide && userTurn !== turnSide) return { firstPick: false, source: "turn" };
+  return null;
+}
+
 export function detectFirstPick(userCount, enemyCount, turnSide, leadSide) {
   const asUser = countsArePrefix(userCount, enemyCount, true);
   const asEnemy = countsArePrefix(userCount, enemyCount, false);
@@ -1352,14 +1361,16 @@ export function detectFirstPick(userCount, enemyCount, turnSide, leadSide) {
   if (asEnemy && !asUser) return { firstPick: false, source: "counts" };
   if (!asUser && !asEnemy) return { firstPick: null, source: "mismatch" };
   if (userCount === 5 && enemyCount === 5) return { firstPick: true, source: "locked" };
+  const fromTurn = orderFromTurn(userCount, enemyCount, turnSide);
+  if (fromTurn) return fromTurn;
   if (leadSide === "user") return { firstPick: true, source: "lead" };
   if (leadSide === "enemy") return { firstPick: false, source: "lead" };
   return { firstPick: null, source: "unseen", turnSide: turnSide || null };
 }
 
 export function adviceStateKey(recognition, extras = {}) {
-  const knownCount = (ids) => (ids || []).filter((id) => id && id !== "empty" && id !== "unknown").length;
-  const detected = detectFirstPick(knownCount(recognition?.user), knownCount(recognition?.enemy), null, recognition?.leadSide);
+  const knownCount = (ids) => (ids || []).filter((id) => id && id !== "empty").length;
+  const detected = detectFirstPick(knownCount(recognition?.user), knownCount(recognition?.enemy), recognition?.turnSide, recognition?.leadSide);
   let order = detected.firstPick;
   if (order == null && detected.source === "unseen" && typeof extras.heldFirstPick === "boolean") order = extras.heldFirstPick;
   return JSON.stringify({
@@ -1564,7 +1575,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
   const known = (id) => id && id !== "unknown" && id !== "empty" && byId[id];
   const slots = [...(recognition.user || []), ...(recognition.enemy || []), ...(recognition.prebans || [])];
   const phase = recognition.phase;
-  if (slots.includes("unknown") || (phase === "battle" && recognition.actorId === "unknown")) {
+  if (phase === "battle" && (slots.includes("unknown") || recognition.actorId === "unknown")) {
     return invalid(catalog, "點這張卡選英雄", "這張卡上的名字讀不到，不會猜一個接近的人。");
   }
   const named = (id) => id && id !== "empty" && id !== "unknown";
@@ -1677,14 +1688,17 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
     };
   }
 
+  const filled = (id) => id && id !== "empty";
   const userPicks = (recognition.user || []).filter(named);
   const enemyPicks = (recognition.enemy || []).filter(named);
   const lockedPre = (recognition.prebans || []).filter(named);
-  const nothingOnBoard = userPicks.length === 0 && enemyPicks.length === 0 && lockedPre.length === 0;
+  const userCount = (recognition.user || []).filter(filled).length;
+  const enemyCount = (recognition.enemy || []).filter(filled).length;
+  const nothingOnBoard = userCount === 0 && enemyCount === 0 && lockedPre.length === 0;
   if (nothingOnBoard && phase !== "preban" && !recognition.turnSide && !recognition.leadSide) {
     return invalid(catalog, "畫面上還沒有選角", "左右大卡出現英雄後，下一步會出現。");
   }
-  const detected = detectFirstPick(userPicks.length, enemyPicks.length, recognition.turnSide, recognition.leadSide);
+  const detected = detectFirstPick(userCount, enemyCount, recognition.turnSide, recognition.leadSide);
   let userFirst = detected.firstPick;
   let orderSource = detected.source;
   if (userFirst == null && detected.source === "unseen" && typeof options.heldFirstPick === "boolean") {
@@ -1692,9 +1706,13 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
     orderSource = "held";
   }
   if (userFirst == null) {
-    return detected.source === "mismatch"
-      ? invalid(catalog, "人數對不上選角順序", "兩邊已選的人數對不上選角順序，先不給禁選。")
-      : invalid(catalog, "還看不出先後手", "先後手還沒分出來，先不給禁選。");
+    if (detected.source === "mismatch") {
+      return invalid(catalog, "人數對不上選角順序", "兩邊已選的人數對不上選角順序，先不給禁選。");
+    }
+    if (userCount === 0 && enemyCount === 0) {
+      return invalid(catalog, "還看不出先後手", "兩邊都還沒選，也沒有你的回合或對手回合，先不給禁選。");
+    }
+    return invalid(catalog, "這一幀分不出先後手", "已選人數對得上兩種順序，這一幀又沒有回合字樣，先不給禁選。");
   }
   const plans = draftPlans(catalog, roster);
   const sidePlans = userFirst ? plans.first : plans.second;
@@ -1740,16 +1758,17 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
     } : null,
   } : null;
   const taken = new Set([...userPicks, ...enemyPicks, ...lockedPre]);
-  const side = nextSide(userPicks.length, enemyPicks.length, userFirst);
+  const side = nextSide(userCount, enemyCount, userFirst);
+  const unread = slots.includes("unknown") ? "有卡上的名字還沒對上，那張留空，不猜。" : "";
   const orderLine = orderSource === "held" ? "沿用剛才分出的先後手。" : (userFirst ? "這一幀是先手。" : "這一幀是後手。");
   let action;
-  if (userPicks.length === 0 && enemyPicks.length === 0) {
+  if (userCount === 0 && enemyCount === 0) {
     const next = best.prebans.find((id) => !taken.has(id));
     const presence = next ? presenceOf(catalog, next) : null;
     action = next
       ? { kind: "preban", title: `預禁 ${screenName(catalog, next)}`, detail: `${best.label}。本季預禁數 ${presence?.prebans ?? "沒有"}。`, burn: null, id: next }
       : { kind: "wait", title: "預禁已經選完", detail: "等選角開始。", burn: null };
-  } else if (!side && userPicks.length >= 5 && enemyPicks.length >= 5) {
+  } else if (!side && userCount >= 5 && enemyCount >= 5) {
     const protectedId = enemyPicks[2];
     const ban = [...enemyPicks].filter((id) => id !== protectedId).sort((left, right) => (presenceOf(catalog, right)?.prebans || 0) - (presenceOf(catalog, left)?.prebans || 0))[0];
     if (!ban) return invalid(catalog, "這一手沒有可禁的人", "對方沒有能禁、而且不是第 3 選的人。");
@@ -1765,7 +1784,8 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
   }
   if (!action?.title) return invalid(catalog, "這一手沒有建議", "這套打法沒有排出下一步。");
   best.reason.lines = [orderLine, ...best.reason.lines];
-  best.reason.summary = `${orderLine}${best.reason.summary}`;
+  if (unread) best.reason.lines.push(unread);
+  best.reason.summary = `${orderLine}${best.reason.summary}${unread ? unread : ""}`;
   return {
     ok: true,
     phase: phase || (side ? "pick" : "postban"),

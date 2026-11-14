@@ -530,7 +530,7 @@ function draftBlobs(data, imageWidth, imageHeight) {
       if (count < minPts) continue;
       const bw = maxX - minX + 1;
       const bh = maxY - minY + 1;
-      if (bh < 0.012 * imageHeight || bh > 0.034 * imageHeight) continue;
+      if (bh < 0.01 * imageHeight || bh > 0.034 * imageHeight) continue;
       if (bw > 0.045 * imageHeight || bw >= bh * 2.2) continue;
       blobs.push({ x: minX, y: minY, w: bw, h: bh });
     }
@@ -579,9 +579,9 @@ export function findDraftCards(data, imageWidth, imageHeight) {
     const y1 = Math.max(...line.map((blob) => blob.y + blob.h));
     const tw = x1 - x0;
     const th = Math.max(1, y1 - y0);
-    if (line.length < 3 || line.length > 5) continue;
-    if (tw < 0.048 * imageHeight || tw > 0.1 * imageHeight) continue;
-    if (th < 0.015 * imageHeight || tw / th >= 6.5) continue;
+    if (line.length < 2 || line.length > 5) continue;
+    if (tw < 0.03 * imageHeight || tw > 0.1 * imageHeight) continue;
+    if (th < 0.01 * imageHeight || tw / th >= 6.5) continue;
     const cx = (x0 + x1) / 2;
     const cy = (y0 + y1) / 2;
     if (cx < 0.12 * imageWidth || cx > 0.8 * imageWidth) continue;

@@ -44,9 +44,9 @@ const noise = paintFixture(960, 540, DEFAULT_REGIONS, book, { user: ["noise"] })
 const noiseRead = readFrame(noise, 960, 540, DEFAULT_REGIONS, book);
 assert.equal(noiseRead.user[0], "unknown");
 const blocked = adviseFromScreen(catalog, noiseRead, { trials: 1, roster });
-assert.equal(blocked.ok, false);
-assert.equal(blocked.action.title, "點這張卡選英雄");
-assert.match(blocked.reason.summary, /不會猜一個接近的人/);
+assert.equal(blocked.ok, true, blocked.reason?.summary);
+assert.match(blocked.action.title, /選|預禁|禁/);
+assert.match(blocked.reason.summary, /留空/);
 assert.equal(blocked.version.season, catalog.provenance.rtaSeason);
 
 const needsAccount = adviseFromScreen(catalog, draftRead, { trials: 1 });
@@ -98,9 +98,22 @@ const turnOnly = adviseFromScreen(catalog, {
   turnSide: "user",
   skillsReady: [],
 }, { trials: 1, rank: "champion", roster });
-assert.equal(turnOnly.ok, false);
-assert.equal(turnOnly.action.title, "還看不出先後手");
-assert.match(turnOnly.reason.summary, /不給禁選/);
+assert.equal(turnOnly.ok, true, turnOnly.reason?.summary);
+assert.equal(turnOnly.firstPick, true);
+assert.equal(turnOnly.orderSource, "turn");
+assert.match(turnOnly.action.title, /預禁/);
+
+const opponentTurn = adviseFromScreen(catalog, {
+  user: ["unknown"],
+  enemy: [],
+  prebans: [],
+  phase: "pick",
+  turnSide: "enemy",
+}, { trials: 1, rank: "champion", roster });
+assert.equal(opponentTurn.ok, true, opponentTurn.reason?.summary);
+assert.equal(opponentTurn.firstPick, true);
+assert.match(opponentTurn.action.title, /選|預禁|禁/);
+assert.match(opponentTurn.reason.summary, /留空/);
 
 const opening = adviseFromScreen(catalog, {
   user: ["empty"],
@@ -118,8 +131,12 @@ assert.match(opening.action.title, /預禁/);
 assert.deepEqual(detectFirstPick(1, 2, null, null), { firstPick: true, source: "counts" });
 assert.deepEqual(detectFirstPick(0, 1, null, null), { firstPick: false, source: "counts" });
 assert.equal(detectFirstPick(0, 0, null, "enemy").firstPick, false);
-assert.equal(detectFirstPick(0, 0, "user", null).firstPick, null);
+assert.equal(detectFirstPick(0, 0, "user", null).firstPick, true);
+assert.equal(detectFirstPick(0, 0, "enemy", null).firstPick, false);
+assert.equal(detectFirstPick(1, 0, "enemy", null).firstPick, true);
 assert.equal(detectFirstPick(1, 1, null, null).firstPick, null);
+assert.equal(detectFirstPick(1, 1, "enemy", null).firstPick, true);
+assert.equal(detectFirstPick(1, 1, "user", null).firstPick, false);
 
 const lead = paintFixture(960, 540, DEFAULT_REGIONS, book, { lead: "user" });
 assert.equal(readFrame(lead, 960, 540, DEFAULT_REGIONS, book).leadSide, "user");
@@ -307,8 +324,11 @@ assert.notEqual(bound[1].id, hero.id);
 
 const still = { user: ["a"], enemy: ["b"], prebans: [], actorId: "empty", turnSide: "user", leadSide: null };
 const flippedTurn = { ...still, turnSide: "enemy" };
-assert.equal(adviceStateKey(still), adviceStateKey(flippedTurn));
+assert.notEqual(adviceStateKey(still), adviceStateKey(flippedTurn));
+const decided = { user: ["a"], enemy: [], prebans: [], actorId: "empty", turnSide: "user", leadSide: null };
+assert.equal(adviceStateKey(decided), adviceStateKey({ ...decided, turnSide: "enemy" }));
 assert.notEqual(adviceStateKey(still), adviceStateKey({ ...still, user: ["a", "c"] }));
 assert.notEqual(adviceStateKey({ user: [], enemy: [], leadSide: null }), adviceStateKey({ user: [], enemy: [], leadSide: "user" }));
+assert.notEqual(adviceStateKey({ user: [], enemy: [], turnSide: null }), adviceStateKey({ user: [], enemy: [], turnSide: "enemy" }));
 
 console.log("screen tests passed", { next: advice.action.title, skill: cast.action.title, burn: cast.action.burn.yes });
