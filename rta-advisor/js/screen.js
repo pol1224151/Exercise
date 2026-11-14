@@ -587,20 +587,55 @@ export function findDraftCards(data, imageWidth, imageHeight) {
     if (cx < 0.12 * imageWidth || cx > 0.8 * imageWidth) continue;
     const side = cx < imageWidth * 0.5 ? "user" : "enemy";
     const left = side === "user" ? cx - th * 12 : cx - th * 3.2;
-    const top = cy - th * 2.6;
+    const top = cy - th * 3.4;
     const boxW = th * 15.2;
-    const boxH = th * 6.2;
+    const boxH = th * 9.4;
+    const nameLeft = left;
+    const nameTop = top;
+    const nameW = th * 8.4;
+    const nameH = boxH;
     const x = Math.max(0, left / imageWidth);
     const y = Math.max(0, top / imageHeight);
     const right = Math.min(1, (left + boxW) / imageWidth);
     const bottom = Math.min(1, (top + boxH) / imageHeight);
-    cards.push({ side, x, y, w: Math.max(0.02, right - x), h: Math.max(0.02, bottom - y), letters: line.length });
+    const nameRight = Math.min(1, (nameLeft + nameW) / imageWidth);
+    const nameBottom = Math.min(1, (nameTop + nameH) / imageHeight);
+    cards.push({
+      side,
+      x,
+      y,
+      w: Math.max(0.02, right - x),
+      h: Math.max(0.02, bottom - y),
+      letters: line.length,
+      anchor: cy / imageHeight,
+      nameBox: {
+        x,
+        y: Math.max(0, nameTop / imageHeight),
+        w: Math.max(0.02, nameRight - x),
+        h: Math.max(0.02, nameBottom - Math.max(0, nameTop / imageHeight)),
+      },
+    });
   }
   cards.sort((left, right) => left.y - right.y || left.x - right.x);
   const kept = [];
   for (const card of cards) {
-    const near = kept.find((other) => Math.abs(other.y - card.y) < 0.04 && Math.abs(other.x - card.x) < 0.08);
+    const near = kept.find((other) => Math.abs(other.anchor - card.anchor) < 0.04 && Math.abs(other.x - card.x) < 0.08);
     if (!near) kept.push(card);
+  }
+  for (const side of ["user", "enemy"]) {
+    const group = kept.filter((card) => card.side === side).sort((left, right) => left.anchor - right.anchor);
+    for (let index = 0; index < group.length; index += 1) {
+      const card = group[index];
+      const next = group[index + 1];
+      if (!next) continue;
+      const mid = (card.anchor + next.anchor) / 2;
+      const bottom = card.y + card.h;
+      if (bottom > mid) card.h = Math.max(0.03, mid - card.y);
+      if (card.nameBox) {
+        const nameBottom = card.nameBox.y + card.nameBox.h;
+        if (nameBottom > mid) card.nameBox.h = Math.max(0.03, mid - card.nameBox.y);
+      }
+    }
   }
   return kept;
 }
@@ -765,33 +800,33 @@ export function matchNamedCard(signature, rows) {
   return row.id || "";
 }
 
+function chineseOnly(text) {
+  return String(text || "").replace(/[^\u4e00-\u9fff]/g, "");
+}
+
 export function matchHeroName(text, heroes) {
   const compact = String(text || "").replace(/[\s.。·・,，:：|/\\]/g, "");
   if (compact.length < 2) return null;
-  const lower = compact.toLowerCase();
-  let bestId = null;
-  let bestLen = 0;
-  let ambiguous = false;
-  const consider = (id, label) => {
-    const name = String(label || "").replace(/\s/g, "");
-    if (name.length < 2) return;
-    const zhHit = compact.includes(name);
-    const enHit = name.length >= 4 && lower.includes(name.toLowerCase());
-    if (!zhHit && !enHit) return;
-    if (name.length > bestLen) {
-      bestLen = name.length;
-      bestId = id;
-      ambiguous = false;
-    } else if (name.length === bestLen && id !== bestId) {
-      ambiguous = true;
-    }
-  };
+  const chinese = chineseOnly(compact);
+  const hits = [];
   for (const hero of heroes || []) {
-    consider(hero.id, hero.nameZh);
-    consider(hero.id, hero.name);
-    for (const alias of hero.aliases || []) consider(hero.id, alias);
+    const labels = [hero.nameZh, hero.name, ...(hero.aliases || [])];
+    for (const label of labels) {
+      const raw = String(label || "").replace(/\s/g, "");
+      if (raw.length < 2) continue;
+      const zh = chineseOnly(raw);
+      if (chinese.length >= 2 && zh.length >= 2 && chinese === zh) {
+        hits.push(hero.id);
+        break;
+      }
+      if (!chinese && raw.length >= 4 && compact.toLowerCase() === raw.toLowerCase()) {
+        hits.push(hero.id);
+        break;
+      }
+    }
   }
-  return ambiguous ? null : bestId;
+  const unique = [...new Set(hits)];
+  return unique.length === 1 ? unique[0] : null;
 }
 
 function badgeBlue(red, green, blue) {
@@ -964,6 +999,10 @@ export function readDraft(data, imageWidth, imageHeight, memories = [], names = 
   });
   const userCards = cards.filter((card) => card.side === "user");
   const enemyCards = cards.filter((card) => card.side === "enemy");
+  const skillsReady = skillReady(data, imageWidth, imageHeight, DEFAULT_REGIONS.skills);
+  const knownUser = userCards.map((card) => card.id).find((id) => id && id !== "unknown" && id !== "empty");
+  const actorId = skillsReady.some(Boolean) && knownUser ? knownUser : "empty";
+  const yourTurn = Boolean(actorId !== "empty" && skillsReady.some(Boolean));
   const face = (card, index) => ({
     side: card.side,
     index,
@@ -980,9 +1019,9 @@ export function readDraft(data, imageWidth, imageHeight, memories = [], names = 
     user: userCards.map((card) => card.id),
     enemy: enemyCards.map((card) => card.id),
     prebans: [],
-    actorId: "empty",
-    skillsReady: [false, false, false],
-    yourTurn: false,
+    actorId,
+    skillsReady,
+    yourTurn,
     turnSide: readDraftTurn(data, imageWidth, imageHeight),
     leadSide: readDraftLead(data, imageWidth, imageHeight),
     pickMark: readPickMark(data, imageWidth, imageHeight),
@@ -992,6 +1031,6 @@ export function readDraft(data, imageWidth, imageHeight, memories = [], names = 
       ...enemyCards.map((card, index) => face(card, index)),
     ],
   };
-  read.phase = inferPhase(read);
+  read.phase = yourTurn ? "battle" : inferPhase(read);
   return read;
 }

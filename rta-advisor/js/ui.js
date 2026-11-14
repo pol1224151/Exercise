@@ -330,7 +330,8 @@ function labelCard(box, card) {
   box.dataset.id = card.id || "unknown";
   const named = card.id && card.id !== "unknown" && card.id !== "empty";
   box.querySelector("span").textContent = named ? heroName(card.id) : "";
-  box.querySelector("small").textContent = String(card.text || "").replace(/\s+/g, " ").trim();
+  const clean = String(card.text || "").replace(/[^\u4e00-\u9fff]/g, "");
+  box.querySelector("small").textContent = named && clean.length >= 2 ? clean : "";
 }
 
 function fillPicker(query = "") {
@@ -600,7 +601,8 @@ function scheduleNames(data, width, height, read) {
         const text = String(result?.data?.text || "").replace(/\s+/g, " ").trim();
         const pool = selectableHeroes(catalog || {});
         const id = matchHeroName(text, pool);
-        namedCards.unshift({ sig: job.signature, id: id || "", text });
+        const clean = id ? String(text).replace(/[^\u4e00-\u9fff]/g, "") : "";
+        namedCards.unshift({ sig: job.signature, id: id || "", text: clean });
         namedCards = namedCards.slice(0, 40);
       }
     } catch {
@@ -629,10 +631,11 @@ function scheduleNames(data, width, height, read) {
 }
 
 function cropCard(data, width, height, card) {
-  const x0 = Math.max(0, Math.round(card.x * width));
-  const y0 = Math.max(0, Math.round(card.y * height));
-  const boxW = Math.max(1, Math.min(width - x0, Math.round(card.w * width)));
-  const boxH = Math.max(1, Math.min(height - y0, Math.round(card.h * height)));
+  const region = card.nameBox || card;
+  const x0 = Math.max(0, Math.round(region.x * width));
+  const y0 = Math.max(0, Math.round(region.y * height));
+  const boxW = Math.max(1, Math.min(width - x0, Math.round(region.w * width)));
+  const boxH = Math.max(1, Math.min(height - y0, Math.round(region.h * height)));
   const scale = 3;
   const source = document.createElement("canvas");
   source.width = boxW;

@@ -104,7 +104,9 @@ const turnOnly = adviseFromScreen(catalog, {
 assert.equal(turnOnly.ok, true, turnOnly.reason?.summary);
 assert.equal(turnOnly.firstPick, false);
 assert.equal(turnOnly.orderSource, "no-mark");
-assert.match(turnOnly.action.title, /預禁/);
+assert.match(turnOnly.action.title, /先禁/);
+assert.match(turnOnly.action.title, /、/);
+assert.doesNotMatch(turnOnly.reason.summary, /還看不出/);
 assert.match(turnOnly.reason.summary, /沒有讀到 FIRST PICK/);
 assert.match(turnOnly.reason.summary, /你的回合/);
 
@@ -133,7 +135,8 @@ const opening = adviseFromScreen(catalog, {
 assert.equal(opening.ok, true, opening.reason?.summary);
 assert.equal(opening.firstPick, false);
 assert.equal(opening.orderSource, "no-mark");
-assert.match(opening.action.title, /預禁/);
+assert.match(opening.action.title, /先禁/);
+assert.match(opening.action.title, /、/);
 
 const marked = adviseFromScreen(catalog, {
   user: ["empty"],
@@ -149,7 +152,36 @@ assert.equal(marked.ok, true, marked.reason?.summary);
 assert.equal(marked.firstPick, true);
 assert.equal(marked.orderSource, "mark");
 assert.match(marked.reason.summary, /讀到「FIRST PICK」/);
+assert.match(marked.action.title, /先禁/);
+assert.match(marked.action.title, /、/);
 assert.doesNotMatch(marked.reason.summary, /場次最多/);
+assert.doesNotMatch(marked.reason.summary, /還看不出/);
+
+const takenAdvice = adviseFromScreen(catalog, {
+  user: [ids[0]],
+  enemy: [ids[1]],
+  prebans: [ids[2]],
+  phase: "pick",
+  pickMark: "FIRST PICK",
+}, { trials: 1, rank: "champion", roster });
+assert.equal(takenAdvice.ok, true, takenAdvice.reason?.summary);
+assert.equal(takenAdvice.action.kind, "pick");
+assert.notEqual(takenAdvice.action.id, ids[0]);
+assert.notEqual(takenAdvice.action.id, ids[1]);
+assert.notEqual(takenAdvice.action.id, ids[2]);
+
+const midBattle = adviseFromScreen(catalog, {
+  user: [ids[0], ids[1]],
+  enemy: [ids[2]],
+  prebans: [],
+  phase: "battle",
+  yourTurn: true,
+  actorId: ids[0],
+  skillsReady: [true, true, true],
+}, { trials: 1, roster });
+assert.equal(midBattle.ok, true, midBattle.reason?.summary);
+assert.equal(midBattle.action.kind, "skill");
+assert.match(midBattle.action.title, /技能/);
 
 assert.equal(detectFirstPick(0, 0, null, null, "FIRST PICK").firstPick, true);
 assert.equal(detectFirstPick(0, 0, null, null, "FIRST PICK").source, "mark");
@@ -367,6 +399,14 @@ assert.equal(list.some((hero) => hero.id === "swift-flagbearer-sigret"), false);
 assert.equal(matchHeroName("黎明序曲魯特比", list), "aubade-ludwig");
 assert.equal(matchHeroName("天秤", list), "lady-of-the-scales");
 assert.equal(matchHeroName("一輪孤月維爾蘿娜", list), "lone-crescent-bellona");
+assert.equal(matchHeroName("一輪孤月", list), null);
+assert.equal(matchHeroName("執行官維", list), null);
+assert.equal(matchHeroName("Re VOR ey", list), null);
+assert.equal(matchHeroName("o \\ ee ee", list), null);
+const arbiter = list.find((hero) => hero.nameZh === "執行官維德瑞");
+assert.ok(arbiter);
+assert.equal(matchHeroName("執行官維德瑞", list), arbiter.id);
+assert.equal(matchHeroName("執行官維德瑞卡威利", list), null);
 assert.equal(matchHeroName("疾速賽車手賽珂蘭特", list), "sigret");
 assert.ok(list.length > 300);
 assert.ok(list.some((hero) => hero.listed === false));

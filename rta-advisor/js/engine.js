@@ -1419,9 +1419,11 @@ export function orderBasisText(recognition, held) {
   const count = (ids) => (ids || []).filter((id) => id && id !== "empty").length;
   const detected = detectFirstPick(count(recognition?.user), count(recognition?.enemy), recognition?.turnSide, recognition?.leadSide, recognition?.pickMark);
   const turn = turnClause(recognition?.turnSide);
-  if (detected.source === "mark") return `這一幀讀到「FIRST PICK」，我方先手。${turn}`;
-  if (detected.source !== "mark" && held === true) return `先前讀到「FIRST PICK」，沿用我方先手。${turn}`;
-  if (detected.source === "no-mark") return `選角畫面已開始，沒有讀到 FIRST PICK，我方後手。${turn}`;
+  const phase = recognition?.phase;
+  const started = detected.source !== "unseen" || phase === "preban" || phase === "pick" || phase === "postban" || phase === "battle";
+  if (detected.source === "mark") return `這一幀讀到「FIRST PICK」，我方先手。先手先選 1 名，後手接著選 2 名，之後照 1-2-2-2-2-1。${turn}`;
+  if (held === true) return `先前讀到「FIRST PICK」，沿用我方先手。先手先選 1 名，後手接著選 2 名，之後照 1-2-2-2-2-1。${turn}`;
+  if (started) return `沒有讀到 FIRST PICK，我方後手。先手先選 1 名，後手接著選 2 名，之後照 1-2-2-2-2-1。${turn}`;
   return `選角畫面還沒開始，沒有讀到 FIRST PICK。${turn}`;
 }
 
@@ -1585,16 +1587,16 @@ function prebanIds(catalog, avoid, count) {
   return ids;
 }
 
-function sandboxRank(catalog, roster, lockedUser, lockedEnemy, userFirst, trials) {
+function sandboxRank(catalog, roster, lockedUser, lockedEnemy, userFirst, trials, blockedIds) {
   const model = catalog.heroes || [];
   const modelIds = new Set(model.map((hero) => hero.id));
   const owned = ownedIdsOf(roster);
-  const taken = new Set([...(lockedUser || []), ...(lockedEnemy || [])].filter((id) => id && id !== "unknown" && id !== "empty"));
+  const taken = new Set([...(lockedUser || []), ...(lockedEnemy || []), ...(blockedIds || [])].filter((id) => id && id !== "unknown" && id !== "empty"));
+  for (const id of [...taken]) taken.add(canonicalId(id));
   const locked = [];
   for (const id of lockedUser || []) {
     const canonical = modelIds.has(id) ? id : canonicalId(id);
-    if (!modelIds.has(canonical) || taken.has(id) && !owned.has(canonical)) continue;
-    if (!owned.has(canonical) || locked.includes(canonical)) continue;
+    if (!modelIds.has(canonical) || !owned.has(canonical) || locked.includes(canonical)) continue;
     locked.push(canonical);
   }
   const candidates = model.filter((hero) => owned.has(hero.id) && !taken.has(hero.id) && !locked.includes(hero.id));
@@ -1613,8 +1615,8 @@ function sandboxRank(catalog, roster, lockedUser, lockedEnemy, userFirst, trials
     const enemy = [];
     const pools = [
       enemyLocked.filter((id) => !skip.has(id)),
-      model.filter((row) => !owned.has(row.id) && !skip.has(row.id)).map((row) => row.id),
-      model.filter((row) => !skip.has(row.id)).map((row) => row.id),
+      model.filter((row) => !owned.has(row.id) && !skip.has(row.id) && !taken.has(row.id)).map((row) => row.id),
+      model.filter((row) => !skip.has(row.id) && !taken.has(row.id)).map((row) => row.id),
     ];
     for (const pool of pools) {
       for (const id of pool) {
@@ -1754,9 +1756,6 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
   if (phase === "battle") {
     const user = (recognition.user || []).filter(known);
     const enemy = (recognition.enemy || []).filter(known);
-    if (user.length !== 4 || enemy.length !== 4) {
-      return invalid(catalog, "戰鬥還沒認滿", "戰鬥畫面沒有認滿兩邊各 4 名。");
-    }
     if (!recognition.yourTurn) {
       return {
         ok: true,
@@ -1773,8 +1772,37 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
         basis,
       };
     }
-    if (!known(recognition.actorId) || !user.includes(recognition.actorId)) {
-      return invalid(catalog, "看不出是誰在動", "看不出現在是你的哪一名在動。");
+    const actorId = known(recognition.actorId) && user.includes(recognition.actorId)
+      ? recognition.actorId
+      : user.find((id) => known(id));
+    if (!actorId) return invalid(catalog, "看不出是誰在動", "看不出現在是你的哪一名在動。");
+    if (user.length !== 4 || enemy.length !== 4) {
+      const actor = byId[actorId];
+      const ready = recognition.skillsReady || [true, true, true];
+      const index = { S1: 0, S2: 1, S3: 2 };
+      const slot = ["S3", "S2", "S1"].find((name) => ready[index[name]] !== false && actor.skills[name] && !actor.skills[name].passive);
+      if (!slot) return invalid(catalog, "這一動沒有能放的技能", "亮著的技能不在資料裡，或是被動。");
+      const skill = actor.skills[slot];
+      const burn = burnDecision(skill, { burn: true, order: [slot] });
+      const label = { S1: "1 技能", S2: "2 技能", S3: "3 技能" }[slot];
+      return {
+        ok: true,
+        phase,
+        action: {
+          kind: "skill",
+          title: `${actor.nameZh} 放${label}`,
+          detail: burn.text,
+          burn,
+          slot,
+        },
+        rate: null,
+        reason: {
+          summary: `${actor.nameZh}這一動用${label}。${burn.text}`,
+          lines: ["戰鬥已經開始，這一手給招式。", burn.text],
+        },
+        version: basis.version,
+        basis,
+      };
     }
     const draft = {
       steps: [],
@@ -1807,7 +1835,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
       const rate = wins / trials;
       if (!best || rate > best.rate) best = { plan, rate, log: sampleLog };
     }
-    const actor = byId[recognition.actorId];
+    const actor = byId[actorId];
     const ready = recognition.skillsReady || [true, true, true];
     const index = { S1: 0, S2: 1, S3: 2 };
     const slot = best.plan.order.find((name) => ready[index[name]] && actor.skills[name] && !actor.skills[name].passive);
@@ -1857,15 +1885,17 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
     userFirst = true;
     orderSource = "held";
   }
-  const basisText = orderBasisText(recognition, options.heldFirstPick);
   if (userFirst == null) {
-    return invalid(catalog, "還看不出先後手", basisText);
+    userFirst = false;
+    orderSource = "no-mark";
   }
+  const basisText = orderBasisText(recognition, userFirst === true && orderSource === "held" ? true : options.heldFirstPick);
   const modelIds = new Set((catalog.heroes || []).map((hero) => hero.id));
   const asModel = (id) => (modelIds.has(id) ? id : canonicalId(id));
   const lockedUser = userPicks.map(asModel).filter((id) => modelIds.has(id));
   const lockedEnemy = enemyPicks.map(asModel).filter((id) => modelIds.has(id));
-  const scored = sandboxRank(catalog, roster, lockedUser, lockedEnemy, userFirst, options.trials || 1);
+  const blocked = [...(recognition.prebans || []), ...userPicks, ...enemyPicks].filter(named);
+  const scored = sandboxRank(catalog, roster, lockedUser, lockedEnemy, userFirst, options.trials || 1, blocked);
   if (!scored.length) return invalid(catalog, "這一手排不出來", "帳號裡沒有沙盤能算的英雄。不編倍率。");
   const ordered = scored.map((row) => row.id);
   const prebansEach = options.rank === "below" ? 1 : 2;
@@ -1887,6 +1917,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
         summary: `${userFirst ? "先手" : "後手"}。${SANDBOX_WHY}`,
         lines: [
           SANDBOX_WHY,
+          "先手先選 1 名，後手接著選 2 名，之後照 1-2-2-2-2-1。已經禁掉和已經選上的人不重選。",
           row?.rate == null ? "這套排不滿可計算的四名，不估算勝率，也不編倍率。" : "估計勝率來自短沙盤，你的面板對上推估對手，不是保證。這一手先給出下一手。",
         ],
       },
@@ -1915,18 +1946,24 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
       total: choice.replaced.stats.total,
     } : null,
   } : null;
-  const taken = new Set([...userPicks, ...enemyPicks, ...lockedPre]);
+  const taken = new Set();
+  for (const id of [...userPicks, ...enemyPicks, ...lockedPre]) {
+    taken.add(id);
+    taken.add(canonicalId(id));
+  }
   const side = nextSide(userCount, enemyCount, userFirst);
   const ours = recognition.turnSide === "user" || (recognition.turnSide !== "enemy" && side !== "enemy");
   const unread = slots.includes("unknown") ? "有卡上的名字還沒對上，那張留空，不猜。" : "";
   const orderLine = basisText;
+  const heldNames = [...userPicks, ...enemyPicks].map((id) => screenName(catalog, id)).filter(Boolean);
+  const bannedNames = lockedPre.map((id) => screenName(catalog, id)).filter(Boolean);
+  const boardLine = `已經選上${heldNames.length ? heldNames.join("、") : "還沒有人"}。已經禁了${bannedNames.length ? bannedNames.join("、") : "還沒有人"}。`;
   let action;
   if (userCount === 0 && enemyCount === 0) {
-    const next = best.prebans.find((id) => !taken.has(id));
-    const presence = next ? presenceOf(catalog, next) : null;
-    const title = `${ours ? "" : "下一手"}預禁 ${screenName(catalog, next)}`;
-    action = next
-      ? { kind: "preban", title, detail: `${best.label}。本季預禁數 ${presence?.prebans ?? "沒有"}。`, burn: null, id: next }
+    const bans = best.prebans.filter((id) => !taken.has(id) && !taken.has(canonicalId(id))).slice(0, prebansEach);
+    const names = bans.map((id) => screenName(catalog, id)).filter(Boolean);
+    action = names.length
+      ? { kind: "preban", title: `先禁 ${names.join("、")}`, detail: `開局先禁這 ${names.length} 名。${boardLine}`, burn: null, id: bans[0] }
       : { kind: "wait", title: "預禁已經選完", detail: "等選角開始。", burn: null };
   } else if (!side && userCount >= 5 && enemyCount >= 5) {
     const protectedId = enemyPicks[2];
@@ -1934,13 +1971,13 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
     if (!ban) return invalid(catalog, "這一手沒有可禁的人", "對方沒有能禁、而且不是第 3 選的人。");
     action = { kind: "ban", title: `最後禁 ${screenName(catalog, ban)}`, detail: "不能禁對方的第 3 選。在其餘的人裡用本季預禁數較高的那位。", burn: null, id: ban };
   } else {
-    const next = best.picks.find((id) => !taken.has(id));
-    if (!next) return invalid(catalog, "這一手沒有可選的人", "沙盤裡還沒被選走的人已經沒有。");
+    const next = best.picks.find((id) => !taken.has(id) && !taken.has(canonicalId(id)));
+    if (!next) return invalid(catalog, "這一手沒有可選的人", "已經禁掉和已經選上的人都不重選，沙盤裡沒有下一手。");
     const title = `${ours ? "" : "下一手"}選 ${screenName(catalog, next)}`;
-    action = { kind: "pick", title, detail: ours ? best.why : "現在是對手在選。輪到我方時就是這一名。", burn: null, id: next };
+    action = { kind: "pick", title, detail: `${ours ? best.why : "現在是對手在選。輪到我方時就是這一名。"}${boardLine}`, burn: null, id: next };
   }
   if (!action?.title) return invalid(catalog, "這一手沒有建議", "這套打法沒有排出下一步。");
-  best.reason.lines = [orderLine, ...best.reason.lines];
+  best.reason.lines = [orderLine, boardLine, ...best.reason.lines];
   if (unread) best.reason.lines.push(unread);
   best.reason.summary = `${orderLine}${best.reason.summary}${unread ? unread : ""}`;
   return {
