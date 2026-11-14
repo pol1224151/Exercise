@@ -101,25 +101,6 @@ body {
   margin: 0.15rem 0;
 }
 
-.heard {
-  margin: 0;
-  max-width: 46rem;
-  color: var(--ink-soft, #5c5346);
-  font-size: 0.95rem;
-  line-height: 1.45;
-}
-
-.box small {
-  display: block;
-  margin-top: 2px;
-  padding: 1px 4px;
-  background: rgba(0, 0, 0, 0.45);
-  font-size: 11px;
-  line-height: 1.3;
-}
-
-.box small:empty { display: none; }
-
 dialog {
   width: min(920px, calc(100% - 24px));
   max-height: calc(100% - 24px);
@@ -184,23 +165,6 @@ dialog::backdrop { background: rgba(36, 28, 22, 0.45); }
 .ban-cell { width: 92px; flex: none; }
 
 .ban-cell em { font-size: 1.5rem; color: var(--muted); }
-
-.watch { margin: 18px 0 8px; }
-
-#noFrame {
-  margin: 0;
-  min-height: 180px;
-  display: grid;
-  place-items: center;
-  border: 1px dashed var(--line);
-  border-radius: 12px;
-  background: #16130f;
-  color: #f6f1e8;
-  font-size: 1.6rem;
-  font-weight: 700;
-}
-
-#noFrame[hidden], .stage[hidden] { display: none; }
 
 .eyebrow {
   margin: 0;
@@ -320,58 +284,6 @@ textarea {
 .log, .reasons, #counters { padding-left: 1.2rem; }
 
 footer { padding: 8px 0 28px; color: var(--muted); font-size: 0.9rem; }
-
-.stage {
-  position: relative;
-  width: min(100%, max(280px, calc((100vh - 400px) * 16 / 9)));
-  aspect-ratio: 16 / 9;
-  margin-inline: auto;
-  background: #16130f;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.stage video {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.stage canvas {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background: #16130f;
-  display: block;
-}
-
-#boxes { position: absolute; inset: 0; }
-
-.box {
-  position: absolute;
-  border: 2px solid #c4552a;
-  color: white;
-  background: rgba(196, 85, 42, 0.12);
-  font: inherit;
-  font-size: 12px;
-  text-align: left;
-  touch-action: none;
-  cursor: pointer;
-  padding: 0;
-}
-
-.box span {
-  display: inline-block;
-  padding: 2px 4px;
-  background: rgba(0, 0, 0, 0.55);
-}
-
-.box span:empty { display: none; }
-
-.box[data-side="enemy"] { border-color: #2f6f9f; }
-.box[data-id="unknown"] { border-style: dashed; }
 
 .action {
   font-size: 1.8rem;

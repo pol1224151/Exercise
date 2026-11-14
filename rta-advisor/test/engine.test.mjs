@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { advise, adviseFromScreen, buildGearReport, clearAccount, draftPlans, elementRelation, fightFromRoster, heroKit, heroListed, loadAccount, matchesPicker, parseRoster, readAccountText, rtaSummary, saveAccount, selectableHeroes, skillDamage, unclearSkills } from "../js/engine.js";
+import { advise, battleBrief, buildGearReport, clearAccount, draftPlans, elementRelation, fightFromRoster, heroKit, heroListed, loadAccount, matchesPicker, parseRoster, readAccountText, rtaSummary, saveAccount, selectableHeroes, skillDamage, unclearSkills } from "../js/engine.js";
 import { chooseComposition, draftType } from "../js/records.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
@@ -173,15 +173,13 @@ const unlistedCatalog = {
   seasonHeroes: [{ id: "ghost", code: "c0000", name: "Ghost", nameZh: "測試未收錄", listed: false, rtaPresence: { wins: 1, losses: 1, prebans: 3, games: 2 } }],
 };
 assert.equal(heroListed(unlistedCatalog.seasonHeroes[0]), false);
-const unlisted = adviseFromScreen(unlistedCatalog, {
-  user: ["ghost"],
-  enemy: [],
-  prebans: [],
-  phase: "pick",
-  leadSide: "user",
-}, { trials: 1, roster });
+const unlisted = battleBrief(unlistedCatalog, roster, {
+  userFirst: true,
+  userFight: ["ghost", "estelle", "mercedes", "ras"],
+  enemyFight: ["diene", "elena", "notos", "brieg"],
+});
 assert.equal(unlisted.ok, false);
-assert.equal(unlisted.action.title, "這個英雄未收錄");
+assert.match(unlisted.reason.summary, /測試未收錄/);
 assert.match(unlisted.reason.summary, /沒有技能倍率/);
 
 const peira = heroKit(catalog, "lone-wolf-peira");

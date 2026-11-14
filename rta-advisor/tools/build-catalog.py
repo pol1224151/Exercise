@@ -21,7 +21,7 @@ import urllib.request
 from html import unescape
 from pathlib import Path
 
-from live_data import build_database, validate_catalog, write_signatures, write_version
+from live_data import build_database, validate_catalog, write_version
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
@@ -723,11 +723,6 @@ def main(fresh: bool = False, commit: str | None = None, commit_date: str | None
                     "https://epic7db.com/news/115-thu-patch-information",
                 ],
             },
-            "screen": {
-                "method": "Browser getDisplayMedia. The user picks the Epic Seven window once per session, then drags portrait boxes once.",
-                "recognition": "8x8 color signatures of Fribbels small portraits from the same commit. An unknown or ambiguous face makes that step's advice invalid.",
-                "notDone": "Gear numbers are not read off the screen. The fight uses Fribbels library medians, or the database's awakened base when a median was not returned.",
-            },
         },
         "setZh": SET_ZH,
         "artifactNames": {code: {"name": name, "nameZh": zh.get(name, name)} for code, name in art_by_code.items()},
@@ -740,10 +735,6 @@ def main(fresh: bool = False, commit: str | None = None, commit_date: str | None
         raise SystemExit("catalog refused: " + "; ".join(problems[:8]))
     out = DATA / "catalog.json"
     out.write_text(json.dumps(catalog, ensure_ascii=False, indent=2))
-    try:
-        write_signatures(catalog, commit or FRIBBELS_COMMIT, fetch, fresh=fresh)
-    except Exception as exc:  # noqa: BLE001
-        print("signatures skipped", exc)
     write_version(catalog)
     print("wrote", out, "heroes", len(catalog_heroes), "database", len(catalog["database"]))
 

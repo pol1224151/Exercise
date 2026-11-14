@@ -7,8 +7,6 @@ catalog.json. Numbers are copied from the public files, not filled in.
 from __future__ import annotations
 
 import json
-import struct
-import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -107,7 +105,6 @@ def version_from(catalog: dict) -> dict:
         "heroCount": len(catalog.get("database") or []),
         "metaCount": len(catalog.get("heroes") or []),
         "artifactCount": len(catalog.get("artifactNames") or {}),
-        "portraitCount": len((json.loads((DATA / "portrait-signatures.json").read_text())["portraits"]) if (DATA / "portrait-signatures.json").exists() else []),
     }
 
 
@@ -148,151 +145,6 @@ def presence_from(row: dict) -> dict:
     }
 
 
-def paeth(left: int, up: int, upper_left: int) -> int:
-    estimate = left + up - upper_left
-    if abs(estimate - left) <= abs(estimate - up) and abs(estimate - left) <= abs(estimate - upper_left):
-        return left
-    if abs(estimate - up) <= abs(estimate - upper_left):
-        return up
-    return upper_left
-
-
-def decode_png(data: bytes) -> tuple[int, int, list[tuple[int, int, int]]]:
-    if data[:8] != b"\x89PNG\r\n\x1a\n":
-        raise ValueError("不是 PNG")
-    pos = 8
-    width = height = color = None
-    palette = b""
-    idat = b""
-    while pos + 8 <= len(data):
-        length = struct.unpack(">I", data[pos : pos + 4])[0]
-        kind = data[pos + 4 : pos + 8]
-        chunk = data[pos + 8 : pos + 8 + length]
-        pos += 12 + length
-        if kind == b"IHDR":
-            width, height, depth, color = struct.unpack(">IIBB", chunk[:10])
-            if depth != 8 or color not in (2, 3, 6):
-                raise ValueError(f"不支援的 PNG 格式 {depth}/{color}")
-        elif kind == b"PLTE":
-            palette = chunk
-        elif kind == b"IDAT":
-            idat += chunk
-        elif kind == b"IEND":
-            break
-    raw = zlib.decompress(idat)
-    channels = {2: 3, 3: 1, 6: 4}[color]
-    stride = width * channels
-    rows = []
-    cursor = 0
-    previous = bytearray(stride)
-    for _ in range(height):
-        filter_type = raw[cursor]
-        cursor += 1
-        row = bytearray(raw[cursor : cursor + stride])
-        cursor += stride
-        for x in range(stride):
-            left = row[x - channels] if x >= channels else 0
-            up = previous[x]
-            upper_left = previous[x - channels] if x >= channels else 0
-            if filter_type == 0:
-                extra = 0
-            elif filter_type == 1:
-                extra = left
-            elif filter_type == 2:
-                extra = up
-            elif filter_type == 3:
-                extra = (left + up) // 2
-            elif filter_type == 4:
-                extra = paeth(left, up, upper_left)
-            else:
-                raise ValueError(f"PNG filter {filter_type}")
-            row[x] = (row[x] + extra) & 255
-        previous = row
-        rows.append(row)
-    pixels = []
-    for row in rows:
-        for x in range(width):
-            if color == 3:
-                index = row[x]
-                pixels.append(tuple(palette[index * 3 : index * 3 + 3]))
-            elif color == 2:
-                pixels.append(tuple(row[x * 3 : x * 3 + 3]))
-            else:
-                pixels.append(tuple(row[x * 4 : x * 4 + 3]))
-    return width, height, pixels
-
-
-def signature(width: int, height: int, pixels: list[tuple[int, int, int]]) -> list[int]:
-    cells = []
-    for gy in range(8):
-        for gx in range(8):
-            x0 = gx * width // 8
-            x1 = max(x0 + 1, (gx + 1) * width // 8)
-            y0 = gy * height // 8
-            y1 = max(y0 + 1, (gy + 1) * height // 8)
-            red = green = blue = count = 0
-            for y in range(y0, y1):
-                for x in range(x0, x1):
-                    pixel = pixels[y * width + x]
-                    red += pixel[0]
-                    green += pixel[1]
-                    blue += pixel[2]
-                    count += 1
-            cells.extend([round(red / count), round(green / count), round(blue / count)])
-    return cells
-
-
-def center(values: list[int]) -> list[float]:
-    means = [
-        sum(values[index] for index in range(channel, len(values), 3)) / 64
-        for channel in range(3)
-    ]
-    return [values[index] - means[index % 3] for index in range(len(values))]
-
-
-def centered_distance(left: list[int], right: list[int]) -> float:
-    a = center(left)
-    b = center(right)
-    return sum((a[i] - b[i]) ** 2 for i in range(len(a))) ** 0.5
-
-
-def write_signatures(catalog: dict, commit: str, fetch, fresh: bool = False) -> dict:
-    portraits = []
-    missing = []
-    for hero in catalog["heroes"]:
-        url = (
-            "https://raw.githubusercontent.com/fribbels/Fribbels-Epic-7-Optimizer/"
-            f"{commit}/data/cachedimages/{hero['code']}_s.png"
-        )
-        try:
-            width, height, pixels = decode_png(fetch(url, fresh=fresh, timeout=30))
-        except Exception as exc:  # noqa: BLE001
-            missing.append({"code": hero["code"], "error": str(exc)})
-            continue
-        portraits.append({
-            "id": hero["id"],
-            "code": hero["code"],
-            "nameZh": hero["nameZh"],
-            "source": url,
-            "rgb": signature(width, height, pixels),
-        })
-    distances = []
-    for index, left in enumerate(portraits):
-        for right in portraits[index + 1 :]:
-            distances.append(centered_distance(left["rgb"], right["rgb"]))
-    nearest = min(distances) if distances else 0
-    payload = {
-        "commit": commit,
-        "grid": 8,
-        "emptyStdevBelow": 18,
-        "maxDistance": round(nearest * 0.45, 4) if nearest else 0,
-        "nearestOther": round(nearest, 4),
-        "missing": missing,
-        "portraits": portraits,
-    }
-    (DATA / "portrait-signatures.json").write_text(json.dumps(payload, ensure_ascii=False))
-    return payload
-
 
 def attach_database(fetch, hero_url: str, artifact_url: str, zh_url: str, fresh_files: bool = False) -> None:
     """Add the full Fribbels hero database onto the current catalog without refetching ladder pages."""
@@ -326,7 +178,6 @@ def attach_database(fetch, hero_url: str, artifact_url: str, zh_url: str, fresh_
     if problems:
         raise SystemExit("catalog refused: " + "; ".join(problems[:8]))
     (DATA / "catalog.json").write_text(json.dumps(catalog, ensure_ascii=False, indent=2))
-    write_signatures(catalog, provenance["fribbelsCommit"], fetch, fresh=fresh_files)
     write_version(catalog)
 
 

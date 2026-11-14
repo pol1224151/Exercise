@@ -4,7 +4,6 @@
  * Win rate is the share of simulated trials, not a promise.
  */
 
-import { chooseComposition } from "./records.js";
 import heroLinks from "../data/hero-links.json" with { type: "json" };
 import screenSkills from "../data/screen-skills.json" with { type: "json" };
 import rarityByCode from "../data/rarity.json" with { type: "json" };
@@ -891,7 +890,7 @@ export function advise(catalog, roster, options = {}) {
     if (lockedUserPre.length > prebansEach || lockedUserPre.some((id) => !byId[id])) {
       return {
         ok: false,
-        reason: "畫面上的預禁對不上這個分段，或是不在賽季模型裡，這步建議無效。",
+        reason: "預禁對不上這個分段，或是不在賽季模型裡，這步建議無效。",
         gear,
         edges,
         unknown: roster.unknown,
@@ -1568,7 +1567,7 @@ export function versionOf(catalog) {
 function metaRoster(catalog) {
   return {
     label: "賽季參考面板",
-    warning: "畫面上看不到裝備數字。沙盤用 Fribbels Hero Library 的中位數；沒有中位數時用資料庫裡的滿覺醒基礎值，不另編數字。",
+    warning: "沙盤對手用 Fribbels Hero Library 的中位數；沒有中位數時用資料庫裡的滿覺醒基礎值，不另編數字。",
     heroes: catalog.heroes.map((hero) => {
       const median = hero.reference?.median;
       const stats = median || hero.base;
@@ -1592,104 +1591,6 @@ function metaRoster(catalog) {
   };
 }
 
-function countsArePrefix(userCount, enemyCount, userFirst) {
-  if (userCount === 0 && enemyCount === 0) return true;
-  const pattern = [1, 2, 2, 2, 2, 1];
-  let side = userFirst ? "user" : "enemy";
-  let user = 0;
-  let enemy = 0;
-  for (const count of pattern) {
-    for (let i = 0; i < count; i += 1) {
-      if (side === "user") user += 1;
-      else enemy += 1;
-      if (user === userCount && enemy === enemyCount) return true;
-      if ((side === "user" && user > userCount) || (side === "enemy" && enemy > enemyCount)) return false;
-    }
-    side = side === "user" ? "enemy" : "user";
-  }
-  return user === userCount && enemy === enemyCount;
-}
-
-function nextSide(userCount, enemyCount, userFirst) {
-  const pattern = [1, 2, 2, 2, 2, 1];
-  let side = userFirst ? "user" : "enemy";
-  let user = 0;
-  let enemy = 0;
-  for (const count of pattern) {
-    for (let i = 0; i < count; i += 1) {
-      if (user === userCount && enemy === enemyCount) return side;
-      if (side === "user") user += 1;
-      else enemy += 1;
-    }
-    side = side === "user" ? "enemy" : "user";
-  }
-  return null;
-}
-
-const EFFECT_ZH = {
-  stun: "暈眩",
-  fear: "恐懼",
-  sleep: "睡眠",
-  silence: "沉默",
-  provoke: "嘲諷",
-  defDown: "減防",
-  atkDown: "減攻",
-  unbuffable: "無法強化",
-  uncounterable: "無法反擊",
-  dispelBuff: "解除強化",
-  dispelDebuff: "解除弱化",
-  heal: "治療",
-  barrier: "防護罩",
-  skillNull: "技能無效",
-  crPush: "拉條",
-  crPushback: "推條",
-  extraTurn: "再動",
-  cutBuffDuration: "縮短強化",
-};
-
-function effectLabels(effects) {
-  const names = [];
-  for (const effect of effects || []) {
-    const zh = EFFECT_ZH[effect.kind];
-    if (zh && !names.includes(zh)) names.push(zh);
-  }
-  return names;
-}
-
-function traitLine(skill) {
-  const parts = splitSkill(skill);
-  const chunks = [];
-  if (parts.damage && parts.damage.rate > 0) chunks.push(`傷害：倍率 ${parts.damage.rate}`);
-  const buffs = effectLabels(parts.buffs);
-  const debuffs = effectLabels(parts.debuffs);
-  if (buffs.length) chunks.push(`增益：${buffs.join("、")}`);
-  if (debuffs.length) chunks.push(`減益：${debuffs.join("、")}`);
-  const burnNumbered = (skill?.soulburnEffects || []).some((effect) => effect && effect.simulated !== false && effect.kind !== "unparsed" && effectHasNumber(effect));
-  if (skill?.soulburnCost && burnNumbered) chunks.push(`燒魂 ${skill.soulburnCost}`);
-  return chunks.length ? `資料裡有數字的效果。${chunks.join("。")}。沒有倍率的不另編。` : "這一動沒有另編技能文字以外的倍率。";
-}
-
-function heroRole(catalog, id) {
-  return (catalog.heroes || []).find((hero) => hero.id === id)?.role
-    || (catalog.database || []).find((hero) => hero.id === id)?.role
-    || "";
-}
-
-function bookLine(catalog, ids, label) {
-  const mages = (ids || []).map((id) => ({ id, role: heroRole(catalog, id), name: screenName(catalog, id) })).filter((hero) => hero.role === "mage" && hero.name);
-  if (!mages.length) return "";
-  return `${label}法師${mages.map((hero) => hero.name).join("、")}預設魂書，開場 ${mages.length * 20} 魂。`;
-}
-
-function burnDecision(skill, plan) {
-  const effects = skill?.soulburnEffects || [];
-  const usable = effects.some((effect) => effect.simulated !== false && effect.kind !== "unparsed");
-  if (!plan?.burn || !skill?.soulburnCost || !usable) {
-    return { yes: false, cost: null, text: "不要燒魂。這條沙盤沒有可計算的燒魂效果，或燒了勝率更低。" };
-  }
-  return { yes: true, cost: skill.soulburnCost, text: `要燒魂，消耗 ${skill.soulburnCost}。` };
-}
-
 function invalid(catalog, title, reason) {
   const summary = reason || title;
   return {
@@ -1702,77 +1603,6 @@ function invalid(catalog, title, reason) {
   };
 }
 
-function seatAt(userCount, enemyCount, userIsFirst) {
-  const pattern = [1, 2, 2, 2, 2, 1];
-  let side = userIsFirst ? "user" : "enemy";
-  let user = 0;
-  let enemy = 0;
-  for (const count of pattern) {
-    for (let index = 0; index < count; index += 1) {
-      if (user === userCount && enemy === enemyCount) return side;
-      if (side === "user") user += 1;
-      else enemy += 1;
-    }
-    side = side === "user" ? "enemy" : "user";
-  }
-  return null;
-}
-
-export function detectFirstPick(userCount, enemyCount, turnSide, leadSide, pickMark) {
-  if (pickMark === "FIRST PICK") return { firstPick: true, source: "mark" };
-  if (userCount + enemyCount > 0) {
-    const asFirst = seatAt(userCount, enemyCount, true);
-    const asSecond = seatAt(userCount, enemyCount, false);
-    const firstOk = Boolean(asFirst) && (!turnSide || turnSide === asFirst);
-    const secondOk = Boolean(asSecond) && (!turnSide || turnSide === asSecond);
-    if (firstOk && !secondOk) return { firstPick: true, source: "counts" };
-    if (secondOk && !firstOk) return { firstPick: false, source: "counts" };
-  }
-  return { firstPick: null, source: "unseen" };
-}
-
-function turnClause(turnSide) {
-  if (turnSide === "user") return "這一幀回合原文「你的回合」。";
-  if (turnSide === "enemy") return "這一幀回合原文「對手回合」。";
-  return "沒讀到回合。";
-}
-
-export function orderBasisText(recognition, held) {
-  const count = (ids) => (ids || []).filter((id) => id && id !== "empty").length;
-  const userCount = count(recognition?.user);
-  const enemyCount = count(recognition?.enemy);
-  const detected = detectFirstPick(userCount, enemyCount, recognition?.turnSide, recognition?.leadSide, recognition?.pickMark);
-  const turn = turnClause(recognition?.turnSide);
-  const rule = "先手規則：先手 1-2-2，後手 2-2-1。雙方的第 1、2 選和第 4、5 選都是關鍵。";
-  if (detected.source === "mark") return `這一幀讀到「FIRST PICK」，我方先手。${rule}${turn}`;
-  if (detected.source === "counts") {
-    const who = detected.firstPick ? "先手" : "後手";
-    return `依選角人數，我方 ${userCount} 名、對方 ${enemyCount} 名，我方${who}。${rule}${turn}`;
-  }
-  if (held === true) return `先前已經判定我方先手。${rule}${turn}`;
-  if (held === false) return `先前已經判定我方後手。${rule}${turn}`;
-  return `這一幀還沒分出先後手。人數夠了就照先手 1-2-2、後手 2-2-1 判斷，不會因為沒讀到徽章就把你判成後手。${turn}`;
-}
-
-export function adviceStateKey(recognition, extras = {}) {
-  const knownCount = (ids) => (ids || []).filter((id) => id && id !== "empty").length;
-  const detected = detectFirstPick(knownCount(recognition?.user), knownCount(recognition?.enemy), recognition?.turnSide, recognition?.leadSide, recognition?.pickMark);
-  let order = detected.firstPick;
-  if (order == null && (extras.heldFirstPick === true || extras.heldFirstPick === false)) order = extras.heldFirstPick;
-  return JSON.stringify({
-    user: recognition?.user || [],
-    enemy: recognition?.enemy || [],
-    prebans: recognition?.prebans || [],
-    actor: recognition?.actorId || "",
-    order,
-    turn: recognition?.turnSide || "",
-    lead: recognition?.leadSide || "",
-    mark: recognition?.pickMark || "",
-    rank: extras.rank || "",
-    enhance: Boolean(extras.assumeMaxEnhance),
-    cutoff: extras.cutoff ?? "",
-  });
-}
 
 function presenceOf(catalog, id) {
   const season = (catalog.seasonHeroes || []).find((hero) => hero.id === id);
@@ -2853,7 +2683,7 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
       phase: "ask",
       firstPick: null,
       action: { kind: "ask", title: "先告訴我誰先手", detail: "按「我先手」或「對方先手」。", ids: [] },
-      reason: { summary: `先後手由你告訴我，不看畫面猜。${rule}`, lines: [rule] },
+      reason: { summary: `先後手由你點選。${rule}`, lines: [rule] },
       rate: null,
       version: basis.version,
       basis,
@@ -3172,282 +3002,6 @@ function screenName(catalog, id) {
   return screenRecord(catalog, id)?.nameZh || "";
 }
 
-export function adviseFromScreen(catalog, recognition, options = {}) {
-  const basis = sourceBasis(catalog);
-  if (!basis.ok) {
-    return invalid(catalog, "資料還沒齊", basis.problems.slice(0, 4).join("；"));
-  }
-  const byId = Object.fromEntries(catalog.heroes.map((hero) => [hero.id, hero]));
-  const known = (id) => id && id !== "unknown" && id !== "empty" && byId[id];
-  const slots = [...(recognition.user || []), ...(recognition.enemy || []), ...(recognition.prebans || [])];
-  const phase = recognition.phase;
-  if (phase === "battle" && (slots.includes("unknown") || recognition.actorId === "unknown")) {
-    return invalid(catalog, "點這張卡選英雄", "這張卡上的名字讀不到，不會猜一個接近的人。");
-  }
-  const named = (id) => id && id !== "empty" && id !== "unknown";
-  const unlisted = slots.filter((id) => named(id) && screenRecord(catalog, id) && !heroListed(screenRecord(catalog, id)));
-  if (unlisted.length || (phase === "battle" && named(recognition.actorId) && screenRecord(catalog, recognition.actorId) && !heroListed(screenRecord(catalog, recognition.actorId)))) {
-    const names = unlisted.map((id) => screenName(catalog, id)).filter(Boolean).join("、");
-    return invalid(catalog, "這個英雄未收錄", `${names || "這名英雄"}沒有技能倍率，這一步不給建議。`);
-  }
-  const outside = slots.filter((id) => named(id) && !screenRecord(catalog, id));
-  const actorOutside = phase === "battle" && named(recognition.actorId) && !screenRecord(catalog, recognition.actorId);
-  if (outside.length || actorOutside) {
-    return invalid(catalog, "這個英雄不在資料庫裡", "資料庫沒有這名英雄，這一步不給建議。");
-  }
-  const roster = options.roster;
-  if (!roster?.heroes?.length) {
-    return invalid(catalog, "先讀入帳號", "還沒有讀入帳號。");
-  }
-  const ownedIds = ownedIdsOf(roster);
-  const missingOwn = (recognition.user || []).filter((id) => named(id) && screenRecord(catalog, id) && !ownedIds.has(id));
-  if (missingOwn.length) {
-    const names = missingOwn.map((id) => screenName(catalog, id) || byId[id]?.nameZh).join("、");
-    return invalid(catalog, "帳號裡沒有這名英雄", `帳號裡沒有${names}，不會拿參考面板冒充你的裝備。`);
-  }
-  if (phase === "battle") {
-    const user = (recognition.user || []).filter(known);
-    const enemy = (recognition.enemy || []).filter(known);
-    if (!recognition.yourTurn) {
-      return {
-        ok: true,
-        phase,
-        action: {
-          kind: "wait",
-          title: "現在不是你的回合",
-          detail: "技能列是暗的，先不要按。",
-          burn: null,
-        },
-        rate: null,
-        reason: { summary: "技能列是暗的，先不要按。", lines: ["技能鍵沒有亮，所以不建議放技能或燒魂。"] },
-        version: basis.version,
-        basis,
-      };
-    }
-    const actorId = known(recognition.actorId) && user.includes(recognition.actorId)
-      ? recognition.actorId
-      : user.find((id) => known(id));
-    if (!actorId) return invalid(catalog, "看不出是誰在動", "看不出現在是你的哪一名在動。");
-    if (user.length !== 4 || enemy.length !== 4) {
-      const actor = byId[actorId];
-      const ready = recognition.skillsReady || [true, true, true];
-      const index = { S1: 0, S2: 1, S3: 2 };
-      const slot = ["S3", "S2", "S1"].find((name) => ready[index[name]] !== false && actor.skills[name] && !actor.skills[name].passive);
-      if (!slot) return invalid(catalog, "這一動沒有能放的技能", "亮著的技能不在資料裡，或是被動。");
-      const skill = actor.skills[slot];
-      const burn = burnDecision(skill, { burn: true, order: [slot] });
-      const label = { S1: "1 技能", S2: "2 技能", S3: "3 技能" }[slot];
-      return {
-        ok: true,
-        phase,
-        action: {
-          kind: "skill",
-          title: `${actor.nameZh} 放${label}`,
-          detail: burn.text,
-          burn,
-          slot,
-        },
-        rate: null,
-        reason: {
-          summary: `${actor.nameZh}這一動用${label}。${burn.text}${traitLine(skill)}`,
-          lines: ["戰鬥已經開始，這一手給招式。", burn.text, traitLine(skill), bookLine(catalog, user, "我方"), bookLine(catalog, enemy, "對方")].filter(Boolean),
-        },
-        version: basis.version,
-        basis,
-      };
-    }
-    const draft = {
-      steps: [],
-      picked: { user, enemy },
-      userBan: null,
-      enemyBan: null,
-      userFight: user,
-      enemyFight: enemy,
-      userFirst: true,
-    };
-    const plans = [
-      { id: "s3-burn", order: ["S3", "S2", "S1"], burn: true },
-      { id: "s3", order: ["S3", "S2", "S1"], burn: false },
-      { id: "s1-burn", order: ["S1", "S3", "S2"], burn: true },
-      { id: "s1", order: ["S1", "S3", "S2"], burn: false },
-    ];
-    const trials = options.trials || 4;
-    let best = null;
-    let seed = 1;
-    const enhanceMode = options.assumeMaxEnhance ? "max" : "base";
-    for (const plan of plans) {
-      let wins = 0;
-      let sampleLog = null;
-      for (let trial = 0; trial < trials; trial += 1) {
-        const fight = fightFromRoster(draft, roster, catalog, plan, enhanceMode, mulberry32(seed));
-        seed += 1;
-        if (fight.winner === "user") wins += 1;
-        if (!sampleLog || (fight.winner === "user" && sampleLog.winner !== "user")) sampleLog = fight;
-      }
-      const rate = wins / trials;
-      if (!best || rate > best.rate) best = { plan, rate, log: sampleLog };
-    }
-    const actor = byId[actorId];
-    const ready = recognition.skillsReady || [true, true, true];
-    const index = { S1: 0, S2: 1, S3: 2 };
-    const slot = best.plan.order.find((name) => ready[index[name]] && actor.skills[name] && !actor.skills[name].passive);
-    if (!slot) return invalid(catalog, "這一動沒有能放的技能", "亮著的技能不在資料裡，或是被動。");
-    const skill = actor.skills[slot];
-    const burn = burnDecision(skill, best.plan);
-    const label = { S1: "1 技能", S2: "2 技能", S3: "3 技能" }[slot];
-    return {
-      ok: true,
-      phase,
-      action: {
-        kind: "skill",
-        title: `${actor.nameZh} 放${label}`,
-        detail: skill.name ? `技能名稱沿用資料原文：${skill.name}` : label,
-        burn,
-        slot,
-      },
-      rate: best.rate,
-      reason: {
-        summary: `${actor.nameZh}這一動用${label}。${burn.text}${traitLine(skill)}`,
-        lines: [
-          "估計勝率來自沙盤，不是保證。",
-          "你的面板用這次讀入的帳號。對手用 Fribbels 參考中位數，不是畫面上的裝備。",
-          burn.text,
-          traitLine(skill),
-          bookLine(catalog, user, "我方"),
-          bookLine(catalog, enemy, "對方"),
-        ].filter(Boolean),
-      },
-      version: basis.version,
-      basis,
-      draft,
-    };
-  }
-
-  const filled = (id) => id && id !== "empty";
-  const userPicks = (recognition.user || []).filter(named);
-  const enemyPicks = (recognition.enemy || []).filter(named);
-  const lockedPre = (recognition.prebans || []).filter(named);
-  const userCount = (recognition.user || []).filter(filled).length;
-  const enemyCount = (recognition.enemy || []).filter(filled).length;
-  const nothingOnBoard = userCount === 0 && enemyCount === 0 && lockedPre.length === 0;
-  if (nothingOnBoard && phase !== "preban" && !recognition.turnSide && !recognition.leadSide && recognition.pickMark !== "FIRST PICK") {
-    return invalid(catalog, "畫面上還沒有選角", "左右大卡出現英雄後，下一步會出現。");
-  }
-  const detected = detectFirstPick(userCount, enemyCount, recognition.turnSide, recognition.leadSide, recognition.pickMark);
-  let userFirst = detected.firstPick;
-  let orderSource = detected.source;
-  if (userFirst == null && (options.heldFirstPick === true || options.heldFirstPick === false)) {
-    userFirst = options.heldFirstPick;
-    orderSource = "held";
-  }
-  const simFirst = userFirst !== false;
-  const sideWord = userFirst == null ? "開局" : userFirst ? "先手" : "後手";
-  const basisText = orderBasisText(recognition, options.heldFirstPick);
-  const modelIds = new Set((catalog.heroes || []).map((hero) => hero.id));
-  const asModel = (id) => (modelIds.has(id) ? id : canonicalId(id));
-  const lockedUser = userPicks.map(asModel).filter((id) => modelIds.has(id));
-  const lockedEnemy = enemyPicks.map(asModel).filter((id) => modelIds.has(id));
-  const blocked = [...(recognition.prebans || []), ...userPicks, ...enemyPicks].filter(named);
-  const scored = sandboxRank(catalog, roster, lockedUser, lockedEnemy, simFirst, options.trials || 1, blocked);
-  if (!scored.length) return invalid(catalog, "這一手排不出來", "帳號裡沒有沙盤能算的英雄。不編倍率。");
-  const ordered = scored.map((row) => row.id);
-  const prebansEach = options.rank === "below" ? 1 : 2;
-  const makeLine = (start, id, label) => {
-    const picks = ordered.slice(start);
-    const row = scored[start] || scored[0];
-    const draft = row?.user?.length === 4 && row?.enemy?.length === 4
-      ? { userFight: row.user, enemyFight: row.enemy, userFirst }
-      : null;
-    return {
-      id,
-      label,
-      picks,
-      prebans: prebanIds(catalog, new Set(picks.slice(0, 5)), prebansEach),
-      why: SANDBOX_WHY,
-      draft,
-      rate: row?.rate ?? null,
-      reason: {
-        summary: `${sideWord}。${SANDBOX_WHY}`,
-        lines: [
-          SANDBOX_WHY,
-          "先手規則：先手 1-2-2，後手 2-2-1。雙方的第 1、2 選和第 4、5 選都是關鍵。已經禁掉和已經選上的人不重選。",
-          row?.rate == null ? "這套排不滿可計算的四名，不估算勝率，也不編倍率。" : "估計勝率來自短沙盤，你的面板對上推估對手，不是保證。這一手先給出下一手。",
-        ],
-      },
-    };
-  };
-  const lines = [makeLine(0, "sandbox", sideWord)];
-  if (scored.length > 1) lines.push(makeLine(1, "sandbox-next", `${sideWord}另一套`));
-  const cutoff = typeof options.cutoff === "number" ? options.cutoff : null;
-  const choice = cutoff == null
-    ? null
-    : chooseComposition(lines, options.history || { matches: [] }, cutoff, simFirst);
-  const best = choice?.line || lines[0];
-  const history = choice ? {
-    key: choice.key,
-    wins: choice.stats.wins,
-    losses: choice.stats.losses,
-    total: choice.stats.total,
-    rate: choice.stats.rate,
-    switched: choice.switched,
-    stuck: choice.stuck,
-    cutoff,
-    replaced: choice.replaced ? {
-      rate: choice.replaced.stats.rate,
-      wins: choice.replaced.stats.wins,
-      losses: choice.replaced.stats.losses,
-      total: choice.replaced.stats.total,
-    } : null,
-  } : null;
-  const taken = new Set();
-  for (const id of [...userPicks, ...enemyPicks, ...lockedPre]) {
-    taken.add(id);
-    taken.add(canonicalId(id));
-  }
-  const side = nextSide(userCount, enemyCount, simFirst);
-  const ours = recognition.turnSide === "user" || (recognition.turnSide !== "enemy" && side !== "enemy");
-  const unread = slots.includes("unknown") ? "有卡上的名字還沒對上，那張留空，不猜。" : "";
-  const orderLine = basisText;
-  const heldNames = [...userPicks, ...enemyPicks].map((id) => screenName(catalog, id)).filter(Boolean);
-  const bannedNames = lockedPre.map((id) => screenName(catalog, id)).filter(Boolean);
-  const boardLine = `已經選上${heldNames.length ? heldNames.join("、") : "還沒有人"}。已經禁了${bannedNames.length ? bannedNames.join("、") : "還沒有人"}。`;
-  let action;
-  if (userCount === 0 && enemyCount === 0) {
-    const bans = best.prebans.filter((id) => !taken.has(id) && !taken.has(canonicalId(id))).slice(0, prebansEach);
-    const names = bans.map((id) => screenName(catalog, id)).filter(Boolean);
-    action = names.length
-      ? { kind: "preban", title: `先禁 ${names.join("、")}`, detail: `開局先禁這 ${names.length} 名。${boardLine}`, burn: null, id: bans[0] }
-      : { kind: "wait", title: "預禁已經選完", detail: "等選角開始。", burn: null };
-  } else if (!side && userCount >= 5 && enemyCount >= 5) {
-    const protectedId = enemyPicks[2];
-    const ban = [...enemyPicks].filter((id) => id !== protectedId).sort((left, right) => (presenceOf(catalog, right)?.prebans || 0) - (presenceOf(catalog, left)?.prebans || 0))[0];
-    if (!ban) return invalid(catalog, "這一手沒有可禁的人", "對方沒有能禁、而且不是第 3 選的人。");
-    action = { kind: "ban", title: `最後禁 ${screenName(catalog, ban)}`, detail: "不能禁對方的第 3 選。在其餘的人裡用本季預禁數較高的那位。", burn: null, id: ban };
-  } else {
-    const next = best.picks.find((id) => !taken.has(id) && !taken.has(canonicalId(id)));
-    if (!next) return invalid(catalog, "這一手沒有可選的人", "已經禁掉和已經選上的人都不重選，沙盤裡沒有下一手。");
-    const title = `${ours ? "" : "下一手"}選 ${screenName(catalog, next)}`;
-    action = { kind: "pick", title, detail: `${ours ? best.why : "現在是對手在選。輪到我方時就是這一名。"}${boardLine}`, burn: null, id: next };
-  }
-  if (!action?.title) return invalid(catalog, "這一手沒有建議", "這套打法沒有排出下一步。");
-  best.reason.lines = [orderLine, boardLine, ...best.reason.lines];
-  if (unread) best.reason.lines.push(unread);
-  best.reason.summary = `${orderLine}${best.reason.summary}${unread ? unread : ""}`;
-  return {
-    ok: true,
-    phase: phase || (side ? "pick" : "postban"),
-    action,
-    rate: best.rate,
-    reason: best.reason,
-    history,
-    firstPick: userFirst,
-    orderSource,
-    planId: best.id,
-    version: basis.version,
-    basis,
-    best,
-  };
-}
 
 export function describePlan(plan) {
   const order = plan.order.map((slot) => ({ S1: "1 技能", S2: "2 技能", S3: "3 技能" }[slot])).join(" → ");
