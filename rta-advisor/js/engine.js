@@ -1077,7 +1077,8 @@ function makeFightUnits(draft, roster, catalog, enhanceMode, enemyMode = "refere
     unit.side = side;
     unit.rule = draft.rule || "";
     unit.guidingLightRate = null;
-    if (def.role === "ranger") {
+    unit.artifactPool = side === "enemy" ? artifactPool(catalog, def) : [];
+    if (def.role === "ranger" && side !== "enemy") {
       const light = (def.rtaGear?.artifacts || []).find((art) => (art.names || [])[0] === "Guiding Light");
       if (light && typeof light.pickRate === "number") unit.guidingLightRate = light.pickRate / 100;
     }
@@ -1290,6 +1291,7 @@ function takeTurn(actor, units, plan, rand, log) {
     if (actor.cdLeft[slot] > 0) actor.cdLeft[slot] -= 1;
   }
   if (!actor.alive) return;
+  refreshEnemyArtifact(actor, units, rand, log, "start");
   if (actor.debuffs.some((d) => d.kind === "stun" || d.kind === "fear" || d.kind === "sleep")) {
     log.push(`${actor.nameZh} 無法行動。`);
     tickDebuffs(actor);
@@ -1331,6 +1333,7 @@ function takeTurn(actor, units, plan, rand, log) {
     log.push(`${actor.nameZh} 單目標打不到隱身的人。`);
     tickDebuffs(actor);
     refreshTurnStealth(actor, rand, log);
+    refreshEnemyArtifact(actor, units, rand, log, "end", skill);
     refreshDef(actor);
     return;
   }
@@ -1389,6 +1392,7 @@ function takeTurn(actor, units, plan, rand, log) {
   }
   tickDebuffs(actor);
   refreshTurnStealth(actor, rand, log);
+  refreshEnemyArtifact(actor, units, rand, log, "end", skill);
   refreshDef(actor);
 }
 
@@ -1969,7 +1973,111 @@ function grantStealth(unit, turns, log, why) {
   log.push(`${unit.nameZh} 隱身 ${turns} 回合（${why}）。`);
 }
 
+const ARTIFACT_MAX = {
+  "Guiding Light": {
+    openStealth: 1,
+    endStealth: { chance: 0.7, turns: 2, every: 2 },
+    advice: "對方沒有神器等級，沙盤用技能頁寫出的最大：回合結束 70% 隱身 2 回合，每 2 回合最多一次。",
+  },
+  "Aubade Orb": {
+    openSouls: 10,
+    endSouls: { chance: 1, amount: 5, max: 3 },
+    advice: "對方沒有神器等級，沙盤用技能頁寫出的最大：開場 10 魂，回合結束 100% 再獲得 5 魂，最多 3 次。",
+  },
+  "Unseen Observer": {
+    afterNonAttack: { cr: 20, souls: 10 },
+    advice: "對方沒有神器等級，沙盤用技能頁寫出的最大：放非攻擊技能後拉條 20%，並獲得 10 魂，魂只拿一次。",
+  },
+  "Wall of Order": {
+    perBuffChance: 0.12,
+    endStealth: { chance: 1, turns: 1, every: 1 },
+    advice: "對方沒有神器等級，沙盤用技能頁寫出的最大：每個敵方強化 12% 給較大強攻 1 回合，回合結束 100% 隱身 1 回合。技能頁沒有寫強攻增加多少攻擊，不改攻擊力。",
+  },
+};
+
+function artifactEnglish(catalog, label) {
+  if (!label) return "";
+  const found = Object.values(catalog?.artifactNames || {}).find((art) => art.name === label || art.nameZh === label);
+  return found?.name || "";
+}
+
+function artifactPool(catalog, hero) {
+  const listed = (hero?.rtaGear?.artifacts || []).filter((art) => art?.names?.[0] && typeof art.pickRate === "number");
+  if (listed.length) {
+    return listed.map((art) => ({ name: art.names[0], rate: art.pickRate / 100, zh: artifactZh(catalog, art.names[0]) }));
+  }
+  const builds = e7Record(hero?.code)?.建造 || [];
+  return builds.filter((build) => typeof build.使用率 === "number").map((build) => ({
+    name: artifactEnglish(catalog, build.神器),
+    rate: build.使用率,
+    zh: shownZh(build.神器 || "", "無神器"),
+  })).filter((row) => row.name);
+}
+
+function addSouls(unit, units, amount, log, why) {
+  const purse = (units || []).find((row) => row.side === unit.side) || unit;
+  if (!purse.purse) purse.purse = { value: 0 };
+  purse.purse.value += amount;
+  log.push(`${unit.nameZh} ${why}，獲得 ${amount} 魂。`);
+}
+
+function rollEnemyArtifact(unit, units, rand, log) {
+  if (unit.side !== "enemy" || unit.wornArtifact !== undefined) return;
+  let roll = rand();
+  let chosen = null;
+  for (const row of unit.artifactPool || []) {
+    roll -= row.rate;
+    if (roll < 0) {
+      chosen = row;
+      break;
+    }
+  }
+  unit.wornArtifact = chosen?.name || "";
+  const spec = ARTIFACT_MAX[unit.wornArtifact];
+  if (!spec) return;
+  const why = `${chosen.zh} 最大強化`;
+  if (spec.openStealth) grantStealth(unit, spec.openStealth, log, why);
+  if (spec.openSouls) addSouls(unit, units, spec.openSouls, log, why);
+}
+
+function refreshEnemyArtifact(actor, units, rand, log, when, skill) {
+  const spec = ARTIFACT_MAX[actor.wornArtifact];
+  if (!spec || actor.side !== "enemy") return;
+  const zh = (actor.artifactPool || []).find((row) => row.name === actor.wornArtifact)?.zh || "神器";
+  if (when === "start" && spec.perBuffChance) {
+    const buffs = units.filter((unit) => unit.alive && unit.side !== actor.side).reduce((sum, unit) => sum + (unit.buffs || []).length, 0);
+    for (let index = 0; index < buffs; index += 1) {
+      if (rand() < spec.perBuffChance) {
+        log.push(`${actor.nameZh} ${zh} 最大強化：12% 給較大強攻 1 回合。技能頁沒有寫攻擊增加多少，不改攻擊力。`);
+        break;
+      }
+    }
+  }
+  if (when === "end" && spec.afterNonAttack && skill && !splitSkill(skill).damage) {
+    actor.cr = Math.min(100, actor.cr + spec.afterNonAttack.cr);
+    log.push(`${actor.nameZh} ${zh} 最大強化，戰鬥準備度 +${spec.afterNonAttack.cr}。`);
+    if (!actor.artifactSoulOnce) {
+      actor.artifactSoulOnce = true;
+      addSouls(actor, units, spec.afterNonAttack.souls, log, `${zh} 最大強化`);
+    }
+  }
+  if (when === "end" && spec.endStealth) {
+    const every = spec.endStealth.every || 1;
+    if (actor.artifactStealthAt == null) actor.artifactStealthAt = -every;
+    actor.artifactTurns = (actor.artifactTurns || 0) + 1;
+    if (actor.artifactTurns - actor.artifactStealthAt >= every && rand() < spec.endStealth.chance) {
+      actor.artifactStealthAt = actor.artifactTurns;
+      grantStealth(actor, spec.endStealth.turns, log, `${zh} 最大強化`);
+    }
+  }
+  if (when === "end" && spec.endSouls && (actor.artifactSoulProcs || 0) < spec.endSouls.max && rand() < spec.endSouls.chance) {
+    actor.artifactSoulProcs = (actor.artifactSoulProcs || 0) + 1;
+    addSouls(actor, units, spec.endSouls.amount, log, `${zh} 最大強化`);
+  }
+}
+
 function applyBattleStart(units, rand, log) {
+  for (const unit of units) rollEnemyArtifact(unit, units, rand, log);
   for (const unit of units) {
     for (const grant of stealthGrants(unit.skills)) {
       if (!grant.atBattleStart) continue;
@@ -1992,19 +2100,19 @@ function refreshTurnStealth(actor, rand, log) {
 
 const ARTIFACT_NOTES = {
   "Guiding Light": {
-    effect: "開場賦予隱身 1 回合。回合結束再隱身，技能頁 Lv.1 寫 35%、Lv.11 寫 70%，都是 2 回合，每 2 回合最多一次。沒有神器等級，不選一個機率進沙盤。",
+    effect: "開場賦予隱身 1 回合。回合結束再隱身，技能頁未滿是 35%、最大是 70%，都是 2 回合，每 2 回合最多一次。",
     answer: "應對：穿上時開場有隱身，單目標打不到，全體攻擊打得到。",
   },
   "Aubade Orb": {
-    effect: "開場獲得 10 魂。回合結束再獲得 5 魂，技能頁 Lv.1 寫 50%、Lv.11 寫 100%，最多 3 次。沒有神器等級，不選一個機率進沙盤。",
+    effect: "開場獲得 10 魂。回合結束再獲得 5 魂，技能頁未滿是 50%、最大是 100%，最多 3 次。",
     answer: "應對：魂比沒穿時多，燒魂仍看當下魂量。",
   },
   "Unseen Observer": {
-    effect: "放非攻擊技能後拉條，技能頁 Lv.1 寫 10%、Lv.11 寫 20%，並獲得 10 魂，魂只拿一次。沒有神器等級，不選一個拉條數字進沙盤。",
+    effect: "放非攻擊技能後拉條，技能頁未滿是 10%、最大是 20%，並獲得 10 魂，魂只拿一次。",
     answer: "應對：他放非攻擊技之後會拉條。",
   },
   "Wall of Order": {
-    effect: "回合結束隱身，技能頁 Lv.1 寫 50%、Lv.11 寫 100%，1 回合。回合開始依敵方強化給自己強攻，Lv.1 寫 6%、Lv.11 寫 12%。沒有神器等級，不選一個機率進沙盤。這件不是開場隱身。",
+    effect: "回合結束隱身，技能頁未滿是 50%、最大是 100%，1 回合。回合開始每個敵方強化有機率給較大強攻，未滿是 6%、最大是 12%。這件不是開場隱身。",
     answer: "應對：開場單目標仍打得到，隱身要等回合結束。",
   },
 };
@@ -2079,7 +2187,7 @@ function artifactLines(catalog, hero) {
     const note = ARTIFACT_NOTES[name];
     const title = `神器 ${artifactZh(catalog, name)}，出場 ${art.pickRate}%`;
     if (!note) return `${title}。沒有收進這件的效果文字，不另編效果。`;
-    return `${title}。${note.effect}${note.answer}`;
+    return `${title}。${note.effect}${ARTIFACT_MAX[name]?.advice || ""}${note.answer}`.replace(/。+$/, "");
   });
 }
 
@@ -2099,7 +2207,18 @@ function openingLine(catalog, hero) {
   const pageBuilds = e7BuildBits(hero);
   const arts = artifactLines(catalog, hero).filter((line) => !(pageBuilds.length && line.includes("沒有公開的神器出場率")));
   bits.push(...arts);
-  if (pageBuilds.length) bits.push(`建造來自世界競技場頁。頁上沒有印神器效果，不另編。${pageBuilds.join("。")}`);
+  if (pageBuilds.length) {
+    bits.push(`建造來自世界競技場頁。頁上沒有印神器效果，不另編。${pageBuilds.join("。")}`);
+    if (!(hero?.rtaGear?.artifacts || []).length) {
+      const seen = new Set();
+      for (const build of e7Record(hero?.code)?.建造 || []) {
+        const english = artifactEnglish(catalog, build.神器);
+        if (!english || seen.has(english) || !ARTIFACT_MAX[english]) continue;
+        seen.add(english);
+        bits.push(ARTIFACT_MAX[english].advice);
+      }
+    }
+  }
   if (!bits.length) return "開戰常見做法：沒有公開的開戰配裝。";
   return `開戰常見做法：${bits.join("。")}。`;
 }

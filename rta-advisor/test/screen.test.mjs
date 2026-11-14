@@ -602,7 +602,10 @@ const buffPick = guidedDraft(catalog, roster, {
 }, { trials: 1, rank: "champion" });
 assert.equal(damagePick.ok, true, damagePick.reason?.summary);
 assert.equal(buffPick.ok, true, buffPick.reason?.summary);
-assert.notDeepEqual(damagePick.action.ids, buffPick.action.ids);
+assert.notEqual(
+  damagePick.reason.summary.match(/整組剩下的生命是 \d+%/)?.[0],
+  buffPick.reason.summary.match(/整組剩下的生命是 \d+%/)?.[0],
+);
 assert.match(buffPick.reason.summary, /迪埃妮|艾蕾娜/);
 assert.match(damagePick.reason.summary, /玫勒賽德絲|拉斯/);
 
@@ -652,6 +655,20 @@ assert.match(rangerSlice, /黎明寶珠/);
 assert.match(rangerSlice, /隱形的觀察者/);
 assert.match(rangerSlice, /秩序護牆/);
 assert.match(rangerSlice, /應對/);
+assert.match(ranger.reason.summary, /沙盤用技能頁寫出的最大：回合結束 70%/);
+const worn = fightFromRoster({
+  userFight: ["arbiter-vildred", "belian", "estelle", "harsetti"],
+  enemyFight: ["aubade-ludwig", "mercedes", "ras", "diene"],
+  userFirst: true,
+}, roster, catalog, { order: ["S1"], burn: false }, "max", () => 0.5);
+assert.match(worn.log.join("\n"), /黎明寶珠 最大強化，獲得 10 魂/);
+const light = fightFromRoster({
+  userFight: ["arbiter-vildred", "belian", "estelle", "harsetti"],
+  enemyFight: ["aubade-ludwig", "mercedes", "ras", "diene"],
+  userFirst: true,
+}, roster, catalog, { order: ["S1"], burn: false }, "max", () => 0.8);
+assert.match(light.log.join("\n"), /引導之光 最大強化/);
+assert.match(light.log.join("\n"), /隱身 1 回合/);
 assert.match(yulhaBrief.reason.summary, /增益/);
 const yulhaWho = yulhaBrief.reason.lines.find((row) => row.startsWith("誰先打誰："));
 const yulhaUlt = yulhaBrief.reason.lines.find((row) => row.startsWith("要不要開大："));
