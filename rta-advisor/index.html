@@ -31,6 +31,25 @@
         <div id="boxes"></div>
       </div>
     </section>
+    <section id="draft" class="draft">
+      <div class="row">
+        <button id="weFirst" type="button">我先手</button>
+        <button id="theyFirst" type="button">對方先手</button>
+        <button id="undoDraft" type="button">收回上一手</button>
+        <button id="resetDraft" type="button">這場重來</button>
+      </div>
+      <p id="draftStatus" class="note"></p>
+      <div class="row" id="reportRow" hidden>
+        <label>對方剛選了
+          <input id="enemyPick" type="search" placeholder="完整中文名" aria-label="對方剛選的英雄">
+        </label>
+        <button id="addEnemy" type="button">他選這名</button>
+      </div>
+      <div class="row">
+        <button id="bansDone" type="button" hidden>預禁好了</button>
+        <button id="lockOurs" type="button" hidden>我就選這幾名</button>
+      </div>
+    </section>
     <section id="now">
       <button id="liveAction" type="button" class="action" disabled>先讀入帳號</button>
       <p id="liveRate" class="rate">尚無勝率</p>
@@ -78,7 +97,7 @@
           <li>雙擊 <code>RtaAdvisor.exe</code> 後這個頁面會自己打開。黑色視窗要留著。</li>
           <li>競技場畫面出現後，按「分享遊戲視窗」。在系統清單選第七史詩或模擬器那個視窗，然後按分享。關掉這個視窗後，主畫面會顯示程式拿到的那一幀。</li>
           <li>遊戲維持 16:9。程式讀左右兩排大卡上的名字，主畫面把這一幀的原文和英雄對在一起。整段對上資料庫才填英雄，對不上留空。底下的推薦英雄和事先禁用不會當成已經選的人。</li>
-          <li>按「開始判讀」。新的一幀先畫出來。先後手或選角變了才重算。讀到 FIRST PICK 就是我方先手。選角畫面已經開始、卻沒有 FIRST PICK，就是我方後手。後手沒有另一個標記。分出來就給下一手，不等整場沙盤跑完。</li>
+          <li>選角不用看畫面猜。主畫面按「我先手」或「對方先手」，先給 2 名預禁。再輸入對方剛選的完整中文名。先手選 1、2、2 名，後手選 2、2、1 名。第 3 選是保護位。兩邊各 5 名之後，告訴你禁對方哪一名。開打後才讀畫面，給招式、有數字的效果和燒魂。</li>
           <li>讀不到或對不上的那張卡，點一下再選。一張卡只留一個完整中文名，對上資料庫才填。碎字、亂碼、對不上的留空，不猜。清單是資料庫裡的全部英雄。沒有技能倍率的標未收錄。</li>
         </ol>
         <div class="row">
@@ -98,7 +117,7 @@
             <input id="cutoff" type="number" min="0" max="100" step="1" value="40"> %
           </label>
         </div>
-        <p class="note">同類型 4 對 4 的實戰勝率低於這個百分比，選角就改推薦沙盤裡的另一組。預設 40。剛好等於門檻不換。讀到 FIRST PICK 就是我方先手，一開始就寫出要先禁的兩名。沒讀到徽章時，用已經選上的人數照 1-2-2-2-2-1 判斷，不會因為沒讀到就把你判成後手。建議會扣掉已經禁和已經選上的人。戰鬥開始後給下一手招式或燒魂。一張卡只留一個完整中文名。</p>
+        <p class="note">同類型 4 對 4 的實戰勝率低於這個百分比，選角就改推薦沙盤裡的另一組。預設 40。剛好等於門檻不換。先後手和對方選了誰都由你輸入，不看畫面猜。先手選 1、2、2 名，後手選 2、2、1 名。第 1、2 選和第 4、5 選是關鍵位，第 3 選是保護位。開打後才讀畫面。法師位預設帶給 20 魂的魂書。沒有倍率的不另編。</p>
       </section>
 
       <section>

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { adviceStateKey, adviseFromScreen, detectFirstPick, parseRoster, selectableHeroes, sourceBasis } from "../js/engine.js";
+import { adviceStateKey, adviseFromScreen, detectFirstPick, fightFromRoster, guidedDraft, parseRoster, selectableHeroes, sourceBasis } from "../js/engine.js";
 import { DEFAULT_REGIONS, bindRememberedCards, findDraftCards, inferPhase, liveStateKey, matchCardMemory, matchHeroName, matchPortrait, paintFixture, readDraft, readFrame, readPickMark, rememberCard, rememberCorrection, slotFrame } from "../js/screen.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
@@ -409,6 +409,70 @@ assert.notEqual(adviceStateKey(still), adviceStateKey({ ...still, pickMark: "FIR
 assert.notEqual(adviceStateKey(still), adviceStateKey({ ...still, user: ["a", "c"] }));
 assert.notEqual(adviceStateKey({ user: [], enemy: [], leadSide: null }), adviceStateKey({ user: [], enemy: [], leadSide: "user" }));
 assert.notEqual(adviceStateKey({ user: [], enemy: [], turnSide: null }), adviceStateKey({ user: [], enemy: [], turnSide: "enemy" }));
+
+const asked = guidedDraft(catalog, roster, {}, { trials: 1, rank: "champion" });
+assert.equal(asked.action.kind, "ask");
+
+const openingBan = guidedDraft(catalog, roster, {
+  userFirst: true,
+  prebansDone: false,
+  userPicks: [],
+  enemyPicks: [],
+  prebans: [],
+}, { trials: 1, rank: "champion" });
+assert.equal(openingBan.ok, true, openingBan.reason?.summary);
+assert.equal(openingBan.action.kind, "preban");
+assert.equal(openingBan.action.ids.length, 2);
+assert.match(openingBan.action.title, /先禁/);
+
+const firstMove = guidedDraft(catalog, roster, {
+  userFirst: true,
+  prebansDone: true,
+  prebans: openingBan.action.ids,
+  userPicks: [],
+  enemyPicks: [],
+}, { trials: 1, rank: "champion" });
+assert.equal(firstMove.action.kind, "pick");
+assert.equal(firstMove.action.ids.length, 1);
+assert.match(firstMove.reason.summary, /第 1 選/);
+assert.match(firstMove.reason.summary, /關鍵/);
+
+const scales = selectableHeroes(catalog).find((hero) => hero.nameZh === "天秤之主");
+assert.ok(scales);
+const answerTwo = guidedDraft(catalog, roster, {
+  userFirst: false,
+  prebansDone: true,
+  prebans: openingBan.action.ids,
+  userPicks: [],
+  enemyPicks: [scales.id],
+}, { trials: 1, rank: "champion" });
+assert.equal(answerTwo.ok, true, answerTwo.reason?.summary);
+assert.equal(answerTwo.action.kind, "pick");
+assert.equal(answerTwo.action.ids.length, 2);
+assert.equal(answerTwo.action.ids.includes(scales.id), false);
+assert.match(answerTwo.reason.summary, /關鍵/);
+
+const heroIds = catalog.heroes.map((hero) => hero.id);
+const lastBan = guidedDraft(catalog, roster, {
+  userFirst: true,
+  prebansDone: true,
+  prebans: [],
+  userPicks: heroIds.slice(0, 5),
+  enemyPicks: heroIds.slice(5, 10),
+}, { trials: 1, rank: "champion" });
+assert.equal(lastBan.action.kind, "ban");
+assert.notEqual(lastBan.action.id, heroIds[7]);
+assert.match(lastBan.reason.summary, /保護/);
+assert.match(lastBan.reason.summary, /關鍵/);
+
+const mage = catalog.heroes.find((hero) => hero.role === "mage");
+const rest = catalog.heroes.filter((hero) => hero.id !== mage.id);
+const booked = fightFromRoster({
+  userFight: [mage.id, rest[0].id, rest[1].id, rest[2].id],
+  enemyFight: [rest[3].id, rest[4].id, rest[5].id, rest[6].id],
+}, roster, catalog, { order: ["S1"], burn: false }, "base", () => 0.5);
+assert.match(booked.log.join("\n"), /魂書/);
+assert.match(booked.log.join("\n"), /20 魂/);
 
 const list = selectableHeroes(catalog);
 assert.ok(list.some((hero) => hero.nameZh === "天秤之主"));

@@ -448,6 +448,7 @@ function unitFrom(rosterHero, def, enhanceMode) {
     eff: rosterHero.effectiveness,
     res: rosterHero.effectResistance,
     sets: rosterHero.sets || [],
+    role: def.role || "",
     skills,
     cdLeft: { S1: 0, S2: 0, S3: 0 },
     cr: 0,
@@ -1051,6 +1052,14 @@ export function fightFromRoster(draft, roster, catalog, plan, enhanceMode, rand,
 function simulateUnits(userUnits, enemyUnits, plan, rand) {
   const units = [...userUnits, ...enemyUnits];
   const log = [];
+  for (const side of ["user", "enemy"]) {
+    const group = units.filter((unit) => unit.side === side);
+    const mages = group.filter((unit) => unit.role === "mage");
+    if (!group.length || !mages.length) continue;
+    const souls = mages.length * 20;
+    group[0].purse = { value: souls };
+    log.push(`${side === "user" ? "我方" : "對方"}法師${mages.map((unit) => unit.nameZh).join("、")}預設魂書，開場 ${souls} 魂。`);
+  }
   for (const unit of units) {
     for (const effect of unit.passives) {
       if (effect.kind === "fixOwnSpeed" || effect.kind === "speedCap") unit.lockedSpeed = unit.baseSpeed;
@@ -1378,6 +1387,57 @@ function nextSide(userCount, enemyCount, userFirst) {
   return null;
 }
 
+const EFFECT_ZH = {
+  stun: "暈眩",
+  fear: "恐懼",
+  sleep: "睡眠",
+  silence: "沉默",
+  provoke: "嘲諷",
+  defDown: "減防",
+  atkDown: "減攻",
+  unbuffable: "無法強化",
+  uncounterable: "無法反擊",
+  dispelBuff: "解除強化",
+  dispelDebuff: "解除弱化",
+  heal: "治療",
+  barrier: "防護罩",
+  skillNull: "技能無效",
+  crPush: "拉條",
+  crPushback: "推條",
+  extraTurn: "再動",
+  cutBuffDuration: "縮短強化",
+};
+
+function effectHasNumber(effect) {
+  if (typeof effect?.amount === "number" || typeof effect?.ratio === "number" || typeof effect?.turns === "number") return true;
+  return /\d/.test(String(effect?.source || ""));
+}
+
+function traitLine(skill) {
+  const names = [];
+  for (const effect of [...(skill?.effects || []), ...(skill?.soulburnEffects || [])]) {
+    if (!effect || effect.simulated === false || effect.kind === "unparsed" || !effectHasNumber(effect)) continue;
+    const zh = EFFECT_ZH[effect.kind];
+    if (zh && !names.includes(zh)) names.push(zh);
+  }
+  if (skill?.soulburnCost && (skill.soulburnEffects || []).some((effect) => effect && effect.simulated !== false && effect.kind !== "unparsed" && effectHasNumber(effect))) {
+    names.push(`燒魂 ${skill.soulburnCost}`);
+  }
+  return names.length ? `資料裡有數字的效果：${names.join("、")}。沒有倍率的不另編。` : "這一動沒有另編技能文字以外的倍率。";
+}
+
+function heroRole(catalog, id) {
+  return (catalog.heroes || []).find((hero) => hero.id === id)?.role
+    || (catalog.database || []).find((hero) => hero.id === id)?.role
+    || "";
+}
+
+function bookLine(catalog, ids, label) {
+  const mages = (ids || []).map((id) => ({ id, role: heroRole(catalog, id), name: screenName(catalog, id) })).filter((hero) => hero.role === "mage" && hero.name);
+  if (!mages.length) return "";
+  return `${label}法師${mages.map((hero) => hero.name).join("、")}預設魂書，開場 ${mages.length * 20} 魂。`;
+}
+
 function burnDecision(skill, plan) {
   const effects = skill?.soulburnEffects || [];
   const usable = effects.some((effect) => effect.simulated !== false && effect.kind !== "unparsed");
@@ -1672,6 +1732,154 @@ function sandboxRank(catalog, roster, lockedUser, lockedEnemy, userFirst, trials
   return scored;
 }
 
+function draftSeat(userCount, enemyCount, userFirst) {
+  const pattern = [1, 2, 2, 2, 2, 1];
+  let side = userFirst ? "user" : "enemy";
+  let user = 0;
+  let enemy = 0;
+  for (const count of pattern) {
+    for (let index = 0; index < count; index += 1) {
+      if (user === userCount && enemy === enemyCount) return { side, count, left: count - index };
+      if (side === "user") user += 1;
+      else enemy += 1;
+    }
+    side = side === "user" ? "enemy" : "user";
+  }
+  return null;
+}
+
+function slotNote(index) {
+  const number = index + 1;
+  if (number === 3) return `第 ${number} 選，保護位，不能被最後禁`;
+  if (number === 1 || number === 2 || number === 4 || number === 5) return `第 ${number} 選，關鍵位`;
+  return `第 ${number} 選`;
+}
+
+export function guidedDraft(catalog, roster, state = {}, options = {}) {
+  const basis = sourceBasis(catalog);
+  if (!basis.ok) return invalid(catalog, "資料還沒齊", basis.problems.slice(0, 4).join("；"));
+  if (!roster?.heroes?.length) return invalid(catalog, "先讀入帳號", "還沒有讀入帳號。");
+  const rule = "先手選 1、2、2 名，後手選 2、2、1 名。第 1、2 選和第 4、5 選是關鍵位。第 3 選是保護位，不能被最後禁。";
+  if (state.userFirst !== true && state.userFirst !== false) {
+    return {
+      ok: true,
+      phase: "ask",
+      firstPick: null,
+      action: { kind: "ask", title: "先告訴我誰先手", detail: "按「我先手」或「對方先手」。", ids: [] },
+      reason: { summary: `先後手由你告訴我，不看畫面猜。${rule}`, lines: [rule] },
+      rate: null,
+      version: basis.version,
+      basis,
+    };
+  }
+  const userFirst = state.userFirst === true;
+  const userPicks = (state.userPicks || []).filter(Boolean);
+  const enemyPicks = (state.enemyPicks || []).filter(Boolean);
+  const prebans = (state.prebans || []).filter(Boolean);
+  const each = options.rank === "below" ? 1 : 2;
+  const who = userFirst ? "我方先手" : "對方先手";
+  if (!state.prebansDone) {
+    const scored = sandboxRank(catalog, roster, [], [], userFirst, options.trials || 1, []);
+    const opening = scored.map((row) => row.id);
+    const ids = prebanIds(catalog, new Set(opening.slice(0, 5)), each);
+    const names = ids.map((id) => screenName(catalog, id)).filter(Boolean);
+    return {
+      ok: true,
+      phase: "preban",
+      firstPick: userFirst,
+      action: { kind: "preban", title: `先禁 ${names.join("、")}`, detail: `${who}。先禁這 ${names.length} 名，再開始報對方的選角。`, ids },
+      reason: { summary: `${who}。先禁 ${names.join("、")}。${rule}`, lines: [rule] },
+      rate: scored[0]?.rate ?? null,
+      version: basis.version,
+      basis,
+    };
+  }
+  const seat = draftSeat(userPicks.length, enemyPicks.length, userFirst);
+  if (!seat && userPicks.length >= 5 && enemyPicks.length >= 5) {
+    const protectedId = enemyPicks[2];
+    const pool = enemyPicks.map((id, index) => ({ id, index })).filter((row) => row.index !== 2);
+    pool.sort((left, right) => (presenceOf(catalog, right.id)?.prebans || 0) - (presenceOf(catalog, left.id)?.prebans || 0));
+    const ban = pool[0];
+    if (!ban) return invalid(catalog, "沒有可禁的人", "對方沒有第 3 選以外的人。");
+    const protectedName = screenName(catalog, protectedId);
+    const banName = screenName(catalog, ban.id);
+    return {
+      ok: true,
+      phase: "postban",
+      firstPick: userFirst,
+      action: {
+        kind: "ban",
+        title: `最後禁 ${banName}`,
+        detail: `禁對方${slotNote(ban.index)}。第 3 選 ${protectedName} 是保護位，不能禁。`,
+        id: ban.id,
+        ids: [ban.id],
+      },
+      reason: {
+        summary: `兩邊都選滿 5 名。最後禁 ${banName}，這是${slotNote(ban.index)}。第 3 選 ${protectedName} 是保護位，不能禁。`,
+        lines: [rule],
+      },
+      rate: null,
+      version: basis.version,
+      basis,
+    };
+  }
+  if (!seat) return invalid(catalog, "人數對不上選角順序", "先手是 1、2、2 名，後手是 2、2、1 名。");
+  const held = [...userPicks, ...enemyPicks, ...prebans].map((id) => screenName(catalog, id)).filter(Boolean);
+  if (seat.side === "enemy") {
+    const already = seat.count - seat.left;
+    const named = (already ? enemyPicks.slice(-already) : []).map((id) => screenName(catalog, id)).filter(Boolean);
+    const heard = named.length ? `這手已告訴我 ${named.join("、")}。` : "";
+    return {
+      ok: true,
+      phase: "pick",
+      firstPick: userFirst,
+      action: {
+        kind: "report",
+        title: seat.left === seat.count ? `告訴我對方這手的 ${seat.count} 名` : `對方這手還有 ${seat.left} 名`,
+        detail: `${who}。對方這一手選 ${seat.count} 名。${heard}用完整中文名告訴我剛選的那一名。`,
+        ids: [],
+        need: seat.left,
+      },
+      reason: { summary: `${who}。對方這一手選 ${seat.count} 名。${heard}${rule}`, lines: [rule, held.length ? `已經在場上：${held.join("、")}。` : ""] },
+      rate: null,
+      version: basis.version,
+      basis,
+    };
+  }
+  const lockedUser = userPicks.map((id) => (catalog.heroes || []).some((hero) => hero.id === id) ? id : canonicalId(id)).filter((id) => (catalog.heroes || []).some((hero) => hero.id === id));
+  const lockedEnemy = enemyPicks.map((id) => (catalog.heroes || []).some((hero) => hero.id === id) ? id : canonicalId(id)).filter((id) => (catalog.heroes || []).some((hero) => hero.id === id));
+  const scored = sandboxRank(catalog, roster, lockedUser, lockedEnemy, userFirst, options.trials || 1, [...userPicks, ...enemyPicks, ...prebans]);
+  const ids = [];
+  const taken = new Set([...userPicks, ...enemyPicks, ...prebans]);
+  for (const row of scored) {
+    if (ids.length === seat.left) break;
+    if (taken.has(row.id)) continue;
+    ids.push(row.id);
+    taken.add(row.id);
+  }
+  if (!ids.length) return invalid(catalog, "這一手沒有可選的人", "已經選過和已經禁過的人不重選。");
+  const notes = ids.map((id, offset) => `${screenName(catalog, id)}是${slotNote(userPicks.length + offset)}`);
+  const names = ids.map((id) => screenName(catalog, id)).filter(Boolean);
+  return {
+    ok: true,
+    phase: "pick",
+    firstPick: userFirst,
+    action: {
+      kind: "pick",
+      title: `選 ${names.join("、")}`,
+      detail: notes.join("。"),
+      ids,
+    },
+    reason: {
+      summary: `${who}。選 ${notes.join("，")}。${rule}`,
+      lines: [rule, notes.join("。")],
+    },
+    rate: scored[0]?.rate ?? null,
+    version: basis.version,
+    basis,
+  };
+}
+
 export function draftPlans(catalog, roster, options = {}) {
   const scored = sandboxRank(catalog, roster, [], [], true, options.trials || 1);
   const ids = scored.map((row) => row.id);
@@ -1822,8 +2030,8 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
         },
         rate: null,
         reason: {
-          summary: `${actor.nameZh}這一動用${label}。${burn.text}`,
-          lines: ["戰鬥已經開始，這一手給招式。", burn.text],
+          summary: `${actor.nameZh}這一動用${label}。${burn.text}${traitLine(skill)}`,
+          lines: ["戰鬥已經開始，這一手給招式。", burn.text, traitLine(skill), bookLine(catalog, user, "我方"), bookLine(catalog, enemy, "對方")].filter(Boolean),
         },
         version: basis.version,
         basis,
@@ -1880,12 +2088,15 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
       },
       rate: best.rate,
       reason: {
-        summary: `${actor.nameZh}這一動用${label}。${burn.text}`,
+        summary: `${actor.nameZh}這一動用${label}。${burn.text}${traitLine(skill)}`,
         lines: [
           "估計勝率來自沙盤，不是保證。",
           "你的面板用這次讀入的帳號。對手用 Fribbels 參考中位數，不是畫面上的裝備。",
           burn.text,
-        ],
+          traitLine(skill),
+          bookLine(catalog, user, "我方"),
+          bookLine(catalog, enemy, "對方"),
+        ].filter(Boolean),
       },
       version: basis.version,
       basis,

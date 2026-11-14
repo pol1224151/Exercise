@@ -1,4 +1,4 @@
-import { adviceStateKey, adviseFromScreen, buildGearReport, clearAccount, counterEdges, loadAccount, orderBasisText, parseRoster, readAccountText, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
+import { adviceStateKey, adviseFromScreen, buildGearReport, clearAccount, counterEdges, guidedDraft, loadAccount, parseRoster, readAccountText, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, recordResult, saveMatches } from "./records.js";
 import { matchHeroName, matchNamedCard, readDraft, refreshCardMemory, rememberCard } from "./screen.js";
 
@@ -28,6 +28,7 @@ let namedCards = [];
 let ocrQueued = false;
 let workerPromise = null;
 let pendingFace = null;
+let manual = { userFirst: null, userPicks: [], enemyPicks: [], prebans: [], prebansDone: false, steps: [] };
 
 async function boot() {
   const [catalogRes, versionRes, portraitRes, seasonRes, compRes] = await Promise.all([
@@ -212,15 +213,98 @@ function showCard({ action, rate, reason, click }) {
 function showReadyCard() {
   if (!roster?.heroes.length) {
     showCard({ action: "先讀入帳號", rate: "尚無勝率", reason: "按「匯入帳號」，選 gear.txt 或 Fribbels 的 Save all JSON。", click: "import" });
+    setDraftControls("ask");
     return;
   }
-  if (!stream) {
-    showCard({ action: "分享遊戲視窗", rate: "尚無勝率", reason: "帳號已讀入。競技場開打後再分享遊戲視窗。", click: "share" });
+  renderGuide();
+}
+
+function namesOf(ids) {
+  return (ids || []).map((id) => heroName(id)).filter(Boolean).join("、");
+}
+
+function setDraftControls(kind) {
+  const report = $("reportRow");
+  const bans = $("bansDone");
+  const lock = $("lockOurs");
+  if (report) report.hidden = kind !== "report";
+  if (bans) bans.hidden = kind !== "preban";
+  if (lock) lock.hidden = kind !== "pick";
+  $("weFirst")?.classList.toggle("primary", manual.userFirst === true);
+  $("theyFirst")?.classList.toggle("primary", manual.userFirst === false);
+}
+
+function renderGuide() {
+  if (!catalog || !roster?.heroes?.length) return;
+  const result = guidedDraft(catalog, roster, manual, { rank: $("rank").value, trials: 1 });
+  lastAdvice = result;
+  renderLive(result);
+  setDraftControls(result.action?.kind);
+  const status = $("draftStatus");
+  if (!status) return;
+  if (manual.userFirst == null) {
+    status.textContent = "按「我先手」或「對方先手」。我會先給 2 名預禁。";
     return;
   }
-  if (!reading) {
-    showCard({ action: "開始判讀", rate: "尚無勝率", reason: "視窗已接上。開始判讀後，下一步會留在這裡。", click: "read" });
+  const side = manual.userFirst ? "我方先手" : "對方先手";
+  const bans = namesOf(manual.prebans);
+  const ours = namesOf(manual.userPicks);
+  const theirs = namesOf(manual.enemyPicks);
+  status.textContent = `${side}。預禁 ${bans || "還沒確認"}。我方 ${ours || "還沒選"}。對方 ${theirs || "還沒選"}。`;
+}
+
+function setOrder(userFirst) {
+  manual = { userFirst: userFirst === true || userFirst === false ? userFirst : null, userPicks: [], enemyPicks: [], prebans: [], prebansDone: false, steps: [] };
+  renderGuide();
+}
+
+function addEnemyPick() {
+  const input = $("enemyPick");
+  const text = input?.value || "";
+  const id = matchHeroName(text, selectableHeroes(catalog || {}));
+  if (!id) {
+    $("draftStatus").textContent = "對不上資料庫的完整中文名，留空，不猜。";
+    return;
   }
+  if (lastAdvice?.action?.kind !== "report") return;
+  const taken = new Set([...manual.userPicks, ...manual.enemyPicks, ...manual.prebans]);
+  if (taken.has(id)) {
+    $("draftStatus").textContent = `${heroName(id)}已經選過或已經預禁。`;
+    return;
+  }
+  manual.enemyPicks.push(id);
+  manual.steps.push({ side: "enemy", ids: [id] });
+  input.value = "";
+  renderGuide();
+}
+
+function lockOurs() {
+  const ids = lastAdvice?.action?.ids || [];
+  if (lastAdvice?.action?.kind !== "pick" || !ids.length) return;
+  manual.userPicks.push(...ids);
+  manual.steps.push({ side: "user", ids: [...ids] });
+  renderGuide();
+}
+
+function confirmBans() {
+  const ids = lastAdvice?.action?.ids || [];
+  if (lastAdvice?.action?.kind !== "preban" || !ids.length) return;
+  manual.prebans = [...ids];
+  manual.prebansDone = true;
+  manual.steps.push({ side: "preban", ids: [...ids] });
+  renderGuide();
+}
+
+function undoDraft() {
+  const last = manual.steps.pop();
+  if (!last) return;
+  if (last.side === "preban") {
+    manual.prebansDone = false;
+    manual.prebans = [];
+  }
+  if (last.side === "enemy") manual.enemyPicks.splice(-last.ids.length);
+  if (last.side === "user") manual.userPicks.splice(-last.ids.length);
+  renderGuide();
 }
 
 function showFrame(on) {
@@ -288,7 +372,7 @@ function renderHeard(read) {
     node.textContent = "";
     return;
   }
-  const basis = orderBasisText(read, orderLock);
+  const basis = manual.userFirst === true ? "你說我方先手。" : manual.userFirst === false ? "你說對方先手。" : "先後手等你告訴我。";
   const cards = read.faces || [];
   const bits = cards.map((card) => {
     const side = card.side === "enemy" ? "對方" : "我方";
@@ -448,25 +532,25 @@ function boardIsEmpty(read) {
 
 function consider(read) {
   try {
-    if (boardIsEmpty(read)) {
-      orderLock = null;
-      seenPickMark = false;
-    }
     lastRead = read;
-    const key = stateKey(read);
-    if (key === lastKey && lastAdvice) return lastAdvice;
-    lastKey = key;
-    lastAdvice = adviseFromScreen(catalog, read, options());
-    if (lastAdvice?.orderSource === "mismatch") orderLock = null;
-    else if (typeof lastAdvice?.firstPick === "boolean" && lastAdvice.orderSource !== "locked" && lastAdvice.orderSource !== "held") {
-      orderLock = lastAdvice.firstPick;
+    paintCards(read?.faces || []);
+    renderHeard(read);
+    if (read?.phase !== "battle") {
+      if (roster?.heroes?.length) renderGuide();
+      return lastAdvice;
     }
-    lastRead.firstPick = typeof lastAdvice?.firstPick === "boolean" ? lastAdvice.firstPick : orderLock;
+    const key = stateKey(read);
+    if (key === lastKey && lastAdvice?.phase === "battle") return lastAdvice;
+    lastKey = key;
+    if (manual.userFirst === true || manual.userFirst === false) {
+      read.firstPick = manual.userFirst;
+      lastRead.firstPick = manual.userFirst;
+    }
+    lastAdvice = adviseFromScreen(catalog, read, options());
     const type = currentType();
     if (!type || openRecord?.type !== type.key) openRecord = type ? { type: type.key, id: null } : null;
     renderLive(lastAdvice);
-    paintCards(read.faces || []);
-    renderHeard(read);
+    setDraftControls(lastAdvice?.action?.kind);
     return lastAdvice;
   } catch (error) {
     showCard({ action: "這一手沒有建議", rate: "尚無勝率", reason: error.message || "判讀時發生錯誤。" });
@@ -849,6 +933,22 @@ $("closeSetup").addEventListener("click", () => {
 });
 $("closePicker").addEventListener("click", () => $("picker").close());
 $("pickerSearch").addEventListener("input", (event) => fillPicker(event.target.value));
+$("weFirst").addEventListener("click", () => setOrder(true));
+$("theyFirst").addEventListener("click", () => setOrder(false));
+$("resetDraft").addEventListener("click", () => setOrder(null));
+$("undoDraft").addEventListener("click", undoDraft);
+$("addEnemy").addEventListener("click", addEnemyPick);
+$("enemyPick").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    addEnemyPick();
+  }
+});
+$("bansDone").addEventListener("click", confirmBans);
+$("lockOurs").addEventListener("click", lockOurs);
+$("rank").addEventListener("change", () => {
+  if (!manual.prebansDone) renderGuide();
+});
 $("liveAction").addEventListener("click", () => {
   const click = $("liveAction").dataset.click;
   if (click === "import") {
