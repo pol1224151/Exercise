@@ -270,6 +270,12 @@ assert.match(rtaSummary(aubeHero), /禁令前 0\.9%/);
 assert.match(rtaSummary(aubeHero), /64166/);
 assert.equal(rtaSummary(catalog.database.find((hero) => hero.id === "mighty-scout")), "沒有世界競技場頁");
 
+const diene = heroKit(catalog, "diene");
+assert.match(diene, /戰鬥準備度 \+15%，未強化 10%，強化增加 5%/);
+assert.match(diene, /防護強度增加 50%/);
+assert.match(diene, /沒有印基礎吸收量，不另編吸收量/);
+assert.match(diene, /獲得 4 點靈魂，未強化 2，強化增加 2/);
+
 const listed = selectableHeroes(catalog);
 const arm = listed.find((hero) => hero.id === "armin");
 assert.equal(matchesPicker(arm, {}), true);

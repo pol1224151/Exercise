@@ -9,6 +9,7 @@ import heroLinks from "../data/hero-links.json" with { type: "json" };
 import screenSkills from "../data/screen-skills.json" with { type: "json" };
 import rarityByCode from "../data/rarity.json" with { type: "json" };
 import e7Rta from "../data/e7rtabot-rta.json" with { type: "json" };
+import skillEnhanceMax from "../data/skill-enhance-max.json" with { type: "json" };
 
 const ADVANTAGE = { fire: "wind", wind: "ice", ice: "fire", light: "dark", dark: "light" };
 
@@ -431,21 +432,64 @@ export function reachableSpeed(baseSpeed, panelSpeed, pieces, warehouse) {
   };
 }
 
+function writtenEnhance(hero, slot) {
+  const skill = hero?.skills?.[slot] || {};
+  const row = skillEnhanceMax[hero?.id]?.[slot];
+  if (!row) {
+    return {
+      damage: skill.enhanceDamagePct || 0,
+      chance: skill.enhanceEffectPct || 0,
+      cooldown: skill.enhanceCooldownCut || 0,
+      readiness: 0,
+      soul: 0,
+      healing: 0,
+      barrier: 0,
+      spirit: 0,
+      spiritGain: 0,
+      duration: 0,
+    };
+  }
+  return {
+    damage: row.damage || 0,
+    chance: row.chance || 0,
+    cooldown: row.cooldown || 0,
+    readiness: row.readiness || 0,
+    soul: row.soul || 0,
+    healing: row.healing || 0,
+    barrier: row.barrier || 0,
+    spirit: row.spirit || 0,
+    spiritGain: row.spiritGain || 0,
+    duration: row.duration || 0,
+  };
+}
+
 function preparedSkill(heroDef, slot, enhanceMode) {
   const skill = heroDef.skills[slot];
   const copy = { ...skill, slot };
+  const written = writtenEnhance(heroDef, slot);
   const maxed = enhanceMode === "max";
   if (maxed) {
-    copy.enhanceDamagePctApplied = skill.enhanceDamagePct || 0;
-    copy.enhanceEffectPctApplied = skill.enhanceEffectPct || 0;
+    copy.enhanceDamagePctApplied = written.damage;
+    copy.enhanceEffectPctApplied = written.chance;
+    copy.enhanceHealingApplied = written.healing;
+    copy.soulGain = (skill.soulGain || 0) + written.soul;
     if (skill.cooldownShown != null) {
-      copy.cooldown = Math.max(0, skill.cooldownShown - (skill.enhanceCooldownCut || 0));
+      copy.cooldown = Math.max(0, skill.cooldownShown - written.cooldown);
     } else {
       copy.cooldown = 0;
     }
+    copy.effects = (skill.effects || []).map((effect) => {
+      const next = { ...effect };
+      if (written.readiness && (effect.kind === "crPush" || effect.kind === "crPushback") && typeof effect.amount === "number") {
+        next.amount = effect.amount + Math.round(written.readiness * 100);
+      }
+      if (written.duration && typeof effect.turns === "number") next.turns = effect.turns + written.duration;
+      return next;
+    });
   } else {
     copy.enhanceDamagePctApplied = 0;
     copy.enhanceEffectPctApplied = 0;
+    copy.enhanceHealingApplied = 0;
     copy.cooldown = skill.cooldownShown || 0;
   }
   return copy;
@@ -1073,7 +1117,7 @@ function makeFightUnits(draft, roster, catalog, enhanceMode, enemyMode = "refere
       effectiveness: stats.effectiveness,
       effectResistance: stats.effectResistance,
       sets: stats.sets || [],
-    }, def, enhanceMode);
+    }, def, side === "enemy" ? "max" : enhanceMode);
     unit.side = side;
     unit.rule = draft.rule || "";
     unit.guidingLightRate = null;
@@ -1415,7 +1459,7 @@ function applyEffects(skill, actor, target, allies, foes, units, doBurn, burnFx,
       if (effect.full) {
         for (const ally of allies) ally.hp = ally.maxHp;
       } else if (scaling) {
-        const gain = actor.hp * scaling * (actor.rule === "defense" ? 1.3 : 1);
+        const gain = actor.hp * scaling * (actor.rule === "defense" ? 1.3 : 1) * (1 + (skill.enhanceHealingApplied || 0));
         for (const ally of allies) ally.hp = Math.min(ally.maxHp, ally.hp + gain);
       }
     } else if (effect.kind === "crPush" && !crLocked) {
@@ -1963,7 +2007,7 @@ function opensOnFullCooldown(hero) {
   const skill = hero?.skills?.S3;
   if (!skill || typeof skill.cooldownShown !== "number") return null;
   if (!/begins the first battle with (?:a )?full (?:skill )?cooldown count/i.test(`${skill.text || ""} ${skill.textBeforeAwaken || ""}`)) return null;
-  return skill.cooldownShown;
+  return Math.max(0, skill.cooldownShown - (writtenEnhance(hero, "S3").cooldown || 0));
 }
 
 function grantStealth(unit, turns, log, why) {
@@ -2242,26 +2286,34 @@ function addBit(bits, line) {
   if (text && !bits.includes(text)) bits.push(text);
 }
 
-function raisedChance(skill, value) {
-  const extra = Math.round((skill?.enhanceEffectPct || 0) * 100);
+function raisedChance(written, value) {
+  const extra = Math.round((written?.chance || 0) * 100);
   const base = Number(value);
   if (!extra || !Number.isFinite(base)) return String(value);
   return String(Math.min(100, base + extra));
 }
 
-function clausesFrom(skill) {
+function raisedTurns(written, value) {
+  const extra = written?.duration || 0;
+  const base = Number(value);
+  if (!extra || !Number.isFinite(base)) return String(value);
+  return String(base + extra);
+}
+
+function clausesFrom(skill, written = {}) {
   const text = `${skill?.text || ""}`;
   const bits = [];
   if (!text.trim()) return bits;
-  if (skill.soulGain > 0) addBit(bits, `獲得 ${skill.soulGain} 點靈魂`);
+  const souls = (skill.soulGain || 0) + (written.soul || 0);
+  if (souls > 0) addBit(bits, written.soul ? `獲得 ${souls} 點靈魂，未強化 ${skill.soulGain || 0}，強化增加 ${written.soul}` : `獲得 ${souls} 點靈魂`);
   const stun = text.match(/(\d+(?:\.\d+)?)% chance to stun(?: for (\d+) turns?)?/i);
-  if (stun) addBit(bits, `${raisedChance(skill, stun[1])}% 暈眩${stun[2] ? ` ${stun[2]} 回合` : ""}`);
+  if (stun) addBit(bits, `${raisedChance(written, stun[1])}% 暈眩${stun[2] ? ` ${raisedTurns(written, stun[2])} 回合` : ""}`);
   const provoke = text.match(/(\d+(?:\.\d+)?)% chance to provoke(?: for (\d+) turns?)?/i);
-  if (provoke) addBit(bits, `${raisedChance(skill, provoke[1])}% 挑釁${provoke[2] ? ` ${provoke[2]} 回合` : ""}`);
+  if (provoke) addBit(bits, `${raisedChance(written, provoke[1])}% 挑釁${provoke[2] ? ` ${raisedTurns(written, provoke[2])} 回合` : ""}`);
   const defDown = text.match(/(\d+(?:\.\d+)?)% chance to decrease Defense for (\d+) turns?/i);
-  if (defDown) addBit(bits, `${raisedChance(skill, defDown[1])}% 降低防禦 ${defDown[2]} 回合`);
+  if (defDown) addBit(bits, `${raisedChance(written, defDown[1])}% 降低防禦 ${raisedTurns(written, defDown[2])} 回合`);
   const atkDown = text.match(/(\d+(?:\.\d+)?)% chance to decrease Attack for (\d+) turns?/i);
-  if (atkDown) addBit(bits, `${raisedChance(skill, atkDown[1])}% 降低攻擊 ${atkDown[2]} 回合`);
+  if (atkDown) addBit(bits, `${raisedChance(written, atkDown[1])}% 降低攻擊 ${raisedTurns(written, atkDown[2])} 回合`);
   if (/all stats are doubled/i.test(text)) addBit(bits, "全能力值變 2 倍");
   const field = text.match(/changes the battlefield into the ([^.]+)/i);
   if (field) addBit(bits, /[A-Za-z]/.test(field[1]) ? "戰場改變" : `戰場變成 ${field[1].trim()}`);
@@ -2275,13 +2327,17 @@ function clausesFrom(skill) {
   if (evasion) addBit(bits, `閃避增加 ${evasion[1]}%`);
   const attack = text.match(/increases Attack by (\d+(?:\.\d+)?)%(?:, and can stack up to (\d+) times)?/i);
   if (attack) addBit(bits, attack[2] ? `攻擊增加 ${attack[1]}%，最多 ${attack[2]} 層` : `攻擊增加 ${attack[1]}%`);
-  const readiness = text.match(/(increases|decreases|decreasing) Combat Readiness of (all allies|all enemies|the caster|the enemy) by (\d+(?:\.\d+)?)%/i);
+  const readiness = text.match(/(increas(?:es|ing)|decreas(?:es|ing)) Combat Readiness of (all allies|all enemies|the caster|the enemy) by (\d+(?:\.\d+)?)%/i);
   if (readiness) {
     const sign = /decreas/i.test(readiness[1]) ? "-" : "+";
+    const base = Number(readiness[3]);
+    const extra = Math.round((written.readiness || 0) * 100);
+    const shown = extra ? base + extra : base;
+    const note = extra ? `，未強化 ${base}%，強化增加 ${extra}%` : "";
     let when = "";
     if (/at the start of the turn/i.test(text)) when = "回合開始";
     if (/at the end of the turn/i.test(text)) when = when ? `${when}、回合結束` : "回合結束";
-    addBit(bits, `${when}${whoZh(readiness[2])}戰鬥準備度 ${sign}${readiness[3]}%`);
+    addBit(bits, `${when}${whoZh(readiness[2])}戰鬥準備度 ${sign}${shown}%${note}`);
   }
   const dispel = text.match(/Dispels (one|two|three|\d+) debuffs? from (all allies|all enemies|the caster)/i);
   if (dispel) {
@@ -2295,19 +2351,19 @@ function clausesFrom(skill) {
       shield: "防護罩", counterattack: "反擊", "skill nullifier": "技能傷害無效",
     };
     const name = buffs[granting[1].trim().toLowerCase()] || "沒有收進中文對照的強化";
-    addBit(bits, `${whoZh(granting[2])} ${name} ${granting[3]} 回合`);
+    addBit(bits, `${whoZh(granting[2])} ${name} ${raisedTurns(written, granting[3])} 回合`);
   }
   if (/swift attack/i.test(text) && /except for the caster/i.test(text)) addBit(bits, "除自己以外的全體隊友迅擊");
   const resources = text.match(/resources gained by the enemy by (\d+)%/i);
   if (resources) addBit(bits, `敵方獲得的資源減少 ${resources[1]}%`);
   const stealth = text.match(/(\d+)% chance to grant stealth for (\d+) turns?/i);
-  if (stealth) addBit(bits, `${raisedChance(skill, stealth[1])}% 機率隱身 ${stealth[2]} 回合`);
+  if (stealth) addBit(bits, `${raisedChance(written, stealth[1])}% 機率隱身 ${raisedTurns(written, stealth[2])} 回合`);
   else {
     const quiet = text.match(/grant stealth for (\d+) turns?/i);
     if (quiet) addBit(bits, `隱身 ${quiet[1]} 回合`);
   }
   const counter = text.match(/(\d+(?:\.\d+)?)%\s*chance to counter/i);
-  if (counter) addBit(bits, `受擊時 ${raisedChance(skill, counter[1])}% 反擊`);
+  if (counter) addBit(bits, `受擊時 ${raisedChance(written, counter[1])}% 反擊`);
   const reduction = text.match(/(\d+(?:\.\d+)?)%\s*damage reduction/i);
   if (reduction) addBit(bits, /single attack/i.test(text) ? `我軍受到單攻時傷害減少 ${reduction[1]}%` : `傷害減少 ${reduction[1]}%`);
   if (/increased Defense to the caster for (\d+) turns/i.test(text)) {
@@ -2337,23 +2393,28 @@ function skillBrief(hero, slot, label) {
   const skill = hero?.skills?.[slot];
   if (!skill) return slot === "S3" ? "大招：沒有公開的 3 技能。" : "";
   const facts = screenSkills[hero?.id]?.[slot];
+  const written = writtenEnhance(hero, slot);
   const bits = [];
   if (Array.isArray(facts) && facts.length) {
     for (const fact of facts) addBit(bits, fact);
   } else {
     if (!`${skill.text || ""}`.trim()) return `${label}：沒有公開技能文字。`;
-    for (const bit of clausesFrom(skill)) addBit(bits, bit);
+    for (const bit of clausesFrom(skill, written)) addBit(bits, bit);
+    if (written.healing) addBit(bits, `強化到最大的回復增加 ${Math.round(written.healing * 100)}%`);
+    if (written.barrier) addBit(bits, `強化到最大的防護強度增加 ${Math.round(written.barrier * 100)}%。沒有印基礎吸收量，不另編吸收量`);
+    if (written.spirit) addBit(bits, `強化到最大少消耗 ${written.spirit} 鬥志`);
+    if (written.spiritGain) addBit(bits, `強化到最大多獲得 ${written.spiritGain} 鬥志`);
   }
   if (typeof skill.cooldownShown === "number" && !bits.some((bit) => bit.includes("冷卻"))) {
-    const cut = skill.enhanceCooldownCut || 0;
+    const cut = written.cooldown || 0;
     const shown = Math.max(0, skill.cooldownShown - cut);
     bits.unshift(cut ? `冷卻 ${shown} 回合，未強化是 ${skill.cooldownShown} 回合，強化減少 ${cut} 回合` : `冷卻 ${shown} 回合`);
   }
   if (skill.rate > 0 && skill.pow > 0 && !bits.some((bit) => bit.includes("傷害倍率"))) {
     addBit(bits, `公開傷害倍率 ${skill.rate}`);
   }
-  if (skill.enhanceDamagePct > 0 && !bits.some((bit) => bit.includes("強化傷害"))) {
-    addBit(bits, `強化到最大的傷害增加 ${Math.round(skill.enhanceDamagePct * 100)}%`);
+  if (written.damage > 0 && !bits.some((bit) => bit.includes("強化傷害"))) {
+    addBit(bits, `強化到最大的傷害增加 ${Math.round(written.damage * 100)}%`);
   }
   const scales = [];
   if (skill.selfHpScaling) scales.push(`生命 ${skill.selfHpScaling}`);
