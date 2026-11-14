@@ -32,7 +32,7 @@ func TestPackedAppServesThePageAndVersion(t *testing.T) {
 	}
 	defer page.Body.Close()
 	body, _ := io.ReadAll(page.Body)
-	if page.StatusCode != 200 || !strings.Contains(string(body), "帳號與設定") || !strings.Contains(string(body), "下一步") {
+	if page.StatusCode != 200 || !strings.Contains(string(body), "帳號與設定") || !strings.Contains(string(body), "下一步") || !strings.Contains(string(body), "沒有收到畫面") {
 		t.Fatalf("page status %d", page.StatusCode)
 	}
 

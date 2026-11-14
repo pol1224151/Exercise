@@ -23,15 +23,20 @@
   </header>
 
   <main>
+    <section id="watch" class="watch">
+      <p id="noFrame">沒有收到畫面</p>
+      <div id="stage" class="stage" hidden>
+        <video id="game" autoplay playsinline muted></video>
+        <canvas id="board"></canvas>
+        <div id="boxes"></div>
+      </div>
+    </section>
     <section id="now">
       <button id="liveAction" type="button" class="action" disabled>先讀入帳號</button>
       <p id="liveRate" class="rate">尚無勝率</p>
       <p id="liveReason">按「匯入帳號」，選 gear.txt 或 Fribbels 的 Save all JSON。</p>
-      <div id="faces" class="faces" hidden></div>
     </section>
   </main>
-
-  <div id="videoHold" class="offscreen"></div>
 
   <dialog id="setup">
     <div class="dialog-bar">
@@ -70,10 +75,10 @@
         <p id="screenLock" class="warn">請先完成第 1 步。帳號讀進來之後，等世界競技場開打，再分享遊戲視窗。</p>
         <ol class="steps">
           <li>雙擊 <code>RtaAdvisor.exe</code> 後這個頁面會自己打開。黑色視窗要留著。</li>
-          <li>競技場畫面出現後，按「分享遊戲視窗」。在系統清單選第七史詩或模擬器那個視窗，然後按分享。</li>
-          <li>遊戲維持 16:9。第一次把色框拖到我方五個頭像、對方五個頭像、預禁兩格、現在行動的頭像、底下三個技能鈕，再按「記住框線」。</li>
-          <li>按「開始判讀」。先後手由畫面判斷，不用手選。</li>
-          <li>認錯或認不出時，點那張臉，選對的英雄。這台會記住。</li>
+          <li>競技場畫面出現後，按「分享遊戲視窗」。在系統清單選第七史詩或模擬器那個視窗，然後按分享。關掉這個視窗後，主畫面會顯示程式拿到的那一幀。</li>
+          <li>遊戲維持 16:9。每一格都框在那一幀上。把框拖到我方五個頭像、對方五個頭像、預禁兩格、現在行動的頭像、底下三個技能鈕，再回到這裡按「記住框線」。</li>
+          <li>按「開始判讀」。先後手由畫面判斷，不用手選。很像圖庫的臉才會填名字，不確定的格子是空的。</li>
+          <li>空的或錯的格子，點那一格，選對的英雄。這台瀏覽器會記住，同一張臉下次直接用你改的結果。</li>
         </ol>
         <div class="row">
           <button id="share" type="button" class="primary" disabled>分享遊戲視窗</button>
@@ -81,7 +86,6 @@
           <button id="read" type="button" disabled>開始判讀</button>
         </div>
         <p id="captureState" class="state">畫面判讀還沒開。</p>
-        <div id="stageSlot"></div>
         <div class="row">
           <label>分段
             <select id="rank">
@@ -94,12 +98,7 @@
             <input id="cutoff" type="number" min="0" max="100" step="1" value="40"> %
           </label>
         </div>
-        <p class="note">同類型 4 對 4 的實戰勝率低於這個百分比，選角就改推薦沙盤裡的另一組。預設 40。剛好等於門檻不換。先後手看畫面上已選的人數；兩種順序都說得通時，看優先選擇的金色標記，或下一個空位哪一邊在亮。人已經在場上時，技能不因門檻改掉。</p>
-        <div id="stage" class="stage">
-          <video id="game" autoplay playsinline muted></video>
-          <canvas id="board" hidden></canvas>
-          <div id="boxes"></div>
-        </div>
+        <p class="note">同類型 4 對 4 的實戰勝率低於這個百分比，選角就改推薦沙盤裡的另一組。預設 40。剛好等於門檻不換。先後手看畫面上已選的人數；兩種順序都說得通時，看優先選擇的金色標記，或下一個空位哪一邊在亮。人已經在場上時，技能不因門檻改掉。格子框在主畫面的那一幀上。</p>
       </section>
 
       <section>

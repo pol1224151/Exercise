@@ -1,4 +1,4 @@
-/** Screen reading for the RTA advisor. Matching uses Fribbels portrait signatures shipped in data/portrait-signatures.json. */
+/** Screen reading for the RTA advisor. A slot is shrunk to the hero-library grid, then compared by face shape and color blocks. */
 
 export const DEFAULT_REGIONS = {
   user: { x: 0.02, y: 0.16, w: 0.12, h: 0.62, slots: 5, label: "我方" },
@@ -21,29 +21,6 @@ export function liveStateKey(recognition) {
     prebans: (recognition?.prebans || []).map(slot),
     actor: slot(recognition?.actorId),
   });
-}
-
-export function centerDistance(left, right) {
-  const center = (values) => {
-    const means = [0, 1, 2].map((channel) => {
-      let total = 0;
-      let count = 0;
-      for (let index = channel; index < values.length; index += 3) {
-        total += values[index];
-        count += 1;
-      }
-      return total / count;
-    });
-    return values.map((value, index) => value - means[index % 3]);
-  };
-  const a = center(left);
-  const b = center(right);
-  let sum = 0;
-  for (let index = 0; index < a.length; index += 1) {
-    const delta = a[index] - b[index];
-    sum += delta * delta;
-  }
-  return Math.sqrt(sum);
 }
 
 function stdev(values) {
@@ -87,187 +64,124 @@ function spatialStdev(rgb) {
   return stdev(lumas);
 }
 
-export function patternDistance(left, right) {
-  const normalize = (values) => {
-    const stats = [0, 1, 2].map((channel) => {
-      const samples = [];
-      for (let index = channel; index < values.length; index += 3) samples.push(values[index]);
-      const mean = samples.reduce((sum, value) => sum + value, 0) / samples.length;
-      const deviation = stdev(samples) || 1;
-      return { mean, deviation };
-    });
-    return values.map((value, index) => (value - stats[index % 3].mean) / stats[index % 3].deviation);
-  };
-  const a = normalize(left);
-  const b = normalize(right);
+function vectorDistance(left, right) {
   let sum = 0;
-  const length = Math.min(a.length, b.length);
-  for (let index = 0; index < length; index += 1) {
-    const delta = a[index] - b[index];
+  for (let index = 0; index < left.length; index += 1) {
+    const delta = left[index] - right[index];
     sum += delta * delta;
   }
   return Math.sqrt(sum);
 }
 
-const CROP_INSETS = [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.32, 0.34, 0.36];
-const CROP_PHASES = [0, 0.25];
-const FULL_LIMIT = 4;
-const INNER_LIMIT = 0.9;
-const ACCEPT_RATIO = 2;
-const CORRECTION_LIMIT = 4.8;
-
-function maskedDistance(left, right, margin) {
-  if (!margin) return patternDistance(left, right);
-  const a = [];
-  const b = [];
-  for (let y = margin; y < 8 - margin; y += 1) {
-    for (let x = margin; x < 8 - margin; x += 1) {
+function faceFeatures(rgb) {
+  const values = [];
+  for (let y = 2; y < 6; y += 1) {
+    for (let x = 2; x < 6; x += 1) {
       const index = (y * 8 + x) * 3;
-      a.push(left[index], left[index + 1], left[index + 2]);
-      b.push(right[index], right[index + 1], right[index + 2]);
+      values.push((rgb[index] + rgb[index + 1] + rgb[index + 2]) / 3);
     }
   }
-  return patternDistance(a, b);
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const deviation = stdev(values) || 1;
+  return values.map((value) => (value - mean) / deviation);
 }
 
-function rankSignature(rgb, book, margin, limit) {
+function colorBlocks(rgb) {
+  const blocks = [];
+  for (let blockY = 0; blockY < 2; blockY += 1) {
+    for (let blockX = 0; blockX < 2; blockX += 1) {
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      for (let y = 2 + blockY * 2; y < 4 + blockY * 2; y += 1) {
+        for (let x = 2 + blockX * 2; x < 4 + blockX * 2; x += 1) {
+          const index = (y * 8 + x) * 3;
+          red += rgb[index];
+          green += rgb[index + 1];
+          blue += rgb[index + 2];
+        }
+      }
+      const sum = red + green + blue || 1;
+      blocks.push(red / sum, green / sum, blue / sum);
+    }
+  }
+  return blocks;
+}
+
+function portraitView(rgb) {
+  return { face: faceFeatures(rgb), color: colorBlocks(rgb) };
+}
+
+function libraryViews(book) {
+  if (book.featureViews) return book;
+  const views = book.portraits.map((portrait) => ({ id: portrait.id, ...portraitView(portrait.rgb) }));
+  let faceGap = Infinity;
+  let colorGap = Infinity;
+  for (let left = 0; left < views.length; left += 1) {
+    for (let right = left + 1; right < views.length; right += 1) {
+      faceGap = Math.min(faceGap, vectorDistance(views[left].face, views[right].face));
+      colorGap = Math.min(colorGap, vectorDistance(views[left].color, views[right].color));
+    }
+  }
+  book.featureViews = views;
+  book.faceGap = faceGap;
+  book.colorGap = colorGap;
+  return book;
+}
+
+function rankViews(view, rows) {
   let best = null;
   let second = null;
-  for (const portrait of book.portraits) {
-    const distance = maskedDistance(rgb, portrait.rgb, margin);
-    const row = { id: portrait.id, distance };
-    if (!best || distance < best.distance) {
+  for (const row of rows) {
+    const score = {
+      id: row.id,
+      face: vectorDistance(view.face, row.face),
+      color: vectorDistance(view.color, row.color),
+    };
+    if (!best || score.face < best.face) {
       second = best;
-      best = row;
-    } else if (!second || distance < second.distance) {
-      second = row;
+      best = score;
+    } else if (!second || score.face < second.face) {
+      second = score;
     }
   }
-  if (!best) return null;
-  const ratio = second && best.distance > 0 ? second.distance / best.distance : Infinity;
-  return {
-    id: best.id,
-    distance: best.distance,
-    ratio,
-    accepted: best.distance <= limit && ratio >= ACCEPT_RATIO,
-  };
+  return { best, second };
 }
 
-function nearestCorrection(rgb, corrections) {
-  let best = null;
-  for (const row of corrections || []) {
-    if (!row?.id || !row.rgb) continue;
-    const distance = patternDistance(rgb, row.rgb);
-    if (!best || distance < best.distance) best = { id: row.id, distance };
-  }
-  return best;
+function clearName(ranked, book) {
+  if (!ranked.best) return null;
+  const faceLimit = book.faceGap * 0.5;
+  if (ranked.best.face >= faceLimit) return null;
+  if (ranked.second && ranked.second.face < Math.max(faceLimit, ranked.best.face * 2)) return null;
+  if (ranked.second && ranked.best.color > ranked.second.color) return null;
+  return ranked.best.id;
+}
+
+function identify(rgb, book, corrections) {
+  const view = portraitView(rgb);
+  const prepared = libraryViews(book);
+  const memory = (corrections || []).filter((row) => row?.id && row?.rgb).map((row) => ({ id: row.id, ...portraitView(row.rgb) }));
+  const remembered = clearName(rankViews(view, memory), prepared);
+  if (remembered) return remembered;
+  return clearName(rankViews(view, prepared.featureViews), prepared) || "unknown";
 }
 
 export function rememberCorrection(list, rgb, id) {
-  const next = (list || []).filter((row) => !row?.rgb || patternDistance(row.rgb, rgb) > 1.2);
+  const face = faceFeatures(rgb);
+  const next = (list || []).filter((row) => !row?.rgb || vectorDistance(face, faceFeatures(row.rgb)) > 0.2);
   next.push({ id, rgb: [...rgb] });
   return next.slice(-40);
 }
 
 export function matchPortrait(rgb, book) {
   if (spatialStdev(rgb) < (book.emptyStdevBelow ?? 18)) return "empty";
-  const picks = [rankSignature(rgb, book, 0, FULL_LIMIT), rankSignature(rgb, book, 2, INNER_LIMIT)].filter((row) => row?.accepted);
-  if (!picks.length) return "unknown";
-  picks.sort((left, right) => left.distance - right.distance);
-  if (picks.length > 1 && picks[0].id !== picks[1].id && picks[1].distance < picks[0].distance * 1.5) return "unknown";
-  return picks[0].id;
-}
-
-function signatureShifted(data, imageWidth, originX, originY, width, height, phase) {
-  if (!phase) return signatureFromRgba(data, imageWidth, originX, originY, width, height);
-  const cells = [];
-  const xEnd = Math.floor(originX + width);
-  const yEnd = Math.floor(originY + height);
-  for (let gy = 0; gy < 8; gy += 1) {
-    for (let gx = 0; gx < 8; gx += 1) {
-      const x0 = Math.floor(originX + (gx + phase) * width / 8);
-      const x1 = Math.max(x0 + 1, Math.floor(originX + (gx + 1 + phase) * width / 8));
-      const y0 = Math.floor(originY + (gy + phase) * height / 8);
-      const y1 = Math.max(y0 + 1, Math.floor(originY + (gy + 1 + phase) * height / 8));
-      let red = 0;
-      let green = 0;
-      let blue = 0;
-      let count = 0;
-      for (let y = Math.max(y0, Math.floor(originY)); y < y1 && y < yEnd; y += 1) {
-        for (let x = Math.max(x0, Math.floor(originX)); x < x1 && x < xEnd; x += 1) {
-          const offset = (y * imageWidth + x) * 4;
-          red += data[offset];
-          green += data[offset + 1];
-          blue += data[offset + 2];
-          count += 1;
-        }
-      }
-      cells.push(count ? Math.round(red / count) : 0, count ? Math.round(green / count) : 0, count ? Math.round(blue / count) : 0);
-    }
-  }
-  return cells;
-}
-
-function cropSignature(data, imageWidth, box, insetX, insetY, phase) {
-  const dx = box.w * insetX;
-  const dy = box.h * insetY;
-  return signatureShifted(
-    data,
-    imageWidth,
-    box.x + dx,
-    box.y + dy,
-    Math.max(8, box.w - dx * 2),
-    Math.max(8, box.h - dy * 2),
-    phase,
-  );
-}
-
-function judgeCrop(rgb, book, corrections, margin, limit) {
-  const ranked = rankSignature(rgb, book, margin, limit);
-  const correction = nearestCorrection(rgb, corrections);
-  if (correction && correction.distance <= CORRECTION_LIMIT && (!ranked?.accepted || correction.distance <= ranked.distance)) {
-    return { id: correction.id, distance: correction.distance, source: "correction" };
-  }
-  if (ranked?.accepted) return { id: ranked.id, distance: ranked.distance, source: "catalog" };
-  return null;
+  return identify(rgb, book, []);
 }
 
 function matchBox(data, imageWidth, box, book, corrections) {
   const full = signatureFromRgba(data, imageWidth, box.x, box.y, box.w, box.h);
   if (spatialStdev(full) < (book.emptyStdevBelow ?? 18)) return { id: "empty", rgb: full };
-  const remembered = nearestCorrection(full, corrections);
-  if (remembered && remembered.distance <= CORRECTION_LIMIT) return { id: remembered.id, rgb: full };
-  let best = null;
-  let rival = null;
-  const offer = (found) => {
-    if (!found) return false;
-    if (found.source === "correction") {
-      if (!best || found.distance <= best.distance) best = found;
-      return found.distance <= 0.35;
-    }
-    if (best?.source === "correction" && best.distance <= found.distance) return false;
-    if (!best || found.distance < best.distance) {
-      if (best && best.id !== found.id) rival = best;
-      best = found;
-    } else if (found.id !== best.id && (!rival || found.distance < rival.distance)) {
-      rival = found;
-    }
-    return found.distance <= 0.35;
-  };
-  for (const inset of CROP_INSETS) {
-    let settled = false;
-    for (const phase of CROP_PHASES) {
-      settled = offer(judgeCrop(cropSignature(data, imageWidth, box, inset, inset, phase), book, corrections, 0, FULL_LIMIT));
-      if (settled) break;
-    }
-    if (settled) break;
-    if (!inset) continue;
-    if (offer(judgeCrop(cropSignature(data, imageWidth, box, inset, 0, 0), book, corrections, 0, FULL_LIMIT))) break;
-    if (offer(judgeCrop(cropSignature(data, imageWidth, box, 0, inset, 0), book, corrections, 0, FULL_LIMIT))) break;
-  }
-  if (!(best && best.distance <= 0.35)) offer(judgeCrop(full, book, corrections, 2, INNER_LIMIT));
-  if (best?.source === "catalog" && rival && rival.distance < best.distance * 1.5) return { id: "unknown", rgb: full };
-  return { id: best?.id || "unknown", rgb: full };
+  return { id: identify(full, book, corrections), rgb: full };
 }
 
 function slotBox(region, index, imageWidth, imageHeight) {
@@ -379,10 +293,9 @@ export function readLeadSide(data, imageWidth, imageHeight) {
 }
 
 function faceFrom(side, slots, region, imageWidth, imageHeight) {
-  return slots.flatMap((slot, index) => {
-    if (!slot?.id || slot.id === "empty") return [];
+  return slots.map((slot, index) => {
     const box = slotBox(region, index, imageWidth, imageHeight);
-    return [{
+    return {
       side,
       index,
       id: slot.id,
@@ -391,7 +304,7 @@ function faceFrom(side, slots, region, imageWidth, imageHeight) {
       y: box.y / imageHeight,
       w: box.w / imageWidth,
       h: box.h / imageHeight,
-    }];
+    };
   });
 }
 

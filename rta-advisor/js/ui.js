@@ -5,7 +5,6 @@ import { DEFAULT_REGIONS, liveStateKey, paintFixture, readFrame, rememberCorrect
 const $ = (id) => document.getElementById(id);
 const REGION_KEY = "rta-advisor-regions";
 const FACE_KEY = "rta-advisor-faces";
-const FACE_SIDE = { user: "我方", enemy: "對方", preban: "預禁", actor: "行動" };
 
 let catalog = null;
 let book = null;
@@ -195,7 +194,6 @@ function showCard({ action, rate, reason, click }) {
 }
 
 function showReadyCard() {
-  renderFaces([]);
   if (!roster?.heroes.length) {
     showCard({ action: "先讀入帳號", rate: "尚無勝率", reason: "按「匯入帳號」，選 gear.txt 或 Fribbels 的 Save all JSON。", click: "import" });
     return;
@@ -209,9 +207,21 @@ function showReadyCard() {
   }
 }
 
-function syncStage() {
-  const open = $("setup").open;
-  (open ? $("stageSlot") : $("videoHold")).append($("stage"));
+function showFrame(on) {
+  $("noFrame").hidden = on;
+  $("stage").hidden = !on;
+}
+
+function slotFractions(region, index) {
+  const height = region.h / region.slots;
+  return { x: region.x, y: region.y + height * index, w: region.w, h: height };
+}
+
+function placeRegion(key) {
+  const region = regions[key];
+  for (const box of $("boxes").querySelectorAll(`[data-key="${key}"]`)) {
+    placeBox(box, slotFractions(region, Number(box.dataset.index)));
+  }
 }
 
 function renderCounters() {
@@ -222,15 +232,19 @@ function renderCounters() {
 
 function mountBoxes() {
   const root = $("boxes");
-  root.innerHTML = "";
+  root.replaceChildren();
   for (const [key, region] of Object.entries(regions)) {
-    const box = document.createElement("div");
-    box.className = "box";
-    box.dataset.key = key;
-    placeBox(box, region);
-    box.innerHTML = `<span>${region.label}</span><i data-resize="1"></i>`;
-    root.appendChild(box);
-    box.addEventListener("pointerdown", (event) => startDrag(event, key));
+    for (let index = 0; index < region.slots; index += 1) {
+      const box = document.createElement("button");
+      box.type = "button";
+      box.className = "box";
+      box.dataset.key = key;
+      box.dataset.index = String(index);
+      placeBox(box, slotFractions(region, index));
+      box.innerHTML = "<span></span><i data-resize=\"1\"></i>";
+      root.appendChild(box);
+      box.addEventListener("pointerdown", (event) => startDrag(event, key, index));
+    }
   }
 }
 
@@ -241,7 +255,7 @@ function placeBox(box, region) {
   box.style.height = `${region.h * 100}%`;
 }
 
-function startDrag(event, key) {
+function startDrag(event, key, index) {
   const stage = $("stage").getBoundingClientRect();
   const region = regions[key];
   const resize = event.target.dataset.resize === "1";
@@ -256,13 +270,13 @@ function startDrag(event, key) {
       region.x = Math.min(0.95, Math.max(0, origin.x + dx));
       region.y = Math.min(0.95, Math.max(0, origin.y + dy));
     }
-    placeBox(event.currentTarget, region);
+    placeRegion(key);
   };
   const up = (ev) => {
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", up);
     const moved = Math.hypot(ev.clientX - origin.px, ev.clientY - origin.py);
-    if (moved < 6 && ev.target?.dataset?.resize !== "1") openFaceAt(key, ev);
+    if (moved < 6 && ev.target?.dataset?.resize !== "1") openSlot(key, index);
   };
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", up);
@@ -301,40 +315,14 @@ function rateLine(result) {
 }
 
 function heroName(id) {
-  if (!id || id === "unknown") return "認不出";
-  return catalog.heroes.find((hero) => hero.id === id)?.nameZh || id;
+  return catalog.heroes.find((hero) => hero.id === id)?.nameZh || "";
 }
 
-function swatchColor(rgb) {
-  if (!rgb?.length) return "#8a7b6c";
-  let red = 0;
-  let green = 0;
-  let blue = 0;
-  let count = 0;
-  for (let index = 0; index < rgb.length; index += 3) {
-    red += rgb[index];
-    green += rgb[index + 1];
-    blue += rgb[index + 2];
-    count += 1;
-  }
-  return `rgb(${Math.round(red / count)}, ${Math.round(green / count)}, ${Math.round(blue / count)})`;
-}
-
-function renderFaces(faces) {
-  const root = $("faces");
-  const shown = (faces || []).filter((face) => face?.id && face.id !== "empty");
-  root.hidden = shown.length === 0;
-  root.replaceChildren();
-  for (const face of shown) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "face";
-    const swatch = document.createElement("i");
-    swatch.style.background = swatchColor(face.rgb);
-    const where = FACE_SIDE[face.side] || "";
-    button.append(swatch, document.createTextNode(`${where} ${face.index + 1} ${heroName(face.id)}`));
-    button.addEventListener("click", () => openPicker(face));
-    root.appendChild(button);
+function paintSlots(faces) {
+  const named = new Map((faces || []).filter((face) => face?.id && face.id !== "empty" && face.id !== "unknown").map((face) => [`${face.side}:${face.index}`, face]));
+  for (const box of $("boxes").querySelectorAll(".box")) {
+    const face = named.get(`${box.dataset.key}:${box.dataset.index}`);
+    box.querySelector("span").textContent = face ? heroName(face.id) : "";
   }
 }
 
@@ -360,30 +348,30 @@ function openPicker(face) {
   if (!$("picker").open) $("picker").showModal();
 }
 
-function openFaceAt(key, event) {
-  if (!lastRead?.faces?.length) return;
-  const stage = $("stage").getBoundingClientRect();
-  const x = (event.clientX - stage.left) / stage.width;
-  const y = (event.clientY - stage.top) / stage.height;
-  const hit = (lastRead.faces || []).find((row) => row.side === key && x >= row.x && x <= row.x + row.w && y >= row.y && y <= row.y + row.h);
-  if (hit) openPicker(hit);
+function openSlot(key, index) {
+  if (key === "skills" || !lastRead?.faces) return;
+  const face = lastRead.faces.find((row) => row.side === key && row.index === index);
+  if (face) openPicker(face);
 }
 
 function chooseFace(heroId) {
   const face = pendingFace;
   $("picker").close();
   pendingFace = null;
-  if (!face?.rgb || !heroId) return;
-  corrections = rememberCorrection(corrections, face.rgb, heroId);
-  localStorage.setItem(FACE_KEY, JSON.stringify(corrections));
+  if (!face || !heroId) return;
+  if (face.id !== "empty" && face.rgb) {
+    corrections = rememberCorrection(corrections, face.rgb, heroId);
+    localStorage.setItem(FACE_KEY, JSON.stringify(corrections));
+  }
   if (!lastRead) return;
   if (face.side === "actor") lastRead.actorId = heroId;
   else if (face.side === "preban") lastRead.prebans[face.index] = heroId;
   else if (lastRead[face.side]) lastRead[face.side][face.index] = heroId;
   const chip = (lastRead.faces || []).find((row) => row.side === face.side && row.index === face.index);
   if (chip) chip.id = heroId;
+  paintSlots(lastRead.faces);
   lastKey = "";
-  consider(lastRead);
+  if (reading) consider(lastRead);
 }
 
 function renderLive(result) {
@@ -462,7 +450,7 @@ function consider(read) {
     const type = currentType();
     if (!type || openRecord?.type !== type.key) openRecord = type ? { type: type.key, id: null } : null;
     renderLive(lastAdvice);
-    renderFaces(read.faces);
+    paintSlots(read.faces);
     return lastAdvice;
   } catch (error) {
     showCard({ action: "這一手沒有建議", rate: "尚無勝率", reason: error.message || "判讀時發生錯誤。" });
@@ -482,18 +470,25 @@ async function shareWindow() {
   stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 8 }, audio: false });
   const video = $("game");
   video.srcObject = stream;
-  video.hidden = false;
-  $("board").hidden = true;
   await video.play();
-  $("captureState").textContent = "已接到視窗。把色框拖到頭像和技能上，按記住框線，再按開始判讀。";
+  showFrame(Boolean(video.videoWidth));
+  $("captureState").textContent = "已接到視窗。關掉設定後，主畫面顯示這一幀。把格子拖到頭像上，按記住框線，再按開始判讀。";
+  watchStream();
   if (!reading) showReadyCard();
   stream.getVideoTracks()[0].addEventListener("ended", () => {
     $("captureState").textContent = "分享已停。要繼續的話再按一次分享遊戲視窗。";
     reading = false;
     clearInterval(timer);
     timer = 0;
+    showFrame(false);
     showReadyCard();
   });
+}
+
+function watchStream() {
+  clearInterval(timer);
+  timer = setInterval(sampleVideo, 700);
+  sampleVideo();
 }
 
 function rememberRegions() {
@@ -508,17 +503,18 @@ function startReading() {
     return;
   }
   reading = true;
-  clearInterval(timer);
-  timer = setInterval(sampleVideo, 700);
-  sampleVideo();
+  if (!timer) watchStream();
+  else sampleVideo();
 }
 
 function sampleVideo() {
   const video = $("game");
   if (!video.videoWidth) {
-    showCard({ action: "還沒接到畫面", rate: "尚無勝率", reason: "遊戲視窗還沒畫出來。確認分享的是第七史詩那個視窗。" });
+    showFrame(false);
+    if (reading) showCard({ action: "沒有收到畫面", rate: "尚無勝率", reason: "遊戲視窗還沒畫出來。確認分享的是第七史詩那個視窗。" });
     return;
   }
+  showFrame(true);
   const board = $("board");
   board.width = video.videoWidth;
   board.height = video.videoHeight;
@@ -526,7 +522,9 @@ function sampleVideo() {
   ctx.drawImage(video, 0, 0);
   const frame = ctx.getImageData(0, 0, board.width, board.height);
   const read = readFrame(frame.data, board.width, board.height, regions, book, corrections);
-  consider(read);
+  paintSlots(read.faces);
+  if (reading) consider(read);
+  else lastRead = read;
 }
 
 function runFixture(name) {
@@ -558,15 +556,16 @@ function runFixture(name) {
   const width = 960;
   const height = 540;
   const data = paintFixture(width, height, DEFAULT_REGIONS, book, assignment);
+  showFrame(true);
   const board = $("board");
-  board.hidden = false;
   board.width = width;
   board.height = height;
   const ctx = board.getContext("2d");
   ctx.putImageData(new ImageData(data, width, height), 0, 0);
-  $("game").hidden = true;
   const read = readFrame(data, width, height, DEFAULT_REGIONS, book, corrections);
+  paintSlots(read.faces);
   $("captureState").textContent = "這張是內建檢查畫面，不是你的遊戲。正式使用請分享遊戲視窗。";
+  reading = true;
   consider(read);
 }
 
@@ -626,11 +625,9 @@ for (const id of ["cutoff", "rank", "maxEnhance"]) {
 }
 $("openSetup").addEventListener("click", () => {
   $("setup").showModal();
-  syncStage();
 });
 $("closeSetup").addEventListener("click", () => {
   $("setup").close();
-  syncStage();
 });
 $("closePicker").addEventListener("click", () => $("picker").close());
 $("pickerSearch").addEventListener("input", (event) => fillPicker(event.target.value));
@@ -670,9 +667,8 @@ $("update").addEventListener("click", async () => {
   }
 });
 
-syncStage();
+showFrame(false);
 boot().then(() => {
-  syncStage();
   if (!reading && !lastAdvice) showReadyCard();
 }).catch((error) => {
   showCard({ action: "資料沒載入", rate: "尚無勝率", reason: error.message || String(error) });

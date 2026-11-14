@@ -17,7 +17,7 @@ import (
 
 // packVersion is written next to the extracted files. Bump it when shipping a new exe
 // so a newer double-click replaces the packed hero data.
-const packVersion = "2026-11-11.7"
+const packVersion = "2026-11-14.1"
 
 const listenAddr = "127.0.0.1:8765"
 

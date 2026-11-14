@@ -1319,7 +1319,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
   const slots = [...(recognition.user || []), ...(recognition.enemy || []), ...(recognition.prebans || [])];
   const phase = recognition.phase;
   if (slots.includes("unknown") || (phase === "battle" && recognition.actorId === "unknown")) {
-    return invalid(catalog, "認不出畫面上的英雄", "不會把空位猜成某個人。");
+    return invalid(catalog, "點格子填上英雄", "這一格還沒有名字，不會猜一個接近的人。");
   }
   const outside = slots.filter((id) => id && id !== "empty" && id !== "unknown" && !byId[id]);
   const actorOutside = phase === "battle" && recognition.actorId && recognition.actorId !== "empty" && recognition.actorId !== "unknown" && !byId[recognition.actorId];

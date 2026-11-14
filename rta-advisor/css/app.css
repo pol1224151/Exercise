@@ -55,11 +55,11 @@ body {
 }
 
 #now {
-  min-height: 70vh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
+  padding: 12px 0 28px;
 }
 
 #liveAction {
@@ -108,16 +108,22 @@ dialog::backdrop { background: rgba(36, 28, 22, 0.45); }
 
 .dialog-body { padding: 0 18px 18px; overflow: auto; }
 
-.offscreen {
-  position: fixed;
-  width: 960px;
-  height: 540px;
-  left: 0;
-  top: 0;
-  opacity: 0;
-  pointer-events: none;
-  z-index: -1;
+.watch { margin: 18px 0 8px; }
+
+#noFrame {
+  margin: 0;
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: #16130f;
+  color: #f6f1e8;
+  font-size: 1.6rem;
+  font-weight: 700;
 }
+
+#noFrame[hidden], .stage[hidden] { display: none; }
 
 .eyebrow {
   margin: 0;
@@ -240,19 +246,28 @@ footer { padding: 8px 0 28px; color: var(--muted); font-size: 0.9rem; }
 
 .stage {
   position: relative;
-  width: 100%;
+  width: min(100%, max(280px, calc((100vh - 400px) * 16 / 9)));
   aspect-ratio: 16 / 9;
+  margin-inline: auto;
   background: #16130f;
   border-radius: 12px;
   overflow: hidden;
 }
 
-.stage video,
+.stage video {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .stage canvas {
   width: 100%;
   height: 100%;
   object-fit: contain;
   background: #16130f;
+  display: block;
 }
 
 #boxes { position: absolute; inset: 0; }
@@ -261,10 +276,13 @@ footer { padding: 8px 0 28px; color: var(--muted); font-size: 0.9rem; }
   position: absolute;
   border: 2px solid #c4552a;
   color: white;
-  background: rgba(196, 85, 42, 0.18);
+  background: rgba(196, 85, 42, 0.12);
+  font: inherit;
   font-size: 12px;
+  text-align: left;
   touch-action: none;
-  cursor: move;
+  cursor: pointer;
+  padding: 0;
 }
 
 .box span {
@@ -272,6 +290,8 @@ footer { padding: 8px 0 28px; color: var(--muted); font-size: 0.9rem; }
   padding: 2px 4px;
   background: rgba(0, 0, 0, 0.55);
 }
+
+.box span:empty { display: none; }
 
 .box i {
   position: absolute;
