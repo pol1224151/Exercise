@@ -20,6 +20,8 @@ let lastAdvice = null;
 let lastRead = null;
 let openRecord = null;
 let orderLock = null;
+let seenPickMark = false;
+let pickScanAt = 0;
 let reading = false;
 let cardMemory = loadCardMemory();
 let namedCards = [];
@@ -446,7 +448,10 @@ function boardIsEmpty(read) {
 
 function consider(read) {
   try {
-    if (boardIsEmpty(read)) orderLock = null;
+    if (boardIsEmpty(read)) {
+      orderLock = null;
+      seenPickMark = false;
+    }
     lastRead = read;
     const key = stateKey(read);
     if (key === lastKey && lastAdvice) return lastAdvice;
@@ -566,6 +571,7 @@ function analyzeFrame() {
   if (!board.width || !board.height) return;
   const frame = board.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, board.width, board.height);
   const read = readDraft(frame.data, board.width, board.height, cardMemory, namedCards);
+  if (seenPickMark) read.pickMark = "FIRST PICK";
   cardMemory = refreshCardMemory(cardMemory, read.cards);
   paintCards(read.faces || []);
   renderHeard(read);
@@ -589,16 +595,23 @@ function analyzeFrame() {
 
 function scheduleNames(data, width, height, read) {
   const pending = (read.cards || []).filter((card) => (card.id === "unknown" || card.remembered) && matchNamedCard(card.signature, namedCards) === undefined);
-  if (!pending.length || ocrQueued) return;
+  const wantMark = !read.pickMark && !seenPickMark && Date.now() - pickScanAt > 1500;
+  if ((!pending.length && !wantMark) || ocrQueued) return;
   ocrQueued = true;
-  const jobs = pending.map((card) => ({ signature: card.signature, canvas: cropCard(data, width, height, card) }));
+  if (wantMark) pickScanAt = Date.now();
+  const jobs = pending.map((card) => ({ kind: "name", signature: card.signature, canvas: cropCard(data, width, height, card) }));
+  if (wantMark) jobs.push({ kind: "mark", canvas: cropHeader(data, width, height) });
   setTimeout(async () => {
     try {
       const worker = await ocrWorker();
       for (const job of jobs) {
-        if (matchNamedCard(job.signature, namedCards) !== undefined) continue;
         const result = await worker.recognize(job.canvas);
         const text = String(result?.data?.text || "").replace(/\s+/g, " ").trim();
+        if (job.kind === "mark") {
+          if (/first\s*pick/i.test(text)) seenPickMark = true;
+          continue;
+        }
+        if (matchNamedCard(job.signature, namedCards) !== undefined) continue;
         const pool = selectableHeroes(catalog || {});
         const id = matchHeroName(text, pool);
         const clean = id ? String(text).replace(/[^\u4e00-\u9fff]/g, "") : "";
@@ -607,6 +620,7 @@ function scheduleNames(data, width, height, read) {
       }
     } catch {
       for (const job of jobs) {
+        if (job.kind === "mark") continue;
         if (matchNamedCard(job.signature, namedCards) === undefined) namedCards.unshift({ sig: job.signature, id: "" });
       }
       namedCards = namedCards.slice(0, 40);
@@ -616,6 +630,7 @@ function scheduleNames(data, width, height, read) {
       if (!board.width) return;
       const latestFrame = board.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, board.width, board.height);
       const latest = readDraft(latestFrame.data, board.width, board.height, cardMemory, namedCards);
+      if (seenPickMark) latest.pickMark = "FIRST PICK";
       cardMemory = refreshCardMemory(cardMemory, latest.cards);
       pendingRead = latest;
       paintCards(latest.faces || []);
@@ -630,13 +645,20 @@ function scheduleNames(data, width, height, read) {
   }, 0);
 }
 
-function cropCard(data, width, height, card) {
-  const region = card.nameBox || card;
+function cropHeader(data, width, height) {
+  return cropRegion(data, width, height, {
+    x: 0.12,
+    y: 0,
+    w: 0.76,
+    h: 0.32,
+  }, 2);
+}
+
+function cropRegion(data, width, height, region, scale) {
   const x0 = Math.max(0, Math.round(region.x * width));
   const y0 = Math.max(0, Math.round(region.y * height));
   const boxW = Math.max(1, Math.min(width - x0, Math.round(region.w * width)));
   const boxH = Math.max(1, Math.min(height - y0, Math.round(region.h * height)));
-  const scale = 3;
   const source = document.createElement("canvas");
   source.width = boxW;
   source.height = boxH;
@@ -659,6 +681,10 @@ function cropCard(data, width, height, card) {
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
   return canvas;
+}
+
+function cropCard(data, width, height, card) {
+  return cropRegion(data, width, height, card.nameBox || card, 3);
 }
 
 async function ocrWorker() {
@@ -770,6 +796,7 @@ $("forget").addEventListener("click", () => {
   lastKey = "";
   lastAdvice = null;
   orderLock = null;
+  seenPickMark = false;
   showReadyCard();
 });
 $("loadExample").addEventListener("click", () => loadExample().catch(showError));

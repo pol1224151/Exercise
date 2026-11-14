@@ -56,9 +56,10 @@ assert.match(needsAccount.reason.summary, /還沒有讀入帳號/);
 
 const advice = adviseFromScreen(catalog, draftRead, { trials: 2, rank: "champion", roster });
 assert.equal(advice.ok, true, advice.reason?.summary || advice.reason);
-assert.equal(advice.firstPick, false);
-assert.equal(advice.orderSource, "no-mark");
-assert.match(advice.reason.summary, /FIRST PICK/);
+assert.equal(advice.firstPick, true);
+assert.equal(advice.orderSource, "counts");
+assert.match(advice.reason.summary, /先手/);
+assert.doesNotMatch(advice.reason.summary, /我方後手/);
 assert.doesNotMatch(advice.reason.summary, /場次最多/);
 assert.ok(["pick", "wait", "preban", "ban"].includes(advice.action.kind));
 assert.match(advice.action.title, /選|預禁|禁/);
@@ -102,12 +103,12 @@ const turnOnly = adviseFromScreen(catalog, {
   skillsReady: [],
 }, { trials: 1, rank: "champion", roster });
 assert.equal(turnOnly.ok, true, turnOnly.reason?.summary);
-assert.equal(turnOnly.firstPick, false);
-assert.equal(turnOnly.orderSource, "no-mark");
+assert.equal(turnOnly.firstPick, null);
+assert.equal(turnOnly.orderSource, "unseen");
 assert.match(turnOnly.action.title, /先禁/);
 assert.match(turnOnly.action.title, /、/);
 assert.doesNotMatch(turnOnly.reason.summary, /還看不出/);
-assert.match(turnOnly.reason.summary, /沒有讀到 FIRST PICK/);
+assert.doesNotMatch(turnOnly.reason.summary, /我方後手/);
 assert.match(turnOnly.reason.summary, /你的回合/);
 
 const opponentTurn = adviseFromScreen(catalog, {
@@ -118,8 +119,8 @@ const opponentTurn = adviseFromScreen(catalog, {
   turnSide: "enemy",
 }, { trials: 1, rank: "champion", roster });
 assert.equal(opponentTurn.ok, true, opponentTurn.reason?.summary);
-assert.equal(opponentTurn.firstPick, false);
-assert.equal(opponentTurn.orderSource, "no-mark");
+assert.equal(opponentTurn.firstPick, true);
+assert.equal(opponentTurn.orderSource, "counts");
 assert.match(opponentTurn.action.title, /選|預禁|禁/);
 assert.match(opponentTurn.reason.summary, /留空/);
 
@@ -133,8 +134,9 @@ const opening = adviseFromScreen(catalog, {
   skillsReady: [],
 }, { trials: 1, rank: "champion", roster });
 assert.equal(opening.ok, true, opening.reason?.summary);
-assert.equal(opening.firstPick, false);
-assert.equal(opening.orderSource, "no-mark");
+assert.equal(opening.firstPick, null);
+assert.equal(opening.orderSource, "unseen");
+assert.doesNotMatch(opening.reason.summary, /我方後手/);
 assert.match(opening.action.title, /先禁/);
 assert.match(opening.action.title, /、/);
 
@@ -186,15 +188,33 @@ assert.match(midBattle.action.title, /技能/);
 assert.equal(detectFirstPick(0, 0, null, null, "FIRST PICK").firstPick, true);
 assert.equal(detectFirstPick(0, 0, null, null, "FIRST PICK").source, "mark");
 assert.equal(detectFirstPick(1, 0, "enemy", null, "FIRST PICK").firstPick, true);
-assert.equal(detectFirstPick(1, 2, null, null).firstPick, false);
-assert.equal(detectFirstPick(1, 2, null, null).source, "no-mark");
-assert.equal(detectFirstPick(0, 1, null, null).source, "no-mark");
-assert.equal(detectFirstPick(0, 0, null, "enemy").source, "no-mark");
-assert.equal(detectFirstPick(0, 0, "user", null).source, "no-mark");
-assert.equal(detectFirstPick(0, 0, "enemy", null).source, "no-mark");
-assert.equal(detectFirstPick(1, 1, null, null).source, "no-mark");
+assert.equal(detectFirstPick(1, 2, null, null).firstPick, true);
+assert.equal(detectFirstPick(1, 2, null, null).source, "counts");
+assert.equal(detectFirstPick(3, 4, "user", null).firstPick, true);
+assert.equal(detectFirstPick(3, 4, "user", null).source, "counts");
+assert.equal(detectFirstPick(0, 1, "user", null).firstPick, false);
+assert.equal(detectFirstPick(0, 1, null, null).source, "counts");
+assert.equal(detectFirstPick(0, 0, null, "enemy").source, "unseen");
+assert.equal(detectFirstPick(0, 0, "user", null).firstPick, null);
+assert.equal(detectFirstPick(0, 0, "enemy", null).source, "unseen");
+assert.equal(detectFirstPick(1, 1, null, null).source, "unseen");
+assert.equal(detectFirstPick(1, 1, "enemy", null).firstPick, true);
+assert.equal(detectFirstPick(1, 1, "user", null).firstPick, false);
 assert.equal(detectFirstPick(0, 0, null, null).firstPick, null);
 assert.equal(detectFirstPick(0, 0, null, null).source, "unseen");
+
+const counted = adviseFromScreen(catalog, {
+  user: ids.slice(0, 3),
+  enemy: ids.slice(3, 7),
+  prebans: [],
+  phase: "pick",
+  turnSide: "user",
+}, { trials: 1, rank: "champion", roster });
+assert.equal(counted.ok, true, counted.reason?.summary);
+assert.equal(counted.firstPick, true);
+assert.equal(counted.orderSource, "counts");
+assert.match(counted.reason.summary, /我方 3 名、對方 4 名，我方先手/);
+assert.doesNotMatch(counted.reason.summary, /沒有讀到 FIRST PICK，我方後手/);
 
 const lead = paintFixture(960, 540, DEFAULT_REGIONS, book, { lead: "user" });
 assert.equal(readFrame(lead, 960, 540, DEFAULT_REGIONS, book).leadSide, "user");

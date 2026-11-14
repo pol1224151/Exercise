@@ -848,7 +848,7 @@ export function readPickMark(data, imageWidth, imageHeight) {
     return [data[offset], data[offset + 1], data[offset + 2]];
   };
   const parts = [];
-  const limitY = Math.floor(rows * 0.42);
+  const limitY = Math.floor(rows * 0.55);
   for (let gy = 0; gy < limitY; gy += 1) {
     for (let gx = 0; gx < cols; gx += 1) {
       const seenAt = gy * cols + gx;
@@ -910,7 +910,7 @@ export function readPickMark(data, imageWidth, imageHeight) {
         const part = parts[other];
         const gap = part.minX > maxX ? part.minX - maxX : minX > part.maxX ? minX - part.maxX : 0;
         const yOverlap = Math.min(maxY, part.maxY) - Math.max(minY, part.minY);
-        if (gap > height * 2.4 || yOverlap < height * 0.2) continue;
+        if (gap > height * 3.2 || yOverlap < height * 0.15) continue;
         used[other] = true;
         grew = true;
         count += part.count;
@@ -922,10 +922,10 @@ export function readPickMark(data, imageWidth, imageHeight) {
     }
     const width = maxX - minX + step;
     const height = maxY - minY + step;
-    if (width < imageWidth * 0.06 || height < imageHeight * 0.012 || height > imageHeight * 0.12) continue;
+    if (width < imageWidth * 0.035 || height < imageHeight * 0.008 || height > imageHeight * 0.14) continue;
     const aspect = width / height;
-    if (aspect < 2.4 || aspect > 8 || count < 12) continue;
-    if ((minY + maxY) / 2 > imageHeight * 0.38) continue;
+    if (aspect < 2.2 || aspect > 9 || count < 8) continue;
+    if ((minY + maxY) / 2 > imageHeight * 0.5) continue;
     let white = 0;
     let total = 0;
     for (let y = minY; y <= maxY; y += step) {
@@ -935,7 +935,7 @@ export function readPickMark(data, imageWidth, imageHeight) {
         if (pillWhite(wr, wg, wb)) white += 1;
       }
     }
-    if (total && white / total >= 0.22) return "FIRST PICK";
+    if (total && white / total >= 0.12) return "FIRST PICK";
   }
   return null;
 }

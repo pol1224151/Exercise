@@ -1399,13 +1399,32 @@ function invalid(catalog, title, reason) {
   };
 }
 
-function pickScreenStarted(userCount, enemyCount, turnSide, leadSide) {
-  return userCount + enemyCount > 0 || turnSide === "user" || turnSide === "enemy" || leadSide === "user" || leadSide === "enemy";
+function seatAt(userCount, enemyCount, userIsFirst) {
+  const pattern = [1, 2, 2, 2, 2, 1];
+  let side = userIsFirst ? "user" : "enemy";
+  let user = 0;
+  let enemy = 0;
+  for (const count of pattern) {
+    for (let index = 0; index < count; index += 1) {
+      if (user === userCount && enemy === enemyCount) return side;
+      if (side === "user") user += 1;
+      else enemy += 1;
+    }
+    side = side === "user" ? "enemy" : "user";
+  }
+  return null;
 }
 
 export function detectFirstPick(userCount, enemyCount, turnSide, leadSide, pickMark) {
   if (pickMark === "FIRST PICK") return { firstPick: true, source: "mark" };
-  if (pickScreenStarted(userCount, enemyCount, turnSide, leadSide)) return { firstPick: false, source: "no-mark" };
+  if (userCount + enemyCount > 0) {
+    const asFirst = seatAt(userCount, enemyCount, true);
+    const asSecond = seatAt(userCount, enemyCount, false);
+    const firstOk = Boolean(asFirst) && (!turnSide || turnSide === asFirst);
+    const secondOk = Boolean(asSecond) && (!turnSide || turnSide === asSecond);
+    if (firstOk && !secondOk) return { firstPick: true, source: "counts" };
+    if (secondOk && !firstOk) return { firstPick: false, source: "counts" };
+  }
   return { firstPick: null, source: "unseen" };
 }
 
@@ -1417,21 +1436,26 @@ function turnClause(turnSide) {
 
 export function orderBasisText(recognition, held) {
   const count = (ids) => (ids || []).filter((id) => id && id !== "empty").length;
-  const detected = detectFirstPick(count(recognition?.user), count(recognition?.enemy), recognition?.turnSide, recognition?.leadSide, recognition?.pickMark);
+  const userCount = count(recognition?.user);
+  const enemyCount = count(recognition?.enemy);
+  const detected = detectFirstPick(userCount, enemyCount, recognition?.turnSide, recognition?.leadSide, recognition?.pickMark);
   const turn = turnClause(recognition?.turnSide);
-  const phase = recognition?.phase;
-  const started = detected.source !== "unseen" || phase === "preban" || phase === "pick" || phase === "postban" || phase === "battle";
-  if (detected.source === "mark") return `這一幀讀到「FIRST PICK」，我方先手。先手先選 1 名，後手接著選 2 名，之後照 1-2-2-2-2-1。${turn}`;
-  if (held === true) return `先前讀到「FIRST PICK」，沿用我方先手。先手先選 1 名，後手接著選 2 名，之後照 1-2-2-2-2-1。${turn}`;
-  if (started) return `沒有讀到 FIRST PICK，我方後手。先手先選 1 名，後手接著選 2 名，之後照 1-2-2-2-2-1。${turn}`;
-  return `選角畫面還沒開始，沒有讀到 FIRST PICK。${turn}`;
+  const rule = "先手先選 1 名，後手接著選 2 名，之後照 1-2-2-2-2-1。";
+  if (detected.source === "mark") return `這一幀讀到「FIRST PICK」，我方先手。${rule}${turn}`;
+  if (detected.source === "counts") {
+    const who = detected.firstPick ? "先手" : "後手";
+    return `依選角人數，我方 ${userCount} 名、對方 ${enemyCount} 名，我方${who}。${rule}${turn}`;
+  }
+  if (held === true) return `先前已經判定我方先手。${rule}${turn}`;
+  if (held === false) return `先前已經判定我方後手。${rule}${turn}`;
+  return `這一幀還沒分出先後手。人數夠了就照 1-2-2-2-2-1 判斷，不會因為沒讀到徽章就把你判成後手。${turn}`;
 }
 
 export function adviceStateKey(recognition, extras = {}) {
   const knownCount = (ids) => (ids || []).filter((id) => id && id !== "empty").length;
   const detected = detectFirstPick(knownCount(recognition?.user), knownCount(recognition?.enemy), recognition?.turnSide, recognition?.leadSide, recognition?.pickMark);
   let order = detected.firstPick;
-  if (detected.source !== "mark" && extras.heldFirstPick === true) order = true;
+  if (order == null && (extras.heldFirstPick === true || extras.heldFirstPick === false)) order = extras.heldFirstPick;
   return JSON.stringify({
     user: recognition?.user || [],
     enemy: recognition?.enemy || [],
@@ -1439,6 +1463,7 @@ export function adviceStateKey(recognition, extras = {}) {
     actor: recognition?.actorId || "",
     order,
     turn: recognition?.turnSide || "",
+    lead: recognition?.leadSide || "",
     mark: recognition?.pickMark || "",
     rank: extras.rank || "",
     enhance: Boolean(extras.assumeMaxEnhance),
@@ -1881,21 +1906,19 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
   const detected = detectFirstPick(userCount, enemyCount, recognition.turnSide, recognition.leadSide, recognition.pickMark);
   let userFirst = detected.firstPick;
   let orderSource = detected.source;
-  if (detected.source !== "mark" && options.heldFirstPick === true) {
-    userFirst = true;
+  if (userFirst == null && (options.heldFirstPick === true || options.heldFirstPick === false)) {
+    userFirst = options.heldFirstPick;
     orderSource = "held";
   }
-  if (userFirst == null) {
-    userFirst = false;
-    orderSource = "no-mark";
-  }
-  const basisText = orderBasisText(recognition, userFirst === true && orderSource === "held" ? true : options.heldFirstPick);
+  const simFirst = userFirst !== false;
+  const sideWord = userFirst == null ? "開局" : userFirst ? "先手" : "後手";
+  const basisText = orderBasisText(recognition, options.heldFirstPick);
   const modelIds = new Set((catalog.heroes || []).map((hero) => hero.id));
   const asModel = (id) => (modelIds.has(id) ? id : canonicalId(id));
   const lockedUser = userPicks.map(asModel).filter((id) => modelIds.has(id));
   const lockedEnemy = enemyPicks.map(asModel).filter((id) => modelIds.has(id));
   const blocked = [...(recognition.prebans || []), ...userPicks, ...enemyPicks].filter(named);
-  const scored = sandboxRank(catalog, roster, lockedUser, lockedEnemy, userFirst, options.trials || 1, blocked);
+  const scored = sandboxRank(catalog, roster, lockedUser, lockedEnemy, simFirst, options.trials || 1, blocked);
   if (!scored.length) return invalid(catalog, "這一手排不出來", "帳號裡沒有沙盤能算的英雄。不編倍率。");
   const ordered = scored.map((row) => row.id);
   const prebansEach = options.rank === "below" ? 1 : 2;
@@ -1914,7 +1937,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
       draft,
       rate: row?.rate ?? null,
       reason: {
-        summary: `${userFirst ? "先手" : "後手"}。${SANDBOX_WHY}`,
+        summary: `${sideWord}。${SANDBOX_WHY}`,
         lines: [
           SANDBOX_WHY,
           "先手先選 1 名，後手接著選 2 名，之後照 1-2-2-2-2-1。已經禁掉和已經選上的人不重選。",
@@ -1923,12 +1946,12 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
       },
     };
   };
-  const lines = [makeLine(0, "sandbox", userFirst ? "先手" : "後手")];
-  if (scored.length > 1) lines.push(makeLine(1, "sandbox-next", userFirst ? "先手另一套" : "後手另一套"));
+  const lines = [makeLine(0, "sandbox", sideWord)];
+  if (scored.length > 1) lines.push(makeLine(1, "sandbox-next", `${sideWord}另一套`));
   const cutoff = typeof options.cutoff === "number" ? options.cutoff : null;
   const choice = cutoff == null
     ? null
-    : chooseComposition(lines, options.history || { matches: [] }, cutoff, userFirst);
+    : chooseComposition(lines, options.history || { matches: [] }, cutoff, simFirst);
   const best = choice?.line || lines[0];
   const history = choice ? {
     key: choice.key,
@@ -1951,7 +1974,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
     taken.add(id);
     taken.add(canonicalId(id));
   }
-  const side = nextSide(userCount, enemyCount, userFirst);
+  const side = nextSide(userCount, enemyCount, simFirst);
   const ours = recognition.turnSide === "user" || (recognition.turnSide !== "enemy" && side !== "enemy");
   const unread = slots.includes("unknown") ? "有卡上的名字還沒對上，那張留空，不猜。" : "";
   const orderLine = basisText;
