@@ -1029,8 +1029,8 @@ export function simulateFight(draft, plan, byId, enhanceMode, rand) {
   return simulateUnits(draft.userUnits, draft.enemyUnits, plan, rand);
 }
 
-export function fightFromRoster(draft, roster, catalog, plan, enhanceMode, rand, enemyMode = "reference") {
-  const owned = Object.fromEntries(roster.heroes.map((h) => [h.id, h]));
+function makeFightUnits(draft, roster, catalog, enhanceMode, enemyMode = "reference") {
+  const owned = Object.fromEntries((roster?.heroes || []).map((h) => [h.id, h]));
   const make = (id, side) => {
     const def = fightRecord(catalog, id);
     if (!def) throw new Error(`沒有公開技能倍率：${id}`);
@@ -1065,12 +1065,69 @@ export function fightFromRoster(draft, roster, catalog, plan, enhanceMode, rand,
     unit.side = side;
     return unit;
   };
-  const userUnits = draft.userFight.map((id) => make(id, "user"));
-  const enemyUnits = draft.enemyFight.map((id) => make(id, "enemy"));
-  return simulateUnits(userUnits, enemyUnits, plan, rand);
+  return {
+    user: (draft.userFight || []).map((id) => make(id, "user")),
+    enemy: (draft.enemyFight || []).map((id) => make(id, "enemy")),
+  };
 }
 
-function simulateUnits(userUnits, enemyUnits, plan, rand) {
+export function fightFromRoster(draft, roster, catalog, plan, enhanceMode, rand, enemyMode = "reference") {
+  const made = makeFightUnits(draft, roster, catalog, enhanceMode, enemyMode);
+  return simulateUnits(made.user, made.enemy, plan, rand, draft.userFirst !== false);
+}
+
+function openPassives(units, log) {
+  for (const side of ["user", "enemy"]) {
+    const group = units.filter((unit) => unit.side === side);
+    const mages = group.filter((unit) => unit.role === "mage");
+    if (!group.length || !mages.length) continue;
+    const souls = mages.length * 20;
+    group[0].purse = { value: souls };
+    log.push(`${side === "user" ? "我方" : "對方"}法師${mages.map((unit) => unit.nameZh).join("、")}預設魂書，開場 ${souls} 魂。`);
+  }
+  for (const unit of units) {
+    for (const effect of unit.passives) {
+      if (effect.kind === "fixOwnSpeed" || effect.kind === "speedCap") unit.lockedSpeed = unit.baseSpeed;
+      if (effect.kind === "crPush" && effect.atBattleStart) {
+        unit.cr = Math.min(100, unit.cr + effect.amount);
+        log.push(`${unit.nameZh} 開場戰鬥準備度 +${effect.amount}（技能原文）。`);
+      }
+    }
+  }
+}
+
+function advanceActor(units, userFirst) {
+  const living = units.filter((unit) => unit.alive);
+  if (!living.length) return null;
+  const ready = living.filter((unit) => unit.cr >= 100);
+  if (ready.length) return actingOrder(ready, units, userFirst)[0];
+  let dt = Infinity;
+  for (const unit of living) dt = Math.min(dt, (100 - unit.cr) / effectiveSpeed(unit, units));
+  for (const unit of living) unit.cr += effectiveSpeed(unit, units) * dt;
+  return actingOrder(living, units, userFirst)[0];
+}
+
+function ultWave(catalog, roster, userIds, enemyIds, userFirst, rand) {
+  const made = makeFightUnits({ userFight: userIds, enemyFight: enemyIds, userFirst }, roster, catalog, "base");
+  const units = [...made.user, ...made.enemy];
+  const log = [];
+  openPassives(units, log);
+  const order = actingOrder(made.enemy.filter((unit) => unit.alive), units, userFirst);
+  for (const actor of order) {
+    if (!actor.alive || !made.user.some((unit) => unit.alive)) break;
+    const parts = splitSkill(actor.skills?.S3);
+    takeTurn(actor, units, { order: ["S3"], burn: false }, rand, log);
+    if (!parts.damage && made.user.some((unit) => unit.alive)) {
+      takeTurn(actor, units, { order: ["S2", "S1"], burn: false }, rand, log);
+    }
+  }
+  const hpById = {};
+  for (const unit of made.user) hpById[unit.id] = unit.alive ? Math.max(0, unit.hp) / unit.maxHp : 0;
+  const alive = made.user.filter((unit) => unit.alive).length;
+  return { chance: made.user.length ? alive / made.user.length : 0, hpById, log };
+}
+
+function simulateUnits(userUnits, enemyUnits, plan, rand, userFirst = true) {
   const units = [...userUnits, ...enemyUnits];
   const log = [];
   for (const side of ["user", "enemy"]) {
@@ -1098,12 +1155,12 @@ function simulateUnits(userUnits, enemyUnits, plan, rand) {
     const ready = living.filter((u) => u.cr >= 100);
     let actor;
     if (ready.length) {
-      actor = ready.sort((a, b) => b.cr - a.cr || effectiveSpeed(b, units) - effectiveSpeed(a, units))[0];
+      actor = actingOrder(ready, units, userFirst)[0];
     } else {
       let dt = Infinity;
       for (const unit of living) dt = Math.min(dt, (100 - unit.cr) / effectiveSpeed(unit, units));
       for (const unit of living) unit.cr += effectiveSpeed(unit, units) * dt;
-      actor = living.slice().sort((a, b) => b.cr - a.cr || effectiveSpeed(b, units) - effectiveSpeed(a, units))[0];
+      actor = actingOrder(living, units, userFirst)[0];
     }
     if (!firstActor) firstActor = actor.nameZh;
     takeTurn(actor, units, plan, rand, log);
@@ -1120,6 +1177,11 @@ function simulateUnits(userUnits, enemyUnits, plan, rand) {
     userHp: hpLeft(userUnits),
     enemyHp: hpLeft(enemyUnits),
   };
+}
+
+function actingOrder(living, units, userFirst) {
+  const lead = userFirst === false ? "enemy" : "user";
+  return living.slice().sort((a, b) => b.cr - a.cr || effectiveSpeed(b, units) - effectiveSpeed(a, units) || (b.side === lead) - (a.side === lead));
 }
 
 function effectiveSpeed(unit, units) {
@@ -1144,6 +1206,55 @@ const CAST_KINDS = new Set([
   "silence", "provoke", "defDown", "atkDown", "unbuffable", "uncounterable", "extraTurn",
   "barrier", "skillNull", "cutBuffDuration",
 ]);
+
+const BUFF_KINDS = new Set(["heal", "barrier", "skillNull", "extraTurn", "dispelDebuff", "crPush"]);
+const DEBUFF_KINDS = new Set([
+  "stun", "fear", "sleep", "silence", "provoke", "defDown", "atkDown",
+  "unbuffable", "uncounterable", "crPushback", "dispelBuff", "cutBuffDuration",
+]);
+
+function effectHasNumber(effect) {
+  if (typeof effect?.amount === "number" || typeof effect?.ratio === "number" || typeof effect?.turns === "number") return true;
+  return /\d/.test(String(effect?.source || ""));
+}
+
+function effectBucket(effect) {
+  if (!effect || effect.simulated === false || effect.kind === "unparsed" || !effectHasNumber(effect)) return "";
+  if (effect.kind === "crPush") return String(effect.who || "").includes("enem") ? "debuff" : "buff";
+  if (BUFF_KINDS.has(effect.kind)) return "buff";
+  if (DEBUFF_KINDS.has(effect.kind)) return "debuff";
+  return "";
+}
+
+export function splitSkill(skill) {
+  if (!skill) return { damage: null, buffs: [], debuffs: [] };
+  const scaling = (skill.selfHpScaling || 0) + (skill.selfAtkScaling || 0) + (skill.selfDefScaling || 0) + (skill.selfSpdScaling || 0);
+  const listed = typeof skill.rate === "number" && typeof skill.pow === "number" && skill.rate > 0 && skill.pow > 0;
+  const damage = listed || scaling > 0
+    ? { rate: listed ? skill.rate : 0, pow: listed ? skill.pow : 0, targets: skill.targets || 1, scaling }
+    : null;
+  const buffs = [];
+  const debuffs = [];
+  for (const effect of skill.effects || []) {
+    const bucket = effectBucket(effect);
+    if (bucket === "buff") buffs.push(effect);
+    else if (bucket === "debuff") debuffs.push(effect);
+  }
+  return { damage, buffs, debuffs };
+}
+
+function buffReceivers(skill, actor, allies) {
+  const text = skill.text || "";
+  const exceptCaster = /except for the caster|other than the caster/i.test(text);
+  if (!exceptCaster && /to the caster/i.test(text)) return [actor];
+  const who = (skill.effects || []).map((effect) => effect.who || "").join(" ");
+  if (/\ballies\b/i.test(who) && !exceptCaster) return allies.slice();
+  let pool = allies.filter((unit) => unit.id !== actor.id);
+  if (!exceptCaster && /\bcaster\b/i.test(who) && !/\btarget\b/i.test(who)) pool = [actor];
+  if (!pool.length) pool = allies.slice();
+  pool.sort((left, right) => left.baseSpeed - right.baseSpeed || left.nameZh.localeCompare(right.nameZh, "zh"));
+  return pool.slice(0, 1);
+}
 
 function canCast(skill) {
   if (!skill || skill.passive) return false;
@@ -1190,9 +1301,18 @@ function takeTurn(actor, units, plan, rand, log) {
   const burnFx = (skill.soulburnEffects || []).filter((e) => e.kind !== "unparsed" && e.simulated !== false);
   const doBurn = plan.burn && skill.soulburnCost && purse.purse.value >= skill.soulburnCost && burnFx.length > 0;
   if (doBurn) purse.purse.value -= skill.soulburnCost;
-  const targets = pickTargets(foes, skill.targets || (skill.effects?.length ? foes.length : 1));
+  const skillParts = splitSkill(skill);
+  const support = !skillParts.damage && (skillParts.buffs.length > 0 || skillParts.debuffs.length > 0);
+  const targets = support && skillParts.buffs.length
+    ? buffReceivers(skill, actor, allies)
+    : pickTargets(foes, skill.targets || (skill.effects?.length ? foes.length : 1));
   const parts = [];
   for (const target of targets) {
+    if (support) {
+      applyEffects(skill, actor, target, allies, foes, units, doBurn, burnFx, crLocked, rand, log, true);
+      parts.push(target.nameZh);
+      continue;
+    }
     const relation = elementRelation(actor.attribute, target.attribute);
     const glance = relation === "disadvantage" && rand() < 0.5;
     const cannotCrit = actor.passives.some((e) => e.kind === "cannotCrit") || (skill.effects || []).some((e) => e.kind === "cannotCrit");
@@ -1213,7 +1333,7 @@ function takeTurn(actor, units, plan, rand, log) {
     }
     target.hp -= damage;
     if (target.hp <= 0) target.alive = false;
-    if (!glance) applyEffects(skill, actor, target, allies, foes, units, doBurn, burnFx, crLocked, rand, log);
+    if (!glance) applyEffects(skill, actor, target, allies, foes, units, doBurn, burnFx, crLocked, rand, log, false);
     parts.push(`${target.nameZh}${glance ? "擦傷" : ""}${Math.round(damage)}`);
   }
   if (skill.cooldown) actor.cdLeft[skill.slot] = skill.cooldown;
@@ -1226,6 +1346,18 @@ function takeTurn(actor, units, plan, rand, log) {
     actor.cr = 100;
     log.push(`${actor.nameZh} 獲得再行動。`);
   }
+  if (/all stats are doubled/i.test(skill.text || "") && !actor.statsDoubled) {
+    actor.statsDoubled = true;
+    actor.atk *= 2;
+    actor.def *= 2;
+    actor.baseDef *= 2;
+    actor.maxHp *= 2;
+    actor.hp = Math.min(actor.maxHp, actor.hp * 2);
+    actor.baseSpeed *= 2;
+    actor.speed *= 2;
+    actor.lockedSpeed *= 2;
+    log.push(`${actor.nameZh} 全能力值變 2 倍（技能原文）。`);
+  }
   tickDebuffs(actor);
   refreshDef(actor);
 }
@@ -1236,7 +1368,7 @@ function pickTargets(foes, count) {
   return sorted.slice(0, Math.max(1, count));
 }
 
-function applyEffects(skill, actor, target, allies, foes, units, doBurn, burnFx, crLocked, rand, log) {
+function applyEffects(skill, actor, target, allies, foes, units, doBurn, burnFx, crLocked, rand, log, support = false) {
   const ignoreRes = doBurn && burnFx.some((e) => e.kind === "ignoreResistance");
   const forcedChance = doBurn ? burnFx.find((e) => e.kind === "effectChance") : null;
   for (const effect of skill.effects || []) {
@@ -1251,11 +1383,10 @@ function applyEffects(skill, actor, target, allies, foes, units, doBurn, burnFx,
     } else if (effect.kind === "crPush" && !crLocked) {
       const amount = effect.amount || 0;
       const who = effect.who || "";
-      const group = who.includes("allies") ? allies : who.includes("enemy") || who.includes("target") ? [target] : [actor];
-      if (!who || who.includes("caster") || who.includes("target") && !who.includes("enemy")) {
-        // "the target" on a self-timed sentence still means the caster when it is not an attack rider.
-      }
-      const receivers = who.includes("enem") ? [target] : who.includes("allies") ? allies : [actor];
+      let receivers = [actor];
+      if (who.includes("allies")) receivers = allies;
+      else if (who.includes("enem")) receivers = [target];
+      else if (support && (who.includes("target") || who === "")) receivers = [target];
       for (const unit of receivers) {
         if (unit.passives?.some((e) => e.kind === "crImmune")) continue;
         unit.cr = Math.min(100, unit.cr + amount);
@@ -1430,22 +1561,26 @@ const EFFECT_ZH = {
   cutBuffDuration: "縮短強化",
 };
 
-function effectHasNumber(effect) {
-  if (typeof effect?.amount === "number" || typeof effect?.ratio === "number" || typeof effect?.turns === "number") return true;
-  return /\d/.test(String(effect?.source || ""));
-}
-
-function traitLine(skill) {
+function effectLabels(effects) {
   const names = [];
-  for (const effect of [...(skill?.effects || []), ...(skill?.soulburnEffects || [])]) {
-    if (!effect || effect.simulated === false || effect.kind === "unparsed" || !effectHasNumber(effect)) continue;
+  for (const effect of effects || []) {
     const zh = EFFECT_ZH[effect.kind];
     if (zh && !names.includes(zh)) names.push(zh);
   }
-  if (skill?.soulburnCost && (skill.soulburnEffects || []).some((effect) => effect && effect.simulated !== false && effect.kind !== "unparsed" && effectHasNumber(effect))) {
-    names.push(`燒魂 ${skill.soulburnCost}`);
-  }
-  return names.length ? `資料裡有數字的效果：${names.join("、")}。沒有倍率的不另編。` : "這一動沒有另編技能文字以外的倍率。";
+  return names;
+}
+
+function traitLine(skill) {
+  const parts = splitSkill(skill);
+  const chunks = [];
+  if (parts.damage && parts.damage.rate > 0) chunks.push(`傷害：倍率 ${parts.damage.rate}`);
+  const buffs = effectLabels(parts.buffs);
+  const debuffs = effectLabels(parts.debuffs);
+  if (buffs.length) chunks.push(`增益：${buffs.join("、")}`);
+  if (debuffs.length) chunks.push(`減益：${debuffs.join("、")}`);
+  const burnNumbered = (skill?.soulburnEffects || []).some((effect) => effect && effect.simulated !== false && effect.kind !== "unparsed" && effectHasNumber(effect));
+  if (skill?.soulburnCost && burnNumbered) chunks.push(`燒魂 ${skill.soulburnCost}`);
+  return chunks.length ? `資料裡有數字的效果。${chunks.join("。")}。沒有倍率的不另編。` : "這一動沒有另編技能文字以外的倍率。";
 }
 
 function heroRole(catalog, id) {
@@ -1694,6 +1829,170 @@ function prebanIds(catalog, avoid, count) {
   return ids;
 }
 
+function draftHero(catalog, id) {
+  if (!id) return null;
+  return fightRecord(catalog, id) || fightRecord(catalog, canonicalId(id));
+}
+
+function heroProfile(hero) {
+  if (!hero) return null;
+  const skills = ["S1", "S2", "S3"].map((slot) => splitSkill(hero.skills?.[slot]));
+  const speed = hero.reference?.median?.speed ?? hero.base?.speed ?? 0;
+  return {
+    id: hero.id,
+    speed: typeof speed === "number" ? speed : 0,
+    damage: skills.some((skill) => skill.damage),
+    buff: skills.some((skill) => !skill.damage && skill.buffs.length > 0),
+    debuff: skills.some((skill) => skill.debuffs.length > 0),
+  };
+}
+
+function chancePct(chance) {
+  return `${Math.round(chance * 100)}%`;
+}
+
+function focusHp(hpById, ids) {
+  const rows = (ids || []).map((id) => hpById?.[id]).filter((value) => typeof value === "number");
+  if (!rows.length) return 0;
+  return rows.reduce((sum, value) => sum + value, 0) / rows.length;
+}
+
+function survivalChance(catalog, roster, userIds, enemyIds, userFirst, focusIds) {
+  const ours = (userIds || []).filter((id) => draftHero(catalog, id));
+  const theirs = (enemyIds || []).filter((id) => draftHero(catalog, id));
+  if (!ours.length || !theirs.length) return null;
+  const focus = (focusIds || ours).filter((id) => ours.includes(id));
+  let chance = 0;
+  let hp = 0;
+  const trials = 4;
+  for (let trial = 0; trial < trials; trial += 1) {
+    const wave = ultWave(catalog, roster, ours, theirs, userFirst, mulberry32(trial + 1));
+    const ratios = focus.map((id) => wave.hpById[id] ?? 0);
+    chance += ratios.filter((value) => value > 0).length / (ratios.length || 1);
+    hp += focusHp(wave.hpById, focus);
+  }
+  return { chance: chance / trials, hp: hp / trials };
+}
+
+function formNames(text) {
+  const names = [];
+  for (const match of String(text || "").matchAll(/\(([^)]{1,24})\)/g)) {
+    const name = match[1].trim();
+    if (!name || /\d/.test(name)) continue;
+    if (!names.includes(name)) names.push(name);
+  }
+  return names.slice(0, 2);
+}
+
+function openingLine(catalog, hero) {
+  const gear = hero?.rtaGear;
+  const combo = gear?.setCombos?.[0];
+  const art = gear?.artifacts?.[0];
+  if (!combo && !art) return "開戰常見做法：沒有公開的開戰配裝。";
+  const bits = [];
+  if (combo?.names?.length && typeof combo.pickRate === "number") {
+    bits.push(`套裝 ${combo.names.map((name) => setZh(name)).join("、")}，出場 ${combo.pickRate}%`);
+  }
+  if (art?.names?.[0] && typeof art.pickRate === "number") {
+    bits.push(`神器 ${artifactZh(catalog, art.names[0])}，出場 ${art.pickRate}%`);
+  }
+  return bits.length ? `開戰常見做法：${bits.join("；")}。` : "開戰常見做法：沒有公開的開戰配裝。";
+}
+
+function ultLine(hero) {
+  const skill = hero?.skills?.S3;
+  if (!skill) return "大招：沒有公開的 3 技能。";
+  const parts = splitSkill(skill);
+  const text = `${skill.text || ""}`;
+  const bits = [];
+  if (typeof skill.cooldownShown === "number") bits.push(`冷卻 ${skill.cooldownShown} 回合`);
+  if (parts.damage?.rate > 0) bits.push(`傷害倍率 ${parts.damage.rate}`);
+  else bits.push("沒有傷害倍率");
+  const buffs = effectLabels(parts.buffs);
+  const debuffs = effectLabels(parts.debuffs);
+  if (buffs.length) bits.push(`增益：${buffs.join("、")}`);
+  if (debuffs.length) bits.push(`減益：${debuffs.join("、")}`);
+  if (/all stats are doubled/i.test(text)) bits.push("全能力值變 2 倍");
+  const field = text.match(/changes the battlefield into the ([^.]+)/i);
+  if (field) bits.push(`戰場變成 ${field[1].trim()}`);
+  const turns = text.match(/for (\d+) turns/i);
+  if (turns) bits.push(`持續 ${turns[1]} 回合`);
+  return `大招：${bits.join("，")}。`;
+}
+
+function formLine(hero) {
+  const found = [];
+  for (const slot of ["S1", "S2", "S3"]) {
+    const names = formNames(hero?.skills?.[slot]?.text || "");
+    if (names.length >= 2) found.push(`${slot} 寫成 ${names.join("、")}`);
+  }
+  return found.length ? `技能變化：${found.join("；")}。變身後沒有另一組公開倍率，仍用 Fribbels 現有倍率。` : "";
+}
+
+function passiveLine(hero) {
+  const bits = [];
+  for (const slot of ["S1", "S2", "S3"]) {
+    const skill = hero?.skills?.[slot];
+    if (!skill) continue;
+    if (skill.passive) {
+      const parts = splitSkill(skill);
+      const labels = [...effectLabels(parts.buffs), ...effectLabels(parts.debuffs)];
+      const line = labels.length ? `${slot} 被動：${labels.join("、")}` : `${slot} 被動沒有另編數字`;
+      if (!bits.includes(line)) bits.push(line);
+    }
+    for (const effect of skill.effects || []) {
+      if (!effect || effect.simulated === false) continue;
+      if (["crImmune", "speedCap", "fixOwnSpeed", "crLockOnCasterTurn", "soulCut", "cannotCrit"].includes(effect.kind)) {
+        const line = effectText(effect);
+        if (line && !bits.includes(line)) bits.push(line);
+      }
+      if (effect.kind === "crPush" && effect.atBattleStart && effectHasNumber(effect)) {
+        const line = `開場戰鬥準備度 +${effect.amount}`;
+        if (!bits.includes(line)) bits.push(line);
+      }
+    }
+  }
+  return bits.length ? `被動：${bits.join("，")}。` : "被動：公開文字沒有另列被動數字。";
+}
+
+function kitBlock(catalog, hero) {
+  if (!hero) return "沒有公開技能資料。";
+  return [openingLine(catalog, hero), ultLine(hero), formLine(hero), passiveLine(hero)].filter(Boolean).join("");
+}
+
+function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds, userFirst) {
+  const owned = ownedIdsOf(roster);
+  const taken = new Set([...(userPicks || []), ...(enemyPicks || []), ...(blockedIds || [])].filter(Boolean));
+  for (const id of [...taken]) taken.add(canonicalId(id));
+  const pool = (catalog.heroes || []).filter((hero) => owned.has(hero.id) && !taken.has(hero.id) && draftHero(catalog, hero.id));
+  const knownEnemy = (enemyPicks || []).filter((id) => draftHero(catalog, id));
+  const base = (userPicks || []).filter((id) => draftHero(catalog, id));
+  const without = knownEnemy.length && base.length ? survivalChance(catalog, roster, base, knownEnemy, userFirst, base) : null;
+  const scored = [];
+  for (const hero of pool) {
+    const speed = heroProfile(draftHero(catalog, hero.id))?.speed || 0;
+    if (!knownEnemy.length) {
+      scored.push({ id: hero.id, score: speed, chance: null, hp: null, impact: null, hpImpact: null, speed });
+      continue;
+    }
+    const focus = base.length ? base : [hero.id];
+    const wave = survivalChance(catalog, roster, [...base, hero.id], knownEnemy, userFirst, focus);
+    const impact = without == null || wave == null ? null : wave.chance - without.chance;
+    const hpImpact = without == null || wave == null ? null : wave.hp - without.hp;
+    scored.push({
+      id: hero.id,
+      score: (hpImpact ?? wave?.hp ?? 0) * 1000 + (wave?.hp ?? 0),
+      chance: wave?.chance ?? null,
+      hp: wave?.hp ?? null,
+      impact,
+      hpImpact,
+      speed,
+    });
+  }
+  scored.sort((left, right) => right.score - left.score || (right.speed || 0) - (left.speed || 0) || left.id.localeCompare(right.id));
+  return scored;
+}
+
 function sandboxRank(catalog, roster, lockedUser, lockedEnemy, userFirst, trials, blockedIds) {
   const model = catalog.heroes || [];
   const modelIds = new Set(model.map((hero) => hero.id));
@@ -1803,17 +2102,23 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const each = options.rank === "below" ? 1 : 2;
   const who = userFirst ? "我方先手" : "對方先手";
   if (!state.prebansDone) {
-    const scored = sandboxRank(catalog, roster, [], [], userFirst, options.trials || 1, []);
-    const opening = scored.map((row) => row.id);
-    const ids = prebanIds(catalog, new Set(opening.slice(0, 5)), each);
+    const owned = ownedIdsOf(roster);
+    const opening = (catalog.heroes || [])
+      .filter((hero) => owned.has(hero.id))
+      .map((hero) => ({ id: hero.id, speed: heroProfile(draftHero(catalog, hero.id))?.speed || 0 }))
+      .sort((left, right) => right.speed - left.speed || left.id.localeCompare(right.id))
+      .slice(0, 5)
+      .map((hero) => hero.id);
+    const ids = prebanIds(catalog, new Set(opening), each);
     const names = ids.map((id) => screenName(catalog, id)).filter(Boolean);
+    const kits = ids.map((id) => `${screenName(catalog, id)}。${kitBlock(catalog, draftHero(catalog, id))}`).join("");
     return {
       ok: true,
       phase: "preban",
       firstPick: userFirst,
-      action: { kind: "preban", title: `先禁 ${names.join("、")}`, detail: `${who}。先禁這 ${names.length} 名，再開始報對方的選角。`, ids },
-      reason: { summary: `${who}。先禁 ${names.join("、")}。${rule}`, lines: [rule] },
-      rate: scored[0]?.rate ?? null,
+      action: { kind: "preban", title: `先禁 ${names.join("、")}`, detail: `${who}。先禁這 ${names.length} 名，再開始填格子。`, ids },
+      reason: { summary: `${who}。先禁 ${names.join("、")}。${kits}${rule}`, lines: [rule, kits] },
+      rate: null,
       version: basis.version,
       basis,
     };
@@ -1822,11 +2127,26 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   if (!seat && userPicks.length >= 5 && enemyPicks.length >= 5) {
     const protectedId = enemyPicks[2];
     const pool = enemyPicks.map((id, index) => ({ id, index })).filter((row) => row.index !== 2);
-    pool.sort((left, right) => (presenceOf(catalog, right.id)?.prebans || 0) - (presenceOf(catalog, left.id)?.prebans || 0));
-    const ban = pool[0];
+    const baseWave = survivalChance(catalog, roster, userPicks, enemyPicks, userFirst);
+    let ban = pool[0];
+    let bestGain = -Infinity;
+    for (const row of pool) {
+      const rest = enemyPicks.filter((id) => id !== row.id);
+      const wave = survivalChance(catalog, roster, userPicks, rest, userFirst);
+      const gain = (wave?.hp ?? 0) - (baseWave?.hp ?? 0);
+      if (gain > bestGain) {
+        bestGain = gain;
+        ban = row;
+      }
+    }
     if (!ban) return invalid(catalog, "沒有可禁的人", "對方沒有第 3 選以外的人。");
     const protectedName = screenName(catalog, protectedId);
     const banName = screenName(catalog, ban.id);
+    const bannedHero = draftHero(catalog, ban.id);
+    const gainText = baseWave == null ? "" : bestGain > 0
+      ? `禁掉之後，對方大招打下來，我方整組剩下的生命比現在高 ${chancePct(bestGain)}。`
+      : "禁掉這名，大招打下來後整組剩下的生命沒有更高。";
+    const kit = `${banName}。${kitBlock(catalog, bannedHero)}`;
     return {
       ok: true,
       phase: "postban",
@@ -1834,13 +2154,13 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
       action: {
         kind: "ban",
         title: `最後禁 ${banName}`,
-        detail: `禁對方的${slotNote(ban.index)}。對方第 3 選 ${protectedName} 是保護位，不能禁。`,
+        detail: `禁對方的${slotNote(ban.index)}。對方第 3 選 ${protectedName} 是保護位，不能禁。${gainText}`,
         id: ban.id,
         ids: [ban.id],
       },
       reason: {
-        summary: `兩邊都選滿 5 名。最後禁 ${banName}，這是對方的${slotNote(ban.index)}。對方第 3 選 ${protectedName} 是保護位，不能禁。`,
-        lines: [rule],
+        summary: `兩邊都選滿 5 名。最後禁 ${banName}，這是對方的${slotNote(ban.index)}。${kit}${gainText}對方第 3 選 ${protectedName} 是保護位，不能禁。`,
+        lines: [rule, kit],
       },
       rate: null,
       version: basis.version,
@@ -1857,6 +2177,7 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
     }).filter((line) => !line.startsWith("是"));
     const upcoming = Array.from({ length: seat.left }, (_, offset) => `對方${slotNote(enemyPicks.length + offset)}`);
     const heard = named.length ? `這手已有 ${named.join("，")}。` : "";
+    const kits = enemyPicks.map((id) => `${screenName(catalog, id)}。${kitBlock(catalog, draftHero(catalog, id))}`).join("");
     return {
       ok: true,
       phase: "pick",
@@ -1868,26 +2189,42 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
         ids: [],
         need: seat.left,
       },
-      reason: { summary: `${who}。${FIRST_RULE}這一手剩下${upcoming.join("、")}。${heard}`, lines: [FIRST_RULE, ...upcoming] },
+      reason: { summary: `${who}。${FIRST_RULE}這一手剩下${upcoming.join("、")}。${heard}${kits}`, lines: [FIRST_RULE, ...upcoming, kits].filter(Boolean) },
       rate: null,
       version: basis.version,
       basis,
     };
   }
-  const lockedUser = userPicks.map((id) => (catalog.heroes || []).some((hero) => hero.id === id) ? id : canonicalId(id)).filter((id) => (catalog.heroes || []).some((hero) => hero.id === id));
-  const lockedEnemy = enemyPicks.map((id) => (catalog.heroes || []).some((hero) => hero.id === id) ? id : canonicalId(id)).filter((id) => (catalog.heroes || []).some((hero) => hero.id === id));
-  const scored = sandboxRank(catalog, roster, lockedUser, lockedEnemy, userFirst, options.trials || 1, [...userPicks, ...enemyPicks, ...prebans]);
   const ids = [];
-  const taken = new Set([...userPicks, ...enemyPicks, ...prebans]);
-  for (const row of scored) {
-    if (ids.length === seat.left) break;
-    if (taken.has(row.id)) continue;
-    ids.push(row.id);
-    taken.add(row.id);
+  const drafting = [...userPicks];
+  const blocked = [...userPicks, ...enemyPicks, ...prebans];
+  let lastRow = null;
+  for (let step = 0; step < seat.left; step += 1) {
+    const ranked = compositionRank(catalog, roster, drafting, enemyPicks, blocked, userFirst);
+    const next = ranked.find((row) => !drafting.includes(row.id) && !enemyPicks.includes(row.id) && !prebans.includes(row.id));
+    if (!next) break;
+    ids.push(next.id);
+    drafting.push(next.id);
+    lastRow = next;
   }
   if (!ids.length) return invalid(catalog, "這一手沒有可選的人", "已經選過和已經禁過的人不重選。");
   const notes = ids.map((id, offset) => `${screenName(catalog, id)}是我方${slotNote(userPicks.length + offset)}`);
   const names = ids.map((id) => screenName(catalog, id)).filter(Boolean);
+  const ourNames = userPicks.map((id) => screenName(catalog, id)).filter(Boolean);
+  const theirNames = enemyPicks.map((id) => screenName(catalog, id)).filter(Boolean);
+  const later = [];
+  for (let index = userPicks.length + ids.length; index < 5; index += 1) {
+    later.push(`我方第 ${index + 1} 選${index === 2 ? "保護位" : "關鍵位"}`);
+  }
+  for (let index = enemyPicks.length; index < 5; index += 1) {
+    later.push(`對方第 ${index + 1} 選${index === 2 ? "保護位" : "關鍵位"}`);
+  }
+  const kits = enemyPicks.map((id) => `${screenName(catalog, id)}。${kitBlock(catalog, draftHero(catalog, id))}`).join("");
+  const survive = !enemyPicks.length
+    ? "對方還沒選。這一手先占這個位子，等對方一選，就用對方已選的人重算大招打下來後我方整組還活著的機會。"
+    : `加上這一格之後，對方大招打下來，我方還活著的機會是 ${chancePct(lastRow?.chance ?? 0)}，整組剩下的生命是 ${chancePct(lastRow?.hp ?? 0)}${lastRow?.hpImpact == null ? "" : `，和還沒加上這名的時候生命差 ${lastRow.hpImpact > 0 ? "+" : ""}${chancePct(lastRow.hpImpact)}`}。`;
+  const answer = enemyPicks.length ? "對付方式是保住我方已選的人，在對方這些大招打下來後還剩的生命。" : "";
+  const board = `這一格看整組。我方已選${ourNames.length ? ourNames.join("、") : "還沒有"}。對方已選${theirNames.length ? theirNames.join("、") : "還沒有"}。${later.length ? `後面還空${later.join("、")}。` : "後面沒有空位。"}${kits}${survive}${answer}`;
   return {
     ok: true,
     phase: "pick",
@@ -1895,14 +2232,14 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
     action: {
       kind: "pick",
       title: `選 ${names.join("、")}`,
-      detail: notes.join("。"),
+      detail: `${board}${notes.join("。")}`,
       ids,
     },
     reason: {
-      summary: `${who}。選 ${notes.join("，")}。${rule}`,
-      lines: [rule, notes.join("。")],
+      summary: `${who}。${board}選 ${notes.join("，")}。${rule}`,
+      lines: [rule, board, notes.join("。")],
     },
-    rate: scored[0]?.rate ?? null,
+    rate: null,
     version: basis.version,
     basis,
   };
@@ -1975,31 +2312,56 @@ export function battleBrief(catalog, roster, draft) {
   const targets = line
     ? line.split("→")[1].split("、").map((part) => part.replace(/擦傷/g, "").replace(/\d+/g, "").trim()).filter((name) => names.has(name))
     : [];
-  const hit = targets[0] || "";
-  const who = opener && hit ? `${side}${openerName}先打${hit}。` : opener ? `${side}${openerName}先動。` : "看不出誰先動。";
-  const s3 = opener?.skills?.S3;
-  const s3Ready = Boolean(s3 && !s3.passive && (skillHasListedHit(s3) || skillHasNumberedEffect(s3)));
-  const ult = slot === "S3" && s3Ready ? "要開大。" : "不開大。";
-  let kill = "這一動沒有傷害倍率，不指定先殺誰。";
-  if (skillHasListedHit(skill) && targets.length === 1) {
-    kill = `先殺${targets[0]}。`;
-  } else if (skillHasListedHit(skill) && targets.length > 1) {
-    const ranked = targets
-      .map((name) => ({ name, hp: storedHp(catalog, roster, names.get(name), userFight.includes(names.get(name)) ? "user" : "enemy") }))
-      .filter((row) => typeof row.hp === "number")
-      .sort((left, right) => left.hp - right.hp);
-    const focus = ranked[0];
-    kill = focus ? `這一動打到${targets.join("、")}。先殺生命最低的${focus.name}。` : `這一動打到${targets.join("、")}。`;
+  const parts = splitSkill(skill);
+  const sameSide = (name) => {
+    const id = names.get(name);
+    if (!id || !openerId) return false;
+    return userFight.includes(openerId) ? userFight.includes(id) : enemyFight.includes(id);
+  };
+  const allyNames = targets.filter((name) => sameSide(name));
+  const foeNames = targets.filter((name) => !sameSide(name));
+  let who = opener ? `${side}${openerName}先動。` : "看不出誰先動。";
+  let ult = "";
+  let kill = "";
+  let title = who.replace(/。$/, "");
+  if (opener && parts.damage) {
+    const hit = foeNames[0] || "";
+    who = hit ? `${side}${openerName}先打${hit}。` : `${side}${openerName}先動。`;
+    ult = slot === "S3" ? "要開大。" : "不開大。";
+    title = who.replace(/。$/, "");
+    if (foeNames.length === 1) {
+      kill = `先殺${foeNames[0]}。`;
+    } else if (foeNames.length > 1) {
+      const ranked = foeNames
+        .map((name) => ({ name, hp: storedHp(catalog, roster, names.get(name), userFight.includes(names.get(name)) ? "user" : "enemy") }))
+        .filter((row) => typeof row.hp === "number")
+        .sort((left, right) => left.hp - right.hp);
+      const focus = ranked[0];
+      kill = focus ? `這一動打到${foeNames.join("、")}。先殺生命最低的${focus.name}。` : `這一動打到${foeNames.join("、")}。`;
+    }
+  } else if (opener && parts.buffs.length) {
+    const onto = allyNames.length ? allyNames.join("、") : "隊友";
+    ult = slot === "S3" ? `開大給${onto}。` : `開給${onto}。`;
+    title = `${side}${openerName}${ult.replace(/。$/, "")}`;
+  } else if (opener && parts.debuffs.length) {
+    const onto = foeNames[0] || "對手";
+    ult = slot === "S3" ? `開大在${onto}。` : `開在${onto}。`;
+    title = `${side}${openerName}${ult.replace(/。$/, "")}`;
+  } else if (opener) {
+    ult = slot === "S3" ? "不開大。" : "";
   }
   const numbered = skill ? traitLine(skill) : "";
   const book = (fight.log || []).find((row) => row.includes("魂書")) || "";
-  const summary = [who, ult, kill, numbered, book].filter(Boolean).join("");
+  const wave = survivalChance(catalog, roster, userFight, enemyFight, draft.userFirst !== false);
+  const survive = wave == null ? "" : `對方大招打下來後，我方還活著的機會是 ${chancePct(wave.chance)}，整組剩下的生命是 ${chancePct(wave.hp)}。`;
+  const kits = enemyFight.map((id) => `${byId[id].nameZh}。${kitBlock(catalog, byId[id])}`).join("");
+  const summary = [who, ult, kill, numbered, survive, kits, book].filter(Boolean).join("");
   return {
     ok: true,
     phase: "battle",
     firstPick: draft.userFirst === true,
-    action: { kind: "brief", title: who.replace(/。$/, ""), detail: `${ult}${kill}` },
-    reason: { summary, lines: [who, ult, kill, numbered, book].filter(Boolean) },
+    action: { kind: "brief", title, detail: `${ult}${kill}${numbered}${survive}` },
+    reason: { summary, lines: [who, ult, kill, numbered, survive, kits, book].filter(Boolean) },
     rate: null,
     version: basis.version,
     basis,

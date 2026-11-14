@@ -485,8 +485,13 @@ const brief = battleBrief(catalog, roster, {
 assert.equal(brief.ok, true, brief.reason?.summary);
 assert.match(brief.reason.summary, /先打|先動/);
 assert.match(brief.reason.summary, /開大/);
-assert.match(brief.reason.summary, /先殺|不指定先殺/);
+assert.match(brief.reason.summary, /先殺|增益|減益|開大給/);
+assert.equal(brief.reason.summary.includes("不指定先殺"), false);
 assert.equal(brief.reason.summary.includes("擦傷"), false);
+assert.match(brief.reason.summary, /還活著的機會/);
+assert.match(brief.reason.summary, /開戰常見做法/);
+assert.match(brief.reason.summary, /大招/);
+assert.match(brief.reason.summary, /被動/);
 
 const added = ["lone-crescent-bellona", "midnight-gala-lilias", "sylvan-sage-vivian"];
 for (const id of added) {
@@ -552,6 +557,62 @@ assert.equal(scout.ok, false);
 assert.match(scout.reason.summary, /偵查兵瑪伊堤/);
 assert.match(scout.reason.summary, /沒有技能倍率/);
 assert.match(filled.reason.summary, /先打|先動/);
+assert.equal(filled.reason.summary.includes("不指定先殺"), false);
+
+const notosPick = guidedDraft(catalog, roster, {
+  userFirst: true,
+  prebansDone: true,
+  prebans: [],
+  userPicks: ["estelle"],
+  enemyPicks: ["notos", "mercedes"],
+}, { trials: 1, rank: "champion" });
+assert.equal(notosPick.ok, true, notosPick.reason?.summary);
+assert.equal(notosPick.action.kind, "pick");
+assert.equal(notosPick.action.ids.length, 2);
+assert.match(notosPick.reason.summary, /諾托斯/);
+assert.match(notosPick.reason.summary, /開戰常見做法/);
+assert.match(notosPick.reason.summary, /大招/);
+assert.match(notosPick.reason.summary, /2 倍/);
+assert.match(notosPick.reason.summary, /被動/);
+assert.match(notosPick.reason.summary, /還活著的機會/);
+assert.match(notosPick.reason.summary, /我方已選/);
+assert.match(notosPick.reason.summary, /對方已選/);
+assert.match(notosPick.reason.summary, /保護位|關鍵位/);
+assert.equal(notosPick.reason.summary.includes("克制"), false);
+assert.equal(notosPick.reason.summary.includes("無視所有"), false);
+
+const damagePick = guidedDraft(catalog, roster, {
+  userFirst: true,
+  prebansDone: true,
+  prebans: [],
+  userPicks: ["estelle"],
+  enemyPicks: ["mercedes", "ras"],
+}, { trials: 1, rank: "champion" });
+const buffPick = guidedDraft(catalog, roster, {
+  userFirst: true,
+  prebansDone: true,
+  prebans: [],
+  userPicks: ["estelle"],
+  enemyPicks: ["diene", "elena"],
+}, { trials: 1, rank: "champion" });
+assert.equal(damagePick.ok, true, damagePick.reason?.summary);
+assert.equal(buffPick.ok, true, buffPick.reason?.summary);
+assert.notDeepEqual(damagePick.action.ids, buffPick.action.ids);
+assert.match(buffPick.reason.summary, /迪埃妮|艾蕾娜/);
+assert.match(damagePick.reason.summary, /玫勒賽德絲|拉斯/);
+
+const yulhaBrief = battleBrief(catalog, roster, {
+  userFirst: true,
+  userFight: ["arbiter-vildred", "aubade-ludwig", "belian", "estelle"],
+  enemyFight: ["school-nurse-yulha", "perfumer-byblis", "notos", "lisette"],
+});
+assert.equal(yulhaBrief.ok, true, yulhaBrief.reason?.summary);
+assert.match(yulhaBrief.reason.summary, /保健室老師律荷/);
+assert.match(yulhaBrief.reason.summary, /開大給/);
+assert.match(yulhaBrief.reason.summary, /增益/);
+assert.equal(yulhaBrief.reason.summary.includes("先打"), false);
+assert.equal(yulhaBrief.reason.summary.includes("要開大"), false);
+assert.equal(yulhaBrief.reason.summary.includes("不指定先殺"), false);
 const protectedBan = heroIds[7];
 assert.equal(lastBan.action.id === protectedBan, false);
 

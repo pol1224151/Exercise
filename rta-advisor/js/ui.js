@@ -39,7 +39,7 @@ function blankDraft(userFirst = null) {
     userPicks: [],
     enemyPicks: [],
     prebans: [],
-    prebansDone: userFirst === true || userFirst === false,
+    prebansDone: false,
     userBanId: null,
     enemyBanId: null,
     steps: [],
@@ -247,7 +247,7 @@ function draftedFight() {
 }
 
 function draftKey() {
-  return [manual.userFirst, manual.userPicks.join(","), manual.enemyPicks.join(","), manual.userBanId || "", manual.enemyBanId || "", $("rank")?.value || ""].join("|");
+  return [manual.userFirst, manual.prebansDone, (manual.prebans || []).join(","), manual.userPicks.join(","), manual.enemyPicks.join(","), manual.userBanId || "", manual.enemyBanId || "", $("rank")?.value || ""].join("|");
 }
 
 function renderGuide() {
@@ -258,7 +258,7 @@ function renderGuide() {
   if (manual.userFirst == null) {
     guideKey = "";
     paintBoard();
-    $("draftStatus").textContent = "點「我先手」或「對方先手」。我方格子會自己填上英雄。";
+    $("draftStatus").textContent = "點「我先手」或「對方先手」。先給預禁，再填格子。";
     $("weFirst")?.classList.toggle("primary", false);
     $("theyFirst")?.classList.toggle("primary", false);
     return;
@@ -272,7 +272,7 @@ function renderGuide() {
   }
   let result = guidedDraft(catalog, roster, manual, { rank: $("rank").value, trials: 1 });
   let guard = 0;
-  while (result?.action?.kind === "pick" && guard < 3) {
+  while (manual.prebansDone && result?.action?.kind === "pick" && guard < 3) {
     const ids = (result.action.ids || []).filter((id) => !manual.userPicks.includes(id));
     if (!ids.length) break;
     manual.userPicks.push(...ids);
@@ -300,6 +300,10 @@ function slotWords(index) {
 function draftStatusText(result) {
   const side = manual.userFirst ? "我方先手。" : "對方先手。";
   const rule = "先手規則：先手 1-2-2，後手 2-2-1。雙方第 1、2 選和第 4、5 選都是關鍵。";
+  if (!manual.prebansDone) {
+    const title = result?.action?.title || "先給預禁";
+    return `${side}${title}。點下面的預禁，再開始填格子。`;
+  }
   const note = manual.filledNote ? `${manual.filledNote}。` : "";
   if (manual.userPicks.length >= 5 && manual.enemyPicks.length >= 5) {
     if (!manual.userBanId || !manual.enemyBanId) {
@@ -650,7 +654,12 @@ function renderLive(result) {
       click: title === "先讀入帳號" ? "import" : "",
     });
   } else {
-    showCard({ action: oneAction(result), rate: rateLine(result), reason: oneReason(result) });
+    showCard({
+      action: oneAction(result),
+      rate: rateLine(result),
+      reason: oneReason(result),
+      click: result.action?.kind === "preban" ? "preban" : "",
+    });
   }
   const type = currentType();
   const canRecord = Boolean(type);
@@ -1115,6 +1124,13 @@ $("ourBan").addEventListener("click", () => onBan("enemy"));
 $("theirBan").addEventListener("click", () => onBan("user"));
 $("liveAction").addEventListener("click", () => {
   const click = $("liveAction").dataset.click;
+  if (click === "preban") {
+    manual.prebans = [...(lastAdvice?.action?.ids || [])];
+    manual.prebansDone = true;
+    guideKey = "";
+    renderGuide();
+    return;
+  }
   if (click === "import") {
     $("importFile").click();
   } else if (click === "share") {
