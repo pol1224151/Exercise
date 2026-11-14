@@ -1,9 +1,9 @@
 import { adviseFromScreen, buildGearReport, clearAccount, counterEdges, loadAccount, parseRoster, readAccountText, saveAccount, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, recordResult, saveMatches } from "./records.js";
-import { DEFAULT_REGIONS, liveStateKey, paintFixture, readFrame, rememberCorrection } from "./screen.js";
+import { DEFAULT_REGIONS, liveStateKey, paintFixture, readFrame, rememberCorrection, slotFrame } from "./screen.js";
 
 const $ = (id) => document.getElementById(id);
-const REGION_KEY = "rta-advisor-regions";
+const REGION_KEY = "rta-advisor-regions-v2";
 const FACE_KEY = "rta-advisor-faces";
 
 let catalog = null;
@@ -12,6 +12,11 @@ let roster = null;
 let regions = loadRegions();
 let stream = null;
 let timer = 0;
+let watchHandle = 0;
+let videoCallback = 0;
+let analyzeQueued = false;
+let adviceQueued = false;
+let pendingRead = null;
 let lastKey = "";
 let lastAdvice = null;
 let lastRead = null;
@@ -213,8 +218,7 @@ function showFrame(on) {
 }
 
 function slotFractions(region, index) {
-  const height = region.h / region.slots;
-  return { x: region.x, y: region.y + height * index, w: region.w, h: height };
+  return slotFrame(region, index);
 }
 
 function placeRegion(key) {
@@ -430,15 +434,7 @@ function consider(read) {
   try {
     if (boardIsEmpty(read)) orderLock = null;
     lastRead = read;
-    const key = JSON.stringify({
-      board: liveStateKey(read),
-      turn: read.turnSide || "",
-      lead: read.leadSide || "",
-      held: orderLock,
-      rank: $("rank").value,
-      enhance: $("maxEnhance").checked,
-      cutoff: $("cutoff").value,
-    });
+    const key = stateKey(read);
     if (key === lastKey && lastAdvice) return lastAdvice;
     lastKey = key;
     lastAdvice = adviseFromScreen(catalog, read, options());
@@ -467,7 +463,7 @@ async function shareWindow() {
     $("captureState").textContent = "這個瀏覽器沒有畫面分享。請用 Chrome 或 Edge 打開本頁。";
     return;
   }
-  stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 8 }, audio: false });
+  stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 30 } }, audio: false });
   const video = $("game");
   video.srcObject = stream;
   await video.play();
@@ -478,17 +474,35 @@ async function shareWindow() {
   stream.getVideoTracks()[0].addEventListener("ended", () => {
     $("captureState").textContent = "分享已停。要繼續的話再按一次分享遊戲視窗。";
     reading = false;
-    clearInterval(timer);
-    timer = 0;
+    stopWatch();
     showFrame(false);
     showReadyCard();
   });
 }
 
-function watchStream() {
+function stopWatch() {
   clearInterval(timer);
-  timer = setInterval(sampleVideo, 700);
-  sampleVideo();
+  timer = 0;
+  if (watchHandle) cancelAnimationFrame(watchHandle);
+  watchHandle = 0;
+  const video = $("game");
+  if (videoCallback && video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(videoCallback);
+  videoCallback = 0;
+}
+
+function watchStream() {
+  stopWatch();
+  const video = $("game");
+  const pump = () => {
+    paintVideoFrame();
+    if (!stream) return;
+    if (video.requestVideoFrameCallback) videoCallback = video.requestVideoFrameCallback(pump);
+    else watchHandle = requestAnimationFrame(pump);
+  };
+  if (video.requestVideoFrameCallback) videoCallback = video.requestVideoFrameCallback(pump);
+  else watchHandle = requestAnimationFrame(pump);
+  timer = 1;
+  paintVideoFrame();
 }
 
 function rememberRegions() {
@@ -504,10 +518,10 @@ function startReading() {
   }
   reading = true;
   if (!timer) watchStream();
-  else sampleVideo();
+  else paintVideoFrame();
 }
 
-function sampleVideo() {
+function paintVideoFrame() {
   const video = $("game");
   if (!video.videoWidth) {
     showFrame(false);
@@ -516,15 +530,50 @@ function sampleVideo() {
   }
   showFrame(true);
   const board = $("board");
-  board.width = video.videoWidth;
-  board.height = video.videoHeight;
-  const ctx = board.getContext("2d", { willReadFrequently: true });
-  ctx.drawImage(video, 0, 0);
-  const frame = ctx.getImageData(0, 0, board.width, board.height);
+  if (board.width !== video.videoWidth || board.height !== video.videoHeight) {
+    board.width = video.videoWidth;
+    board.height = video.videoHeight;
+  }
+  board.getContext("2d", { willReadFrequently: true }).drawImage(video, 0, 0);
+  if (analyzeQueued) return;
+  analyzeQueued = true;
+  setTimeout(analyzeFrame, 0);
+}
+
+function stateKey(read) {
+  return JSON.stringify({
+    board: liveStateKey(read),
+    turn: read.turnSide || "",
+    lead: read.leadSide || "",
+    held: orderLock,
+    rank: $("rank").value,
+    enhance: $("maxEnhance").checked,
+    cutoff: $("cutoff").value,
+  });
+}
+
+function analyzeFrame() {
+  analyzeQueued = false;
+  const board = $("board");
+  if (!board.width || !board.height) return;
+  const frame = board.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, board.width, board.height);
   const read = readFrame(frame.data, board.width, board.height, regions, book, corrections);
   paintSlots(read.faces);
-  if (reading) consider(read);
-  else lastRead = read;
+  pendingRead = read;
+  if (!reading) {
+    lastRead = read;
+    return;
+  }
+  if (stateKey(read) === lastKey && lastAdvice) return;
+  if (adviceQueued) return;
+  adviceQueued = true;
+  setTimeout(() => {
+    adviceQueued = false;
+    const latest = pendingRead;
+    if (!latest || !reading) return;
+    if (stateKey(latest) === lastKey && lastAdvice) return;
+    consider(latest);
+  }, 0);
 }
 
 function runFixture(name) {

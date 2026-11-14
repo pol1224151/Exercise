@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { adviseFromScreen, detectFirstPick, parseRoster, sourceBasis } from "../js/engine.js";
-import { DEFAULT_REGIONS, inferPhase, liveStateKey, matchPortrait, paintFixture, readFrame, rememberCorrection } from "../js/screen.js";
+import { DEFAULT_REGIONS, inferPhase, liveStateKey, matchPortrait, paintFixture, readFrame, rememberCorrection, slotFrame } from "../js/screen.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
 const book = JSON.parse(readFileSync(new URL("../data/portrait-signatures.json", import.meta.url)));
@@ -158,5 +158,26 @@ assert.equal(corrected.user[0], ids[6]);
 const again = rememberCorrection(JSON.parse(JSON.stringify(saved)), corrected.faces[0].rgb, ids[6]);
 assert.equal(again.length, 1);
 assert.equal(again[0].id, ids[6]);
+
+const ours = slotFrame(DEFAULT_REGIONS.user, 0);
+const oursNext = slotFrame(DEFAULT_REGIONS.user, 1);
+assert.ok(ours.y > 0.65 && ours.x > 0.25 && ours.x < 0.4, "our portraits sit in the lower middle");
+assert.ok(oursNext.x > ours.x, "a row of portraits runs across the frame");
+assert.ok(slotFrame(DEFAULT_REGIONS.enemy, 0).x >= ours.x + DEFAULT_REGIONS.user.w - 0.001);
+assert.ok(slotFrame(DEFAULT_REGIONS.preban, 0).y > ours.y);
+assert.ok(slotFrame(DEFAULT_REGIONS.actor, 0).y > 0.65);
+assert.ok(slotFrame(DEFAULT_REGIONS.skills, 0).x > 0.4);
+for (const region of Object.values(DEFAULT_REGIONS)) {
+  assert.equal(region.axis, "row");
+  const last = slotFrame(region, region.slots - 1);
+  assert.ok(last.x + last.w < 0.86, "boxes stay off the side menu");
+  assert.ok(last.y > 0.5, "boxes stay off the timer");
+}
+const narrow = slotFrame(DEFAULT_REGIONS.user, 2);
+const wideBox = {
+  x: Math.round(narrow.x * 1920) / 1920,
+  y: Math.round(narrow.y * 1080) / 1080,
+};
+assert.ok(Math.abs(wideBox.x - narrow.x) < 0.002 && Math.abs(wideBox.y - narrow.y) < 0.002);
 
 console.log("screen tests passed", { next: advice.action.title, skill: cast.action.title, burn: cast.action.burn.yes });

@@ -1,17 +1,29 @@
 /** Screen reading for the RTA advisor. A slot is shrunk to the hero-library grid, then compared by face shape and color blocks. */
 
+// Fractions of the captured 16:9 frame, measured on the STOVE draft.
+// Slots in a row share one height and split the width, so resizing the window stays on the portraits.
 export const DEFAULT_REGIONS = {
-  user: { x: 0.02, y: 0.16, w: 0.12, h: 0.62, slots: 5, label: "我方" },
-  enemy: { x: 0.86, y: 0.16, w: 0.12, h: 0.62, slots: 5, label: "對方" },
-  preban: { x: 0.28, y: 0.03, w: 0.44, h: 0.10, slots: 2, label: "預禁" },
-  skills: { x: 0.30, y: 0.84, w: 0.40, h: 0.12, slots: 3, label: "技能" },
-  actor: { x: 0.02, y: 0.02, w: 0.12, h: 0.12, slots: 1, label: "現在行動" },
+  user: { x: 0.319, y: 0.714, w: 0.255, h: 0.091, slots: 5, axis: "row", label: "我方" },
+  enemy: { x: 0.574, y: 0.714, w: 0.255, h: 0.091, slots: 5, axis: "row", label: "對方" },
+  preban: { x: 0.312, y: 0.889, w: 0.102, h: 0.091, slots: 2, axis: "row", label: "預禁" },
+  skills: { x: 0.56, y: 0.90, w: 0.18, h: 0.08, slots: 3, axis: "row", label: "技能" },
+  actor: { x: 0.48, y: 0.889, w: 0.051, h: 0.091, slots: 1, axis: "row", label: "現在行動" },
 };
 
 export const LEAD_BANDS = {
-  user: { x: 0.02, y: 0.105, w: 0.12, h: 0.05 },
-  enemy: { x: 0.86, y: 0.105, w: 0.12, h: 0.05 },
+  user: { x: 0.319, y: 0.672, w: 0.255, h: 0.04 },
+  enemy: { x: 0.574, y: 0.672, w: 0.255, h: 0.04 },
 };
+
+export function slotFrame(region, index) {
+  const count = Math.max(1, region?.slots || 1);
+  if (region?.axis === "row") {
+    const width = region.w / count;
+    return { x: region.x + width * index, y: region.y, w: width, h: region.h };
+  }
+  const height = region.h / count;
+  return { x: region.x, y: region.y + height * index, w: region.w, h: height };
+}
 
 export function liveStateKey(recognition) {
   const slot = (id) => (id && id !== "empty" ? id : "");
@@ -185,12 +197,12 @@ function matchBox(data, imageWidth, box, book, corrections) {
 }
 
 function slotBox(region, index, imageWidth, imageHeight) {
-  const slotHeight = region.h / region.slots;
+  const frame = slotFrame(region, index);
   return {
-    x: Math.round(region.x * imageWidth),
-    y: Math.round((region.y + slotHeight * index) * imageHeight),
-    w: Math.max(8, Math.round(region.w * imageWidth)),
-    h: Math.max(8, Math.round(slotHeight * imageHeight)),
+    x: Math.round(frame.x * imageWidth),
+    y: Math.round(frame.y * imageHeight),
+    w: Math.max(1, Math.round(frame.w * imageWidth)),
+    h: Math.max(1, Math.round(frame.h * imageHeight)),
   };
 }
 
