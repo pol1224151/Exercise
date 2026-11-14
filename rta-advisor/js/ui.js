@@ -292,18 +292,27 @@ function renderGuide() {
   $("theyFirst")?.classList.toggle("primary", manual.userFirst === false);
 }
 
+function slotWords(index) {
+  const number = index + 1;
+  return number === 3 ? `第 ${number} 選，保護` : `第 ${number} 選，關鍵`;
+}
+
 function draftStatusText(result) {
   const side = manual.userFirst ? "我方先手。" : "對方先手。";
+  const rule = "先手規則：先手 1-2-2，後手 2-2-1。雙方第 1、2 選和第 4、5 選都是關鍵。";
   const note = manual.filledNote ? `${manual.filledNote}。` : "";
   if (manual.userPicks.length >= 5 && manual.enemyPicks.length >= 5) {
     if (!manual.userBanId || !manual.enemyBanId) {
       const suggest = result?.action?.kind === "ban" ? `${result.action.title}。` : "";
-      return `${side}選滿 5 名。${suggest}點對方格子或「我禁對方」打叉，再點我方格子或「對方禁我」。第 3 格是保護位，不能打叉。`;
+      return `${side}${rule}選滿 5 名。${suggest}點對方格子或「我禁對方」打叉，再點我方格子或「對方禁我」。雙方第 3 選是保護位，不能打叉。`;
     }
     return `${side}禁完了。下面寫這一場誰先打誰。`;
   }
-  if (result?.action?.kind === "report") return `${side}${note}點對方第 ${manual.enemyPicks.length + 1} 格，選他剛選的英雄。`;
-  return `${side}${note}`;
+  if (result?.action?.kind === "report") {
+    const index = manual.enemyPicks.length;
+    return `${side}${rule}${note}點對方第 ${index + 1} 格，這是對方${slotWords(index)}。`;
+  }
+  return `${side}${rule}${note}`;
 }
 
 function setOrder(userFirst) {

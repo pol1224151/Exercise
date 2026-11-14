@@ -434,8 +434,20 @@ const firstMove = guidedDraft(catalog, roster, {
 }, { trials: 1, rank: "champion" });
 assert.equal(firstMove.action.kind, "pick");
 assert.equal(firstMove.action.ids.length, 1);
-assert.match(firstMove.reason.summary, /第 1 選/);
-assert.match(firstMove.reason.summary, /關鍵/);
+assert.match(firstMove.reason.summary, /先手規則/);
+assert.match(firstMove.reason.summary, /先手 1-2-2/);
+assert.match(firstMove.reason.summary, /我方第 1 選，關鍵/);
+
+const theirFirst = guidedDraft(catalog, roster, {
+  userFirst: false,
+  prebansDone: true,
+  prebans: [],
+  userPicks: [],
+  enemyPicks: [],
+}, { trials: 1, rank: "champion" });
+assert.equal(theirFirst.action.kind, "report");
+assert.match(theirFirst.reason.summary, /後手 2-2-1/);
+assert.match(theirFirst.reason.summary, /對方第 1 選，關鍵/);
 
 const scales = selectableHeroes(catalog).find((hero) => hero.nameZh === "天秤之主");
 assert.ok(scales);

@@ -1500,7 +1500,7 @@ export function orderBasisText(recognition, held) {
   const enemyCount = count(recognition?.enemy);
   const detected = detectFirstPick(userCount, enemyCount, recognition?.turnSide, recognition?.leadSide, recognition?.pickMark);
   const turn = turnClause(recognition?.turnSide);
-  const rule = "先手先選 1 名，後手接著選 2 名，之後照 1-2-2-2-2-1。";
+  const rule = "先手規則：先手 1-2-2，後手 2-2-1。雙方的第 1、2 選和第 4、5 選都是關鍵。";
   if (detected.source === "mark") return `這一幀讀到「FIRST PICK」，我方先手。${rule}${turn}`;
   if (detected.source === "counts") {
     const who = detected.firstPick ? "先手" : "後手";
@@ -1508,7 +1508,7 @@ export function orderBasisText(recognition, held) {
   }
   if (held === true) return `先前已經判定我方先手。${rule}${turn}`;
   if (held === false) return `先前已經判定我方後手。${rule}${turn}`;
-  return `這一幀還沒分出先後手。人數夠了就照 1-2-2-2-2-1 判斷，不會因為沒讀到徽章就把你判成後手。${turn}`;
+  return `這一幀還沒分出先後手。人數夠了就照先手 1-2-2、後手 2-2-1 判斷，不會因為沒讀到徽章就把你判成後手。${turn}`;
 }
 
 export function adviceStateKey(recognition, extras = {}) {
@@ -1748,6 +1748,8 @@ function draftSeat(userCount, enemyCount, userFirst) {
   return null;
 }
 
+const FIRST_RULE = "先手規則：先手 1-2-2，後手 2-2-1。雙方的第 1、2 選和第 4、5 選都是關鍵，第 3 選是保護位，不能被最後禁。";
+
 function slotNote(index) {
   const number = index + 1;
   if (number === 3) return `第 ${number} 選，保護位，不能被最後禁`;
@@ -1759,7 +1761,7 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const basis = sourceBasis(catalog);
   if (!basis.ok) return invalid(catalog, "資料還沒齊", basis.problems.slice(0, 4).join("；"));
   if (!roster?.heroes?.length) return invalid(catalog, "先讀入帳號", "還沒有讀入帳號。");
-  const rule = "先手選 1、2、2 名，後手選 2、2、1 名。第 1、2 選和第 4、5 選是關鍵位。第 3 選是保護位，不能被最後禁。";
+  const rule = FIRST_RULE;
   if (state.userFirst !== true && state.userFirst !== false) {
     return {
       ok: true,
@@ -1810,12 +1812,12 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
       action: {
         kind: "ban",
         title: `最後禁 ${banName}`,
-        detail: `禁對方${slotNote(ban.index)}。第 3 選 ${protectedName} 是保護位，不能禁。`,
+        detail: `禁對方的${slotNote(ban.index)}。對方第 3 選 ${protectedName} 是保護位，不能禁。`,
         id: ban.id,
         ids: [ban.id],
       },
       reason: {
-        summary: `兩邊都選滿 5 名。最後禁 ${banName}，這是${slotNote(ban.index)}。第 3 選 ${protectedName} 是保護位，不能禁。`,
+        summary: `兩邊都選滿 5 名。最後禁 ${banName}，這是對方的${slotNote(ban.index)}。對方第 3 選 ${protectedName} 是保護位，不能禁。`,
         lines: [rule],
       },
       rate: null,
@@ -1823,12 +1825,16 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
       basis,
     };
   }
-  if (!seat) return invalid(catalog, "人數對不上選角順序", "先手是 1、2、2 名，後手是 2、2、1 名。");
+  if (!seat) return invalid(catalog, "人數對不上選角順序", FIRST_RULE);
   const held = [...userPicks, ...enemyPicks, ...prebans].map((id) => screenName(catalog, id)).filter(Boolean);
   if (seat.side === "enemy") {
     const already = seat.count - seat.left;
-    const named = (already ? enemyPicks.slice(-already) : []).map((id) => screenName(catalog, id)).filter(Boolean);
-    const heard = named.length ? `這手已告訴我 ${named.join("、")}。` : "";
+    const named = (already ? enemyPicks.slice(-already) : []).map((id, offset) => {
+      const index = enemyPicks.length - already + offset;
+      return `${screenName(catalog, id)}是對方${slotNote(index)}`;
+    }).filter((line) => !line.startsWith("是"));
+    const upcoming = Array.from({ length: seat.left }, (_, offset) => `對方${slotNote(enemyPicks.length + offset)}`);
+    const heard = named.length ? `這手已有 ${named.join("，")}。` : "";
     return {
       ok: true,
       phase: "pick",
@@ -1836,11 +1842,11 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
       action: {
         kind: "report",
         title: seat.left === seat.count ? `告訴我對方這手的 ${seat.count} 名` : `對方這手還有 ${seat.left} 名`,
-        detail: `${who}。對方這一手選 ${seat.count} 名。${heard}用完整中文名告訴我剛選的那一名。`,
+        detail: `${who}。${FIRST_RULE}這一手剩下${upcoming.join("、")}。${heard}`,
         ids: [],
         need: seat.left,
       },
-      reason: { summary: `${who}。對方這一手選 ${seat.count} 名。${heard}${rule}`, lines: [rule, held.length ? `已經在場上：${held.join("、")}。` : ""] },
+      reason: { summary: `${who}。${FIRST_RULE}這一手剩下${upcoming.join("、")}。${heard}`, lines: [FIRST_RULE, ...upcoming] },
       rate: null,
       version: basis.version,
       basis,
@@ -1858,7 +1864,7 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
     taken.add(row.id);
   }
   if (!ids.length) return invalid(catalog, "這一手沒有可選的人", "已經選過和已經禁過的人不重選。");
-  const notes = ids.map((id, offset) => `${screenName(catalog, id)}是${slotNote(userPicks.length + offset)}`);
+  const notes = ids.map((id, offset) => `${screenName(catalog, id)}是我方${slotNote(userPicks.length + offset)}`);
   const names = ids.map((id) => screenName(catalog, id)).filter(Boolean);
   return {
     ok: true,
@@ -2245,7 +2251,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
         summary: `${sideWord}。${SANDBOX_WHY}`,
         lines: [
           SANDBOX_WHY,
-          "先手先選 1 名，後手接著選 2 名，之後照 1-2-2-2-2-1。已經禁掉和已經選上的人不重選。",
+          "先手規則：先手 1-2-2，後手 2-2-1。雙方的第 1、2 選和第 4、5 選都是關鍵。已經禁掉和已經選上的人不重選。",
           row?.rate == null ? "這套排不滿可計算的四名，不估算勝率，也不編倍率。" : "估計勝率來自短沙盤，你的面板對上推估對手，不是保證。這一手先給出下一手。",
         ],
       },
