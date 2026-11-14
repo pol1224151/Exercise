@@ -270,6 +270,37 @@ def effects_from_text(text: str) -> list[dict]:
         add({"kind": "revive", "hpRatio": int(m.group(1)) / 100, "source": m.group(0)})
     if re.search(r"Grants an extra turn", text):
         add({"kind": "extraTurn", "source": "Grants an extra turn"})
+    m = re.search(r"Decreases the amount of resources gained by the enemy by (\d+)%", text, re.I)
+    if m:
+        add({
+            "kind": "resourceCut",
+            "ratio": int(m.group(1)) / 100,
+            "source": m.group(0),
+            "simulated": False,
+            "gap": "Fribbels publishes no resource multiplier. The percent is the skill page, and it is not converted into souls.",
+        })
+    for sentence in re.split(r"(?<=\.)\s+", text):
+        if not re.search(r"grant(?:s|ed)?(?: \w+){0,6} stealth|be granted stealth", sentence, re.I):
+            continue
+        start = bool(re.search(r"at the start of (?:the first )?battle", sentence, re.I))
+        end = bool(re.search(r"at the end of the turn", sentence, re.I))
+        if not start and not end:
+            continue
+        turns_m = re.search(r"for (\d+) turn", sentence, re.I)
+        if not turns_m:
+            continue
+        chance_m = re.search(r"(\d+(?:\.\d+)?)% chance", sentence, re.I)
+        entry = {
+            "kind": "stealth",
+            "turns": int(turns_m.group(1)),
+            "atBattleStart": start,
+            "atTurnEnd": end,
+            "source": sentence.strip(),
+            "gap": "Fribbels herodata has no stealth chance. This number is the skill page.",
+        }
+        if chance_m:
+            entry["chance"] = float(chance_m.group(1)) / 100
+        add(entry)
 
     for m in re.finditer(
         r"(?:with |has )?a (\d+)% chance(?: each)? to (?:inflict |decrease )?"

@@ -19834,6 +19834,14 @@
               "amount": 30,
               "atBattleStart": false,
               "source": "increases Combat Readiness of the caster by 30%"
+            },
+            {
+              "kind": "stealth",
+              "turns": 2,
+              "atBattleStart": true,
+              "atTurnEnd": false,
+              "source": "At the start of the first battle, grants stealth for 2 turns.",
+              "gap": "Fribbels herodata has no stealth chance. This number is the skill page."
             }
           ],
           "fribbelsOnly": false
@@ -20724,6 +20732,14 @@
               "simulated": false,
               "source": "gains 10 Fighting Spirit",
               "amount": 10
+            },
+            {
+              "kind": "stealth",
+              "turns": 1,
+              "atBattleStart": true,
+              "atTurnEnd": false,
+              "source": "At the start of the first battle, gains 50 Fighting Spirit and grants stealth for 1 turn.",
+              "gap": "Fribbels herodata has no stealth chance. This number is the skill page."
             }
           ],
           "fribbelsOnly": false
@@ -25030,6 +25046,14 @@
               "simulated": false,
               "source": "Grants immunity to the caster for 2 turns",
               "turns": 2
+            },
+            {
+              "kind": "stealth",
+              "turns": 1,
+              "atBattleStart": true,
+              "atTurnEnd": true,
+              "source": "At the start of battle and at the end of the turn, grants stealth for 1 turn.",
+              "gap": "Fribbels herodata has no stealth chance. This number is the skill page."
             }
           ],
           "fribbelsOnly": false
@@ -27534,7 +27558,16 @@
           "enhanceEffectPct": 0,
           "enhanceCooldownCut": 0,
           "text": "When attacked, damage suffered in one attack does not exceed 70% of max Health. At the start of the turn, when the caster's Health is 60% or more, grants increased Attack for 1 turn. At the end of the turn, grants stealth for 1 turn.",
-          "effects": [],
+          "effects": [
+            {
+              "kind": "stealth",
+              "turns": 1,
+              "atBattleStart": false,
+              "atTurnEnd": true,
+              "source": "At the end of the turn, grants stealth for 1 turn.",
+              "gap": "Fribbels herodata has no stealth chance. This number is the skill page."
+            }
+          ],
           "fribbelsOnly": false
         },
         "S3": {
@@ -30349,6 +30382,14 @@
               "amount": 50,
               "atBattleStart": false,
               "source": "Increases Combat Readiness of the caster by 50%"
+            },
+            {
+              "kind": "stealth",
+              "turns": 2,
+              "atBattleStart": true,
+              "atTurnEnd": false,
+              "source": "At the start of the first battle, grants stealth for 2 turns.",
+              "gap": "Fribbels herodata has no stealth chance. This number is the skill page."
             }
           ],
           "fribbelsOnly": false
@@ -41615,7 +41656,17 @@
           "enhanceEffectPct": 0,
           "enhanceCooldownCut": 0,
           "text": "Decreases the amount of Focus gained by the enemy by 100%. At the start of the turn, has a 70% chance to grant daydream for 1 turn, and at the end of the turn, has a 70% chance to grant stealth for 1 turn.",
-          "effects": [],
+          "effects": [
+            {
+              "kind": "stealth",
+              "turns": 1,
+              "atBattleStart": false,
+              "atTurnEnd": true,
+              "source": "At the start of the turn, has a 70% chance to grant daydream for 1 turn, and at the end of the turn, has a 70% chance to grant stealth for 1 turn.",
+              "gap": "Fribbels herodata has no stealth chance. This number is the skill page.",
+              "chance": 0.7
+            }
+          ],
           "fribbelsOnly": false
         },
         "S3": {
@@ -41754,7 +41805,24 @@
           "enhanceEffectPct": 0,
           "enhanceCooldownCut": 0,
           "text": "Decreases the amount of resources gained by the enemy by 50%. At the start of battle and at the end of the turn, has a 60% chance to grant stealth for 1 turn.",
-          "effects": [],
+          "effects": [
+            {
+              "kind": "resourceCut",
+              "ratio": 0.5,
+              "source": "Decreases the amount of resources gained by the enemy by 50%",
+              "simulated": false,
+              "gap": "Fribbels publishes no resource multiplier. The percent is the skill page, and it is not converted into souls."
+            },
+            {
+              "kind": "stealth",
+              "turns": 1,
+              "atBattleStart": true,
+              "atTurnEnd": true,
+              "source": "At the start of battle and at the end of the turn, has a 60% chance to grant stealth for 1 turn.",
+              "gap": "Fribbels herodata has no stealth chance. This number is the skill page.",
+              "chance": 0.6
+            }
+          ],
           "fribbelsOnly": false
         },
         "S3": {
@@ -60699,6 +60767,14 @@
               "source": "decreasing Combat Readiness by 50%",
               "simulated": false,
               "gap": "The sentence gives a Combat Readiness percent but does not name who receives it."
+            },
+            {
+              "kind": "stealth",
+              "turns": 1,
+              "atBattleStart": true,
+              "atTurnEnd": true,
+              "source": "At the start of battle and at the end of the turn, grants stealth for 1 turn.",
+              "gap": "Fribbels herodata has no stealth chance. This number is the skill page."
             }
           ],
           "fribbelsOnly": false,
@@ -63482,6 +63558,14 @@
               "source": "increases Combat Readiness by 20%",
               "simulated": false,
               "gap": "The sentence gives a Combat Readiness percent but does not name who receives it."
+            },
+            {
+              "kind": "stealth",
+              "turns": 1,
+              "atBattleStart": true,
+              "atTurnEnd": true,
+              "source": "At the start of battle and at the end of the turn, grants stealth to the caster for 1 turn.",
+              "gap": "Fribbels herodata has no stealth chance. This number is the skill page."
             }
           ],
           "fribbelsOnly": false

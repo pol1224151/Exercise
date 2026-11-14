@@ -1063,6 +1063,12 @@ function makeFightUnits(draft, roster, catalog, enhanceMode, enemyMode = "refere
       sets: stats.sets || [],
     }, def, enhanceMode);
     unit.side = side;
+    unit.guidingLightRate = null;
+    if (def.role === "ranger") {
+      const light = (def.rtaGear?.artifacts || []).find((art) => (art.names || [])[0] === "Guiding Light");
+      if (light && typeof light.pickRate === "number") unit.guidingLightRate = light.pickRate / 100;
+    }
+    if (side === "enemy" && opensOnFullCooldown(def) != null) unit.sets = ["Warfare"];
     return unit;
   };
   return {
@@ -1076,7 +1082,7 @@ export function fightFromRoster(draft, roster, catalog, plan, enhanceMode, rand,
   return simulateUnits(made.user, made.enemy, plan, rand, draft.userFirst !== false);
 }
 
-function openPassives(units, log) {
+function openPassives(units, rand, log) {
   for (const side of ["user", "enemy"]) {
     const group = units.filter((unit) => unit.side === side);
     const mages = group.filter((unit) => unit.role === "mage");
@@ -1094,6 +1100,7 @@ function openPassives(units, log) {
       }
     }
   }
+  applyBattleStart(units, rand, log);
 }
 
 function advanceActor(units, userFirst) {
@@ -1111,7 +1118,7 @@ function ultWave(catalog, roster, userIds, enemyIds, userFirst, rand) {
   const made = makeFightUnits({ userFight: userIds, enemyFight: enemyIds, userFirst }, roster, catalog, "base");
   const units = [...made.user, ...made.enemy];
   const log = [];
-  openPassives(units, log);
+  openPassives(units, rand, log);
   const order = actingOrder(made.enemy.filter((unit) => unit.alive), units, userFirst);
   for (const actor of order) {
     if (!actor.alive || !made.user.some((unit) => unit.alive)) break;
@@ -1147,6 +1154,7 @@ function simulateUnits(userUnits, enemyUnits, plan, rand, userFirst = true) {
       }
     }
   }
+  applyBattleStart(units, rand, log);
   let firstActor = null;
   let actions = 0;
   let winner = null;
@@ -1306,6 +1314,13 @@ function takeTurn(actor, units, plan, rand, log) {
   const targets = support && skillParts.buffs.length
     ? buffReceivers(skill, actor, allies)
     : pickTargets(foes, skill.targets || (skill.effects?.length ? foes.length : 1));
+  if (!support && !targets.length) {
+    log.push(`${actor.nameZh} 單目標打不到隱身的人。`);
+    tickDebuffs(actor);
+    refreshTurnStealth(actor, rand, log);
+    refreshDef(actor);
+    return;
+  }
   const parts = [];
   for (const target of targets) {
     if (support) {
@@ -1359,12 +1374,16 @@ function takeTurn(actor, units, plan, rand, log) {
     log.push(`${actor.nameZh} 全能力值變 2 倍（技能原文）。`);
   }
   tickDebuffs(actor);
+  refreshTurnStealth(actor, rand, log);
   refreshDef(actor);
 }
 
 function pickTargets(foes, count) {
-  const sorted = foes.slice().sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
-  if (count >= foes.length) return sorted;
+  const aoe = count >= foes.length;
+  const pool = aoe ? foes.slice() : foes.filter((unit) => !(unit.buffs || []).includes("stealth"));
+  if (!pool.length) return [];
+  const sorted = pool.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
+  if (aoe || count >= pool.length) return sorted;
   return sorted.slice(0, Math.max(1, count));
 }
 
@@ -1428,6 +1447,10 @@ function tickDebuffs(actor) {
     d.turns -= 1;
     return d.turns > 0;
   });
+  if (actor.stealthTurns > 0) {
+    actor.stealthTurns -= 1;
+    if (actor.stealthTurns <= 0) actor.buffs = (actor.buffs || []).filter((buff) => buff !== "stealth");
+  }
 }
 
 export function sourceBasis(catalog) {
@@ -1884,19 +1907,122 @@ function formNames(text) {
   return names.slice(0, 2);
 }
 
+function stealthGrants(skills) {
+  const grants = [];
+  for (const slot of ["S1", "S2", "S3"]) {
+    const text = skills?.[slot]?.text || "";
+    for (const sentence of text.split(/(?<=\.)\s+/)) {
+      if (!/grant(?:s|ed)?(?: \w+){0,6} stealth|be granted stealth/i.test(sentence)) continue;
+      const atBattleStart = /at the start of (?:the first )?battle/i.test(sentence);
+      const atTurnEnd = /at the end of the turn/i.test(sentence);
+      if (!atBattleStart && !atTurnEnd) continue;
+      const chanceMatch = sentence.match(/(\d+(?:\.\d+)?)%\s+chance/i);
+      const turnsMatch = sentence.match(/for (\d+) turn/i);
+      if (!turnsMatch) continue;
+      grants.push({
+        slot,
+        chance: chanceMatch ? Number(chanceMatch[1]) / 100 : null,
+        turns: Number(turnsMatch[1]),
+        atBattleStart,
+        atTurnEnd,
+      });
+    }
+  }
+  return grants;
+}
+
+function resourceCuts(skills) {
+  const lines = [];
+  for (const skill of Object.values(skills || {})) {
+    const match = `${skill?.text || ""}`.match(/Decreases the amount of resources gained by the enemy by (\d+)%/i);
+    if (match && !lines.includes(`敵方獲得的資源減少 ${match[1]}%`)) lines.push(`敵方獲得的資源減少 ${match[1]}%`);
+  }
+  return lines;
+}
+
+function opensOnFullCooldown(hero) {
+  const skill = hero?.skills?.S3;
+  if (!skill || typeof skill.cooldownShown !== "number") return null;
+  if (!/begins the first battle with (?:a )?full (?:skill )?cooldown count/i.test(`${skill.text || ""} ${skill.textBeforeAwaken || ""}`)) return null;
+  return skill.cooldownShown;
+}
+
+function grantStealth(unit, turns, log, why) {
+  if (!unit.buffs) unit.buffs = [];
+  if (!unit.buffs.includes("stealth")) unit.buffs.push("stealth");
+  unit.stealthTurns = Math.max(unit.stealthTurns || 0, turns);
+  log.push(`${unit.nameZh} 隱身 ${turns} 回合（${why}）。`);
+}
+
+function applyBattleStart(units, rand, log) {
+  for (const unit of units) {
+    for (const grant of stealthGrants(unit.skills)) {
+      if (!grant.atBattleStart) continue;
+      const chance = grant.chance == null ? 1 : grant.chance;
+      if (rand() < chance) grantStealth(unit, grant.turns, log, "技能原文");
+    }
+    if (typeof unit.guidingLightRate === "number" && rand() < unit.guidingLightRate) {
+      grantStealth(unit, 1, log, `引導之光出場 ${Math.round(unit.guidingLightRate * 1000) / 10}%`);
+    }
+  }
+}
+
+function refreshTurnStealth(actor, rand, log) {
+  for (const grant of stealthGrants(actor.skills)) {
+    if (!grant.atTurnEnd) continue;
+    const chance = grant.chance == null ? 1 : grant.chance;
+    if (rand() < chance) grantStealth(actor, grant.turns, log, "技能原文");
+  }
+}
+
+const ARTIFACT_NOTES = {
+  "Guiding Light": {
+    effect: "開場賦予隱身 1 回合。回合結束再隱身，技能頁 Lv.1 寫 35%、Lv.11 寫 70%，都是 2 回合，每 2 回合最多一次。沒有神器等級，不選一個機率進沙盤。",
+    answer: "應對：穿上時開場有隱身，單目標打不到，全體攻擊打得到。",
+  },
+  "Aubade Orb": {
+    effect: "開場獲得 10 魂。回合結束再獲得 5 魂，技能頁 Lv.1 寫 50%、Lv.11 寫 100%，最多 3 次。沒有神器等級，不選一個機率進沙盤。",
+    answer: "應對：魂比沒穿時多，燒魂仍看當下魂量。",
+  },
+  "Unseen Observer": {
+    effect: "放非攻擊技能後拉條，技能頁 Lv.1 寫 10%、Lv.11 寫 20%，並獲得 10 魂，魂只拿一次。沒有神器等級，不選一個拉條數字進沙盤。",
+    answer: "應對：他放非攻擊技之後會拉條。",
+  },
+  "Wall of Order": {
+    effect: "回合結束隱身，技能頁 Lv.1 寫 50%、Lv.11 寫 100%，1 回合。回合開始依敵方強化給自己強攻，Lv.1 寫 6%、Lv.11 寫 12%。沒有神器等級，不選一個機率進沙盤。這件不是開場隱身。",
+    answer: "應對：開場單目標仍打得到，隱身要等回合結束。",
+  },
+};
+
+function artifactLines(catalog, hero) {
+  if (hero?.role !== "ranger") return [];
+  const arts = hero?.rtaGear?.artifacts || [];
+  if (!arts.length) return ["弓系沒有公開的神器出場率，不把引導之光算成已穿上。"];
+  return arts.filter((art) => art?.names?.[0] && typeof art.pickRate === "number").map((art) => {
+    const name = art.names[0];
+    const note = ARTIFACT_NOTES[name];
+    const title = `神器 ${artifactZh(catalog, name)}，出場 ${art.pickRate}%`;
+    if (!note) return `${title}。沒有收進這件的效果文字，不另編效果。`;
+    return `${title}。${note.effect}${note.answer}`;
+  });
+}
+
 function openingLine(catalog, hero) {
   const gear = hero?.rtaGear;
   const combo = gear?.setCombos?.[0];
-  const art = gear?.artifacts?.[0];
-  if (!combo && !art) return "開戰常見做法：沒有公開的開戰配裝。";
   const bits = [];
+  const cooldown = opensOnFullCooldown(hero);
+  if (cooldown != null) bits.push(`大招冷卻 ${cooldown} 回合，公開文字寫開場冷卻到最大，預設對方穿開戰套`);
+  for (const grant of stealthGrants(hero?.skills).filter((row) => row.atBattleStart)) {
+    const chance = grant.chance == null ? "技能原文沒有另寫機率，依原文給隱身" : `${Math.round(grant.chance * 1000) / 10}% 機率隱身`;
+    bits.push(`開場 ${chance} ${grant.turns} 回合。Fribbels 沒有另給隱身機率，這段用技能頁`);
+  }
   if (combo?.names?.length && typeof combo.pickRate === "number") {
-    bits.push(`套裝 ${combo.names.map((name) => setZh(name)).join("、")}，出場 ${combo.pickRate}%`);
+    bits.push(`公開套裝 ${combo.names.map((name) => setZh(name)).join("、")}，出場 ${combo.pickRate}%`);
   }
-  if (art?.names?.[0] && typeof art.pickRate === "number") {
-    bits.push(`神器 ${artifactZh(catalog, art.names[0])}，出場 ${art.pickRate}%`);
-  }
-  return bits.length ? `開戰常見做法：${bits.join("；")}。` : "開戰常見做法：沒有公開的開戰配裝。";
+  bits.push(...artifactLines(catalog, hero));
+  if (!bits.length) return "開戰常見做法：沒有公開的開戰配裝。";
+  return `開戰常見做法：${bits.join("。")}。`;
 }
 
 function ultLine(hero) {
@@ -1937,8 +2063,10 @@ function passiveLine(hero) {
     if (skill.passive) {
       const parts = splitSkill(skill);
       const labels = [...effectLabels(parts.buffs), ...effectLabels(parts.debuffs)];
-      const line = labels.length ? `${slot} 被動：${labels.join("、")}` : `${slot} 被動沒有另編數字`;
-      if (!bits.includes(line)) bits.push(line);
+      if (labels.length) {
+        const line = `${slot} 被動：${labels.join("、")}`;
+        if (!bits.includes(line)) bits.push(line);
+      }
     }
     for (const effect of skill.effects || []) {
       if (!effect || effect.simulated === false) continue;
@@ -1951,6 +2079,15 @@ function passiveLine(hero) {
         if (!bits.includes(line)) bits.push(line);
       }
     }
+  }
+  for (const grant of stealthGrants(hero?.skills)) {
+    const when = [grant.atBattleStart ? "開場" : "", grant.atTurnEnd ? "回合結束" : ""].filter(Boolean).join("、");
+    const chance = grant.chance == null ? "沒有另寫機率" : `${Math.round(grant.chance * 1000) / 10}%`;
+    const line = `${when}隱身 ${grant.turns} 回合，${chance}`;
+    if (!bits.includes(line)) bits.push(line);
+  }
+  for (const line of resourceCuts(hero?.skills)) {
+    if (!bits.includes(line)) bits.push(line);
   }
   return bits.length ? `被動：${bits.join("，")}。` : "被動：公開文字沒有另列被動數字。";
 }

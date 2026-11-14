@@ -609,6 +609,44 @@ const yulhaBrief = battleBrief(catalog, roster, {
 assert.equal(yulhaBrief.ok, true, yulhaBrief.reason?.summary);
 assert.match(yulhaBrief.reason.summary, /保健室老師律荷/);
 assert.match(yulhaBrief.reason.summary, /開大給/);
+
+const specterBrief = battleBrief(catalog, roster, {
+  userFirst: true,
+  userFight: ["arbiter-vildred", "aubade-ludwig", "belian", "estelle"],
+  enemyFight: ["sea-phantom-politis", "mercedes", "ras", "diene"],
+});
+assert.equal(specterBrief.ok, true, specterBrief.reason?.summary);
+const specterAt = specterBrief.reason.summary.indexOf("海上幽靈佛里蒂絲");
+const specterEnd = specterBrief.reason.summary.indexOf("玫勒賽德絲", specterAt);
+const specterSlice = specterBrief.reason.summary.slice(specterAt, specterEnd);
+assert.match(specterSlice, /60% 機率隱身/);
+assert.match(specterSlice, /資源減少 50%/);
+assert.equal(specterSlice.includes("沒有公開的開戰配裝"), false);
+assert.match(specterSlice, /弓系沒有公開的神器出場率/);
+
+const warfare = battleBrief(catalog, roster, {
+  userFirst: false,
+  userFight: ["arbiter-vildred", "aubade-ludwig", "belian", "estelle"],
+  enemyFight: ["notos", "hecate", "mei-lin", "dark-corvus"],
+});
+assert.equal(warfare.ok, true, warfare.reason?.summary);
+for (const name of ["諾托斯", "赫卡特", "梅鈴", "黑暗的科爾布思"]) {
+  assert.match(warfare.reason.summary, new RegExp(`${name}[\\s\\S]{0,180}預設對方穿開戰套`));
+}
+const ranger = battleBrief(catalog, roster, {
+  userFirst: true,
+  userFight: ["arbiter-vildred", "belian", "estelle", "harsetti"],
+  enemyFight: ["aubade-ludwig", "mercedes", "ras", "diene"],
+});
+assert.equal(ranger.ok, true, ranger.reason?.summary);
+const rangerAt = ranger.reason.summary.indexOf("黎明的序曲魯特比");
+const rangerSlice = ranger.reason.summary.slice(rangerAt, rangerAt + 700);
+assert.match(rangerSlice, /引導之光，出場 16\.41%/);
+assert.match(rangerSlice, /開場賦予隱身 1 回合/);
+assert.match(rangerSlice, /黎明寶珠/);
+assert.match(rangerSlice, /隱形的觀察者/);
+assert.match(rangerSlice, /秩序護牆/);
+assert.match(rangerSlice, /應對/);
 assert.match(yulhaBrief.reason.summary, /增益/);
 assert.equal(yulhaBrief.reason.summary.includes("先打"), false);
 assert.equal(yulhaBrief.reason.summary.includes("要開大"), false);
