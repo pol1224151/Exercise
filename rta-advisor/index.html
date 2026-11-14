@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第七史詩 RTA 顧問</title>
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="bar">
+      <div>
+        <p class="eyebrow">第七史詩　世界競技場</p>
+        <h1>下一步</h1>
+      </div>
+      <div class="bar-actions">
+        <label class="import-account">匯入帳號
+          <input id="importFile" type="file" accept=".txt,.json,application/json,text/plain">
+        </label>
+        <button id="openSetup" type="button">帳號與設定</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="watch" class="watch">
+      <p id="noFrame">沒有收到畫面</p>
+      <div id="stage" class="stage" hidden>
+        <video id="game" autoplay playsinline muted></video>
+        <canvas id="board"></canvas>
+        <div id="boxes"></div>
+      </div>
+    </section>
+    <section id="draft" class="draft">
+      <div class="row">
+        <button id="weFirst" type="button">我先手</button>
+        <button id="theyFirst" type="button">對方先手</button>
+        <button id="resetDraft" type="button">這場重來</button>
+      </div>
+      <p id="draftStatus" class="note">點「我先手」或「對方先手」。我方格子會自己填上英雄。</p>
+      <div class="board">
+        <div class="lane">
+          <p class="lane-label">對方</p>
+          <div class="lane-row">
+            <div id="enemyCells" class="cells"></div>
+            <button id="ourBan" type="button" class="ban-cell"><em>✕</em><small>我禁對方</small></button>
+          </div>
+        </div>
+        <div class="lane">
+          <p class="lane-label">我方</p>
+          <div class="lane-row">
+            <div id="userCells" class="cells"></div>
+            <button id="theirBan" type="button" class="ban-cell"><em>✕</em><small>對方禁我</small></button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="now">
+      <button id="liveAction" type="button" class="action" disabled>先讀入帳號</button>
+      <p id="liveRate" class="rate">尚無勝率</p>
+      <p id="liveReason">按「匯入帳號」，選 gear.txt 或 Fribbels 的 Save all JSON。</p>
+      <div class="row" id="resultRow">
+        <button id="liveWin" type="button" disabled>贏了</button>
+        <button id="liveLoss" type="button" disabled>輸了</button>
+      </div>
+      <p id="liveRecord" class="note"></p>
+      <p id="heard" class="heard"></p>
+    </section>
+  </main>
+
+  <dialog id="setup">
+    <div class="dialog-bar">
+      <h2>帳號與設定</h2>
+      <button id="closeSetup" type="button">關閉</button>
+    </div>
+    <div class="dialog-body">
+      <section>
+        <h2>1. 讀入帳號</h2>
+        <p>先把角色和裝備放進來。還沒有這份帳號時，主畫面不會給選角。</p>
+        <ol class="steps">
+          <li>打開 Fribbels Epic 7 Optimizer。在 Importer 開始掃描，進到大廳，停止掃描，存成 gear.txt，再按 Merge。</li>
+          <li>同一個 Importer 頁按 Save all optimizer data，存成 JSON。這份才有面板、神器和刻印。</li>
+          <li>選擇那個 JSON 或 gear.txt，或把內容貼進下面的框再按「用框裡的內容」。</li>
+        </ol>
+        <div class="row">
+          <label class="file">選擇 Fribbels 檔案<input id="file" type="file" accept=".json,.txt,application/json"></label>
+          <button id="applyText" type="button">用框裡的內容</button>
+          <button id="loadExample" type="button">載入 Fribbels 格式範例</button>
+          <button id="loadSample" type="button">載入標好的範例名單</button>
+          <button id="forget" type="button">忘掉這台存的帳號</button>
+        </div>
+        <p id="rosterState" class="state">還沒有帳號。</p>
+        <textarea id="rosterText" spellcheck="false" aria-label="帳號 JSON"></textarea>
+        <p class="note">讀入後存在這台瀏覽器，下次打開同一頁會直接用，不會上傳。範例檔寫明不是你的角色。</p>
+      </section>
+
+      <section>
+        <h2>2. 依這個帳號建議現在的 META 裝備</h2>
+        <p class="note">神器只建議你帳號裡有的。速度只拿你讀得到的裝備去比公開配裝的中位數；到不了就直說，不會把別人的面板寫成你的。主屬性與副屬性是 Epic7Tools 的建議，不是賽季頻率。沙盤用你穿上的數字。</p>
+        <div id="gear" class="grid"><p>先讀入帳號，才會對照賽季配裝。</p></div>
+      </section>
+
+      <section>
+        <h2>3. 競技場開始後才看畫面</h2>
+        <p id="screenLock" class="warn">請先完成第 1 步。帳號讀進來之後，等世界競技場開打，再分享遊戲視窗。</p>
+        <ol class="steps">
+          <li>雙擊 <code>RtaAdvisor.exe</code> 後這個頁面會自己打開。黑色視窗要留著。</li>
+          <li>競技場畫面出現後，按「分享遊戲視窗」。在系統清單選第七史詩或模擬器那個視窗，然後按分享。關掉這個視窗後，主畫面會顯示程式拿到的那一幀。</li>
+          <li>遊戲維持 16:9。程式讀左右兩排大卡上的名字，主畫面把這一幀的原文和英雄對在一起。整段對上資料庫才填英雄，對不上留空。底下的推薦英雄和事先禁用不會當成已經選的人。</li>
+          <li>主畫面是方塊格子。按「我先手」或「對方先手」。先手規則是先手 1-2-2、後手 2-2-1。我方五格由顧問填名字，對方五格由你點。雙方第 1、2 選和第 4、5 選都是關鍵，第 3 選是保護，不能打叉。選滿後點格子或禁位打叉，對手禁了誰也由你點。禁完後寫誰先打誰、要不要開大、先殺誰。</li>
+          <li>讀不到或對不上的那張卡，點一下再選。一張卡只留一個完整中文名，對上資料庫才填。碎字、亂碼、對不上的留空，不猜。清單是資料庫裡的全部英雄。沒有技能倍率的標未收錄。</li>
+        </ol>
+        <div class="row">
+          <button id="share" type="button" class="primary" disabled>分享遊戲視窗</button>
+          <button id="read" type="button" disabled>開始判讀</button>
+        </div>
+        <p id="captureState" class="state">畫面判讀還沒開。</p>
+        <div class="row">
+          <label>分段
+            <select id="rank">
+              <option value="champion">冠軍以上，各預禁 2 名</option>
+              <option value="below">冠軍以下，各預禁 1 名</option>
+            </select>
+          </label>
+          <label class="check"><input id="maxEnhance" type="checkbox"> 技能用滿強化估算（檔案通常沒有強化等級）</label>
+          <label>實戰門檻
+            <input id="cutoff" type="number" min="0" max="100" step="1" value="40"> %
+          </label>
+        </div>
+        <p class="note">同類型 4 對 4 的實戰勝率低於這個百分比，選角就改推薦沙盤裡的另一組。預設 40。剛好等於門檻不換。先手規則：先手 1-2-2，後手 2-2-1，每邊 5 名。雙方第 1、2 選和第 4、5 選都是關鍵，第 3 選是保護。戰況只用資料庫裡有數字的效果。法師位預設帶給 20 魂的魂書。沒有倍率的不另編。</p>
+      </section>
+
+      <section>
+        <h2>記這場勝敗</h2>
+        <p class="note">打成 4 對 4 才能記。同一場再按會改掉剛才的勝敗，不會多算一場。記在這台瀏覽器，不上傳。</p>
+        <div class="row">
+          <button id="markWin" type="button" disabled>這場我贏了</button>
+          <button id="markLoss" type="button" disabled>這場我輸了</button>
+        </div>
+        <p id="recordState" class="note"></p>
+      </section>
+
+      <section>
+        <h2>4. 更新英雄、倍率與賽季</h2>
+        <p>Smilegate 出新英雄、平衡改版或新神器時，按這顆重新抓 Fribbels 的英雄資料庫和倍率，以及 Epic7RTAStats 的賽季模型。</p>
+        <button id="update" type="button">更新英雄、倍率與賽季</button>
+        <p id="updateState" class="note">現在用的是已標版本的一份資料。按更新才會向來源要新的。</p>
+        <p class="sources">賽季：<span id="season"></span>。遊戲版本：<span id="patch"></span>。技能倍率：<span id="dataLine"></span>。</p>
+        <p id="versionLine" class="note"></p>
+      </section>
+
+      <section>
+        <h2>5. 對位</h2>
+        <p class="note">只列技能原文裡寫得出原因的對位。沒有寫進資料的機制不會編成對位。</p>
+        <ul id="counters"></ul>
+      </section>
+    </div>
+  </dialog>
+
+  <dialog id="picker">
+    <div class="dialog-bar">
+      <h2>這張卡是誰</h2>
+      <button id="closePicker" type="button">關閉</button>
+    </div>
+    <div class="dialog-body">
+      <p class="note">點對的英雄。這台瀏覽器會記住這張卡，之後同一張用你選的人。</p>
+      <input id="pickerSearch" type="search" placeholder="輸入英雄名字" aria-label="尋找英雄">
+      <div id="pickerList" class="picker-list"></div>
+    </div>
+  </dialog>
+
+  <script type="module" src="./js/ui.js"></script>
+</body>
+</html>

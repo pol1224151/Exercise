@@ -1,0 +1,1640 @@
+{
+  "season": "pvp_rta_ss21",
+  "source": "https://www.epic7rtastats.com/heroes",
+  "fetchedOn": "2026-11-14",
+  "note": "Names and multipliers come from the Fribbels database already in catalog.json. Presence numbers are copied from the Epic7RTAStats season ladder. listed is false when that database hero has no positive skill rate and pow. No multiplier was filled in.",
+  "heroes": [
+    {
+      "id": "lisette",
+      "code": "c2186",
+      "name": "Lisette",
+      "nameZh": "黎潔特",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 160240,
+        "losses": 111212,
+        "bans": 67576,
+        "prebans": 1719256,
+        "games": 1693679,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "lady-of-the-scales",
+      "code": "c6005",
+      "name": "Lady of the Scales",
+      "nameZh": "天秤之主",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 377826,
+        "losses": 339771,
+        "bans": 127053,
+        "prebans": 1094810,
+        "games": 1640850,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "notos",
+      "code": "c2181",
+      "name": "Notos",
+      "nameZh": "諾托斯",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 213877,
+        "losses": 184631,
+        "bans": 105226,
+        "prebans": 1051607,
+        "games": 1300332,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "rhianna-and-luciella",
+      "code": "c2185",
+      "name": "Rhianna and Luciella",
+      "nameZh": "里安娜路西艾拉",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 391426,
+        "losses": 386774,
+        "bans": 114851,
+        "prebans": 1041139,
+        "games": 1683084,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "harsetti",
+      "code": "c1153",
+      "name": "Harsetti",
+      "nameZh": "赫爾賽蒂",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 148632,
+        "losses": 150845,
+        "bans": 85469,
+        "prebans": 579185,
+        "games": 835333,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "zio",
+      "code": "c1133",
+      "name": "Zio",
+      "nameZh": "智武",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 210512,
+        "losses": 271125,
+        "bans": 36606,
+        "prebans": 418385,
+        "games": 877662,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "perfumer-byblis",
+      "code": "c5154",
+      "name": "Perfumer Byblis",
+      "nameZh": "調香師維波里絲",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 392870,
+        "losses": 345137,
+        "bans": 78535,
+        "prebans": 226963,
+        "games": 957537,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "boss-arunka",
+      "code": "c2124",
+      "name": "Boss Arunka",
+      "nameZh": "組長亞露嘉",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 360709,
+        "losses": 387194,
+        "bans": 84236,
+        "prebans": 147167,
+        "games": 892318,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "tidal-rift-elvira",
+      "code": "c2148",
+      "name": "Tidal Rift Elvira",
+      "nameZh": "波濤的裂痕艾碧拉",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 210144,
+        "losses": 191936,
+        "bans": 73350,
+        "prebans": 146700,
+        "games": 545869,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "shepherd-of-the-dark-diene",
+      "code": "c2076",
+      "name": "Shepherd of the Dark Diene",
+      "nameZh": "黑暗牧者迪埃妮",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 340030,
+        "losses": 283429,
+        "bans": 242924,
+        "prebans": 102509,
+        "games": 724458,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "eye-of-the-abyss-fumyr",
+      "code": "c5147",
+      "name": "Eye of the Abyss Fumyr",
+      "nameZh": "深海之眼芙米爾",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 224637,
+        "losses": 218641,
+        "bans": 48913,
+        "prebans": 97465,
+        "games": 539247,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "belian",
+      "code": "c1117",
+      "name": "Belian",
+      "nameZh": "伯里安",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 194667,
+        "losses": 185308,
+        "bans": 108164,
+        "prebans": 93261,
+        "games": 471947,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "briar-witch-iseria",
+      "code": "c2024",
+      "name": "Briar Witch Iseria",
+      "nameZh": "灰光森林的伊賽麗亞",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 101576,
+        "losses": 100006,
+        "bans": 18275,
+        "prebans": 63040,
+        "games": 264298,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "school-nurse-yulha",
+      "code": "c2131",
+      "name": "School Nurse Yulha",
+      "nameZh": "保健室老師律荷",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 447727,
+        "losses": 471714,
+        "bans": 121708,
+        "prebans": 62722,
+        "games": 981626,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "aube",
+      "code": "c5190",
+      "name": "Aube",
+      "nameZh": "奧芙",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 134853,
+        "losses": 123126,
+        "bans": 18295,
+        "prebans": 52651,
+        "games": 310139,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "aubade-ludwig",
+      "code": "c5069",
+      "name": "Aubade Ludwig",
+      "nameZh": "黎明的序曲魯特比",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 171960,
+        "losses": 180721,
+        "bans": 122493,
+        "prebans": 48676,
+        "games": 400805,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "salome",
+      "code": "c2184",
+      "name": "Salome",
+      "nameZh": "薩洛美",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 111483,
+        "losses": 118905,
+        "bans": 38689,
+        "prebans": 47149,
+        "games": 277273,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "estelle",
+      "code": "c1183",
+      "name": "Estelle",
+      "nameZh": "艾絲黛",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 509886,
+        "losses": 500480,
+        "bans": 84451,
+        "prebans": 46061,
+        "games": 1056159,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "hecate",
+      "code": "c1178",
+      "name": "Hecate",
+      "nameZh": "赫卡特",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 111930,
+        "losses": 132052,
+        "bans": 62857,
+        "prebans": 39516,
+        "games": 283297,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "arbiter-vildred",
+      "code": "c2007",
+      "name": "Arbiter Vildred",
+      "nameZh": "執行官維德瑞",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 381333,
+        "losses": 375322,
+        "bans": 121493,
+        "prebans": 27132,
+        "games": 783686,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "monarch-of-the-sword-iseria",
+      "code": "c6024",
+      "name": "Monarch of the Sword Iseria",
+      "nameZh": "寶劍君主伊賽麗亞",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 167019,
+        "losses": 167023,
+        "bans": 108211,
+        "prebans": 22046,
+        "games": 356020,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "new-moon-luna",
+      "code": "c2066",
+      "name": "New Moon Luna",
+      "nameZh": "新月露娜",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 107577,
+        "losses": 101897,
+        "bans": 60716,
+        "prebans": 21029,
+        "games": 230408,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "rinak",
+      "code": "c1168",
+      "name": "Rinak",
+      "nameZh": "利納柯",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 170860,
+        "losses": 182307,
+        "bans": 72992,
+        "prebans": 20750,
+        "games": 373837,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "mort",
+      "code": "c1104",
+      "name": "Mort",
+      "nameZh": "魔勒",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 61749,
+        "losses": 55068,
+        "bans": 48576,
+        "prebans": 12013,
+        "games": 128803,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "haru",
+      "code": "c1192",
+      "name": "Haru",
+      "nameZh": "小春",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 224229,
+        "losses": 227369,
+        "bans": 44358,
+        "prebans": 11107,
+        "games": 462688,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "uncharted-pioneer-politis",
+      "code": "c5112",
+      "name": "Uncharted Pioneer Politis",
+      "nameZh": "未知的開拓者佛里蒂絲",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 116834,
+        "losses": 119384,
+        "bans": 34099,
+        "prebans": 10499,
+        "games": 246706,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "frieren",
+      "code": "c1172",
+      "name": "Frieren",
+      "nameZh": "芙莉蓮",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 169621,
+        "losses": 139439,
+        "bans": 95882,
+        "prebans": 9298,
+        "games": 318342,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "desert-jewel-basar",
+      "code": "c2053",
+      "name": "Desert Jewel Basar",
+      "nameZh": "沙漠寶石巴薩爾",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 100579,
+        "losses": 104551,
+        "bans": 26457,
+        "prebans": 8843,
+        "games": 213954,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "kawerik",
+      "code": "c1073",
+      "name": "Kawerik",
+      "nameZh": "卡威利",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 189684,
+        "losses": 189906,
+        "bans": 67283,
+        "prebans": 6852,
+        "games": 386433,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "ivana",
+      "code": "c1182",
+      "name": "Ivana",
+      "nameZh": "伊凡娜",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 88786,
+        "losses": 99448,
+        "bans": 96334,
+        "prebans": 6275,
+        "games": 194505,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "moon-bunny-dominiel",
+      "code": "c6037",
+      "name": "Moon Bunny Dominiel",
+      "nameZh": "月兔多米妮爾",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 100145,
+        "losses": 101903,
+        "bans": 44018,
+        "prebans": 6115,
+        "games": 208153,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "renoa",
+      "code": "c1193",
+      "name": "Renoa",
+      "nameZh": "蕾歐娜",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 118638,
+        "losses": 130587,
+        "bans": 34767,
+        "prebans": 5136,
+        "games": 254352,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "bunny-girl-great-detective-moro",
+      "code": "c2187",
+      "name": "Bunny Girl Great Detective Moro",
+      "nameZh": "兔女郎名偵探茉蘿",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 35187,
+        "losses": 42640,
+        "bans": 5698,
+        "prebans": 4599,
+        "games": 82409,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "empyrean-ilynav",
+      "code": "c2113",
+      "name": "Empyrean Ilynav",
+      "nameZh": "蒼穹伊莉娜芙",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 77340,
+        "losses": 81134,
+        "bans": 41929,
+        "prebans": 4511,
+        "games": 162984,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "lidica",
+      "code": "c1046",
+      "name": "Lidica",
+      "nameZh": "麗迪卡",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 33305,
+        "losses": 32541,
+        "bans": 6702,
+        "prebans": 4328,
+        "games": 70159,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "frida",
+      "code": "c1163",
+      "name": "Frida",
+      "nameZh": "弗莉達",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 27973,
+        "losses": 33557,
+        "bans": 18335,
+        "prebans": 4003,
+        "games": 65527,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "disciplinary-prefect-aria",
+      "code": "c2129",
+      "name": "Disciplinary Prefect Aria",
+      "nameZh": "風紀委員艾莉雅",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 82571,
+        "losses": 85095,
+        "bans": 24294,
+        "prebans": 3242,
+        "games": 170904,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "witch-of-the-mere-tenebria",
+      "code": "c6050",
+      "name": "Witch of the Mere Tenebria",
+      "nameZh": "湖畔魔女泰妮布里雅",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 39635,
+        "losses": 45390,
+        "bans": 22607,
+        "prebans": 3076,
+        "games": 88099,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "schniel",
+      "code": "c1060",
+      "name": "Schniel",
+      "nameZh": "修尼爾",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 97312,
+        "losses": 100382,
+        "bans": 27833,
+        "prebans": 3038,
+        "games": 200728,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "setsuka",
+      "code": "c1176",
+      "name": "Setsuka",
+      "nameZh": "雪花",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 78253,
+        "losses": 78565,
+        "bans": 47211,
+        "prebans": 2531,
+        "games": 159348,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "mei-lin",
+      "code": "c1191",
+      "name": "Mei Lin",
+      "nameZh": "梅鈴",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 77949,
+        "losses": 89748,
+        "bans": 25115,
+        "prebans": 2309,
+        "games": 170005,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "swift-flagbearer-sigret",
+      "code": "c5072",
+      "name": "Swift Flagbearer Sigret",
+      "nameZh": "疾速賽車手賽珂蘭特",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 18408,
+        "losses": 19895,
+        "bans": 7723,
+        "prebans": 1976,
+        "games": 40279,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "genesis-ras",
+      "code": "c2001",
+      "name": "Genesis Ras",
+      "nameZh": "起源拉斯",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 174207,
+        "losses": 160862,
+        "bans": 59128,
+        "prebans": 1781,
+        "games": 336849,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "chaos-sect-axe",
+      "code": "c4025",
+      "name": "Chaos Sect Axe",
+      "nameZh": "混沌教巨斧大將軍",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 23798,
+        "losses": 27855,
+        "bans": 11742,
+        "prebans": 1561,
+        "games": 53214,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "silvertide-christy",
+      "code": "c4123",
+      "name": "Silvertide Christy",
+      "nameZh": "銀波克莉絲媞",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 66159,
+        "losses": 69084,
+        "bans": 23875,
+        "prebans": 1445,
+        "games": 136688,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "ruele-of-light",
+      "code": "c1022",
+      "name": "Ruele of Light",
+      "nameZh": "光之瑞兒",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 69212,
+        "losses": 66369,
+        "bans": 47343,
+        "prebans": 1160,
+        "games": 136740,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "little-queen-charlotte",
+      "code": "c2009",
+      "name": "Little Queen Charlotte",
+      "nameZh": "年輕的女王夏綠蒂",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 53663,
+        "losses": 51789,
+        "bans": 22772,
+        "prebans": 1126,
+        "games": 106578,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "lone-crescent-bellona",
+      "code": "c2071",
+      "name": "Lone Crescent Bellona",
+      "nameZh": "一輪孤月維爾蘿娜",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 68667,
+        "losses": 69277,
+        "bans": 38102,
+        "prebans": 1074,
+        "games": 139018,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "successor-taeyou",
+      "code": "c2127",
+      "name": "Successor Taeyou",
+      "nameZh": "繼承人太悟",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 44553,
+        "losses": 52230,
+        "bans": 41690,
+        "prebans": 994,
+        "games": 97777,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "tori",
+      "code": "c1171",
+      "name": "Tori",
+      "nameZh": "兔菈玫",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 23001,
+        "losses": 25223,
+        "bans": 9708,
+        "prebans": 911,
+        "games": 49135,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "midnight-gala-lilias",
+      "code": "c5089",
+      "name": "Midnight Gala Lilias",
+      "nameZh": "夜宴莉莉亞斯",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 55807,
+        "losses": 59347,
+        "bans": 22703,
+        "prebans": 897,
+        "games": 116051,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "young-senya",
+      "code": "c1162",
+      "name": "Young Senya",
+      "nameZh": "小小賽娜",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 50675,
+        "losses": 46937,
+        "bans": 40022,
+        "prebans": 791,
+        "games": 98403,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "lone-wolf-peira",
+      "code": "c2125",
+      "name": "Lone Wolf Peira",
+      "nameZh": "孤狼沛伊拉",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 32207,
+        "losses": 32600,
+        "bans": 4463,
+        "prebans": 790,
+        "games": 65597,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "spirit-eye-celine",
+      "code": "c2103",
+      "name": "Spirit Eye Celine",
+      "nameZh": "靈眼的瑟琳",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 65885,
+        "losses": 71805,
+        "bans": 20998,
+        "prebans": 716,
+        "games": 138406,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "aram",
+      "code": "c5175",
+      "name": "Aram",
+      "nameZh": "亞瀾",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 43931,
+        "losses": 41300,
+        "bans": 25658,
+        "prebans": 613,
+        "games": 85844,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "dark-corvus",
+      "code": "c2012",
+      "name": "Dark Corvus",
+      "nameZh": "黑暗的科爾布思",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 47932,
+        "losses": 52465,
+        "bans": 34915,
+        "prebans": 520,
+        "games": 100917,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "tactical-archetype-coli",
+      "code": "c5033",
+      "name": "Tactical Archetype Coli",
+      "nameZh": "戰術型可麗",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 115005,
+        "losses": 116892,
+        "bans": 62411,
+        "prebans": 409,
+        "games": 232306,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "faithless-lidica",
+      "code": "c2046",
+      "name": "Faithless Lidica",
+      "nameZh": "無神論者麗迪卡",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 28684,
+        "losses": 27266,
+        "bans": 7015,
+        "prebans": 399,
+        "games": 56349,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "celine",
+      "code": "c1103",
+      "name": "Celine",
+      "nameZh": "瑟琳",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 28379,
+        "losses": 33454,
+        "bans": 18268,
+        "prebans": 393,
+        "games": 62226,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "elena",
+      "code": "c1091",
+      "name": "Elena",
+      "nameZh": "艾蕾娜",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 22957,
+        "losses": 23977,
+        "bans": 13934,
+        "prebans": 368,
+        "games": 47302,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "amid",
+      "code": "c1143",
+      "name": "Amid",
+      "nameZh": "雅咪德",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 15076,
+        "losses": 16354,
+        "bans": 5229,
+        "prebans": 315,
+        "games": 31745,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "top-model-luluca",
+      "code": "c2082",
+      "name": "Top Model Luluca",
+      "nameZh": "最強模特兒璐璐卡",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 7889,
+        "losses": 9586,
+        "bans": 4003,
+        "prebans": 297,
+        "games": 17772,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "sea-phantom-politis",
+      "code": "c2112",
+      "name": "Sea Phantom Politis",
+      "nameZh": "海上幽靈佛里蒂絲",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 26887,
+        "losses": 26390,
+        "bans": 13512,
+        "prebans": 221,
+        "games": 53498,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "maid-chloe",
+      "code": "c2049",
+      "name": "Maid Chloe",
+      "nameZh": "僕人克蘿愛",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 25650,
+        "losses": 24634,
+        "bans": 13257,
+        "prebans": 194,
+        "games": 50478,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "elvira",
+      "code": "c1148",
+      "name": "Elvira",
+      "nameZh": "艾碧拉",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 19530,
+        "losses": 18693,
+        "bans": 16406,
+        "prebans": 156,
+        "games": 38379,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "vildred",
+      "code": "c1007",
+      "name": "Vildred",
+      "nameZh": "維德瑞",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 70132,
+        "losses": 66942,
+        "bans": 29444,
+        "prebans": 148,
+        "games": 137222,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "sinful-angelica",
+      "code": "c2062",
+      "name": "Sinful Angelica",
+      "nameZh": "罪戾的安潔莉卡",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 7923,
+        "losses": 10330,
+        "bans": 1937,
+        "prebans": 121,
+        "games": 18374,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "pirate-captain-flan",
+      "code": "c2110",
+      "name": "Pirate Captain Flan",
+      "nameZh": "海盜船長芙蘭",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 11787,
+        "losses": 13136,
+        "bans": 5857,
+        "prebans": 108,
+        "games": 25031,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "straze",
+      "code": "c1034",
+      "name": "Straze",
+      "nameZh": "史瑞杰思",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 17913,
+        "losses": 19196,
+        "bans": 13113,
+        "prebans": 98,
+        "games": 37207,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "saria",
+      "code": "c1177",
+      "name": "Saria",
+      "nameZh": "薩若米亞",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 43415,
+        "losses": 41336,
+        "bans": 40701,
+        "prebans": 88,
+        "games": 84839,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "lionheart-cermia",
+      "code": "c2079",
+      "name": "Lionheart Cermia",
+      "nameZh": "獅心王潔若米亞",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 19292,
+        "losses": 22116,
+        "bans": 11950,
+        "prebans": 87,
+        "games": 41495,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "dragon-king-sharun",
+      "code": "c2132",
+      "name": "Dragon King Sharun",
+      "nameZh": "龍王莎倫",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 6351,
+        "losses": 6804,
+        "bans": 3213,
+        "prebans": 87,
+        "games": 13242,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "infinite-horizon-achates",
+      "code": "c6017",
+      "name": "Infinite Horizon Achates",
+      "nameZh": "未知的可能性雅卡泰絲",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 18476,
+        "losses": 21444,
+        "bans": 10992,
+        "prebans": 84,
+        "games": 40004,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "aki",
+      "code": "c1179",
+      "name": "Aki",
+      "nameZh": "亞奇",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 23685,
+        "losses": 25077,
+        "bans": 20650,
+        "prebans": 80,
+        "games": 48842,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "bystander-hwayoung",
+      "code": "c2128",
+      "name": "Bystander Hwayoung",
+      "nameZh": "旁觀者和英",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 15903,
+        "losses": 19744,
+        "bans": 9402,
+        "prebans": 68,
+        "games": 35715,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "holiday-yufine",
+      "code": "c5016",
+      "name": "Holiday Yufine",
+      "nameZh": "度假風優芬妮",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 5999,
+        "losses": 5081,
+        "bans": 2347,
+        "prebans": 65,
+        "games": 11145,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "argent-waves-hwayoung",
+      "code": "c5128",
+      "name": "Argent Waves Hwayoung",
+      "nameZh": "銀光海嘯和英",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 16529,
+        "losses": 18352,
+        "bans": 9643,
+        "prebans": 54,
+        "games": 34935,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "veronica",
+      "code": "c1150",
+      "name": "Veronica",
+      "nameZh": "貝洛妮卡",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 12327,
+        "losses": 13097,
+        "bans": 7595,
+        "prebans": 39,
+        "games": 25463,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "lilias",
+      "code": "c1089",
+      "name": "Lilias",
+      "nameZh": "莉莉亞斯",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 6290,
+        "losses": 8911,
+        "bans": 2365,
+        "prebans": 34,
+        "games": 15235,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "yulha",
+      "code": "c1131",
+      "name": "Yulha",
+      "nameZh": "律荷",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 6467,
+        "losses": 7348,
+        "bans": 2468,
+        "prebans": 30,
+        "games": 13845,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "urban-shadow-choux",
+      "code": "c2101",
+      "name": "Urban Shadow Choux",
+      "nameZh": "都市暗影小泡芙",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 17147,
+        "losses": 21394,
+        "bans": 6175,
+        "prebans": 26,
+        "games": 38567,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "commander-pavel",
+      "code": "c2080",
+      "name": "Commander Pavel",
+      "nameZh": "司令官帕貝爾",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 21051,
+        "losses": 19261,
+        "bans": 14118,
+        "prebans": 24,
+        "games": 40336,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "fallen-cecilia",
+      "code": "c2002",
+      "name": "Fallen Cecilia",
+      "nameZh": "墮落的賽西莉亞",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 11461,
+        "losses": 12197,
+        "bans": 4646,
+        "prebans": 18,
+        "games": 23676,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "diene",
+      "code": "c1076",
+      "name": "Diene",
+      "nameZh": "迪埃妮",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 5671,
+        "losses": 7160,
+        "bans": 1659,
+        "prebans": 17,
+        "games": 12848,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "sage-baal-sezan",
+      "code": "c2015",
+      "name": "Sage Baal & Sezan",
+      "nameZh": "賢者巴爾&塞尚",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 12617,
+        "losses": 12001,
+        "bans": 7516,
+        "prebans": 16,
+        "games": 24634,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "festive-eda",
+      "code": "c5111",
+      "name": "Festive Eda",
+      "nameZh": "慶典艾妲",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 13946,
+        "losses": 15464,
+        "bans": 6367,
+        "prebans": 13,
+        "games": 29423,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "inheritor-amiki",
+      "code": "c4158",
+      "name": "Inheritor Amiki",
+      "nameZh": "傳承雅蜜琪",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 15006,
+        "losses": 15770,
+        "bans": 14482,
+        "prebans": 12,
+        "games": 30788,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "jenua",
+      "code": "c1055",
+      "name": "Jenua",
+      "nameZh": "濟紐亞",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 4828,
+        "losses": 6574,
+        "bans": 2279,
+        "prebans": 10,
+        "games": 11412,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "politis",
+      "code": "c1112",
+      "name": "Politis",
+      "nameZh": "佛里蒂絲",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 15786,
+        "losses": 16020,
+        "bans": 10566,
+        "prebans": 9,
+        "games": 31815,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "afternoon-soak-flan",
+      "code": "c5110",
+      "name": "Afternoon Soak Flan",
+      "nameZh": "午時戲水芙蘭",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 22838,
+        "losses": 25108,
+        "bans": 16257,
+        "prebans": 4,
+        "games": 47950,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "blooming-lidica",
+      "code": "c5046",
+      "name": "Blooming Lidica",
+      "nameZh": "花園麗迪卡",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 15446,
+        "losses": 16951,
+        "bans": 9094,
+        "prebans": 4,
+        "games": 32401,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "requiem-roana",
+      "code": "c2102",
+      "name": "Requiem Roana",
+      "nameZh": "鎮魂的羅安納",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 12593,
+        "losses": 14967,
+        "bans": 10059,
+        "prebans": 4,
+        "games": 27564,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "designer-lilibet",
+      "code": "c2095",
+      "name": "Designer Lilibet",
+      "nameZh": "設計師莉莉貝",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 4634,
+        "losses": 5936,
+        "bans": 2632,
+        "prebans": 4,
+        "games": 10574,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "summer-break-charlotte",
+      "code": "c5009",
+      "name": "Summer Break Charlotte",
+      "nameZh": "暑假夏綠蒂",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 14095,
+        "losses": 15004,
+        "bans": 7602,
+        "prebans": 1,
+        "games": 29100,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "unbound-knight-arowell",
+      "code": "c4004",
+      "name": "Unbound Knight Arowell",
+      "nameZh": "自由騎士雅洛薇",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 10659,
+        "losses": 10250,
+        "bans": 2045,
+        "prebans": 1,
+        "games": 20910,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "abyssal-yufine",
+      "code": "c2016",
+      "name": "Abyssal Yufine",
+      "nameZh": "深淵優芬妮",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 7262,
+        "losses": 8268,
+        "bans": 3416,
+        "prebans": 1,
+        "games": 15531,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "fenris",
+      "code": "c1158",
+      "name": "Fenris",
+      "nameZh": "佩里斯",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 6489,
+        "losses": 8439,
+        "bans": 3013,
+        "prebans": 1,
+        "games": 14929,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "westwind-executioner-schuri",
+      "code": "c6020",
+      "name": "Westwind Executioner Schuri",
+      "nameZh": "西風處刑者修里",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 4626,
+        "losses": 4949,
+        "bans": 1342,
+        "prebans": 1,
+        "games": 9576,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "wanderer-silk",
+      "code": "c2004",
+      "name": "Wanderer Silk",
+      "nameZh": "流浪者席可",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 20551,
+        "losses": 19903,
+        "bans": 19286,
+        "prebans": 0,
+        "games": 40454,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "schuri",
+      "code": "c1020",
+      "name": "Schuri",
+      "nameZh": "修里",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 15511,
+        "losses": 14674,
+        "bans": 14065,
+        "prebans": 0,
+        "games": 30185,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "silver-blade-aramintha",
+      "code": "c2048",
+      "name": "Silver Blade Aramintha",
+      "nameZh": "白銀刀刃的雅拉敏塔",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 7374,
+        "losses": 7206,
+        "bans": 4239,
+        "prebans": 0,
+        "games": 14580,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    },
+    {
+      "id": "surin",
+      "code": "c1065",
+      "name": "Surin",
+      "nameZh": "蘇琳",
+      "listed": true,
+      "rtaPresence": {
+        "season": "pvp_rta_ss21",
+        "wins": 4916,
+        "losses": 4932,
+        "bans": 3384,
+        "prebans": 0,
+        "games": 9848,
+        "source": "https://www.epic7rtastats.com/heroes"
+      }
+    }
+  ]
+}

@@ -1,0 +1,176 @@
+{
+  "_label": "範例 Fribbels 匯出，不是真實帳號",
+  "warning": "這份 JSON 用的是 Fribbels 存檔欄位（atk、spd、equipment.set），數字是示範，不是你的裝備。",
+  "heroes": [
+    {
+      "name": "Harsetti",
+      "atk": 1800,
+      "hp": 22000,
+      "def": 1400,
+      "spd": 140,
+      "cr": 85,
+      "cd": 230,
+      "eff": 150,
+      "res": 0,
+      "artifactName": "Abyssal Crown",
+      "artifactLevel": "30",
+      "imprintNumber": "SSS",
+      "stars": 6,
+      "equipment": {
+        "Weapon": {"gear": "Weapon", "set": "SpeedSet", "main": {"type": "Attack", "value": 525}, "substats": [{"type": "Speed"}, {"type": "EffectivenessPercent"}]},
+        "Helmet": {"gear": "Helmet", "set": "SpeedSet", "main": {"type": "Health", "value": 2835}, "substats": [{"type": "Speed"}]},
+        "Armor": {"gear": "Armor", "set": "SpeedSet", "main": {"type": "Defense", "value": 310}, "substats": [{"type": "HealthPercent"}]},
+        "Necklace": {"gear": "Necklace", "set": "SpeedSet", "main": {"type": "CriticalHitDamagePercent", "value": 65}, "substats": [{"type": "EffectivenessPercent"}]},
+        "Ring": {"gear": "Ring", "set": "HitSet", "main": {"type": "HealthPercent", "value": 60}, "substats": [{"type": "Speed"}]},
+        "Boots": {"gear": "Boots", "set": "HitSet", "main": {"type": "Speed", "value": 45}, "substats": [{"type": "HealthPercent"}]}
+      }
+    },
+    {
+      "name": "Zio",
+      "atk": 3400,
+      "hp": 11000,
+      "def": 900,
+      "spd": 270,
+      "cr": 100,
+      "cd": 280,
+      "eff": 80,
+      "res": 0,
+      "artifactName": "Tagehel's Ancient Book",
+      "artifactLevel": "30",
+      "stars": 6,
+      "equipment": {
+        "Weapon": {"gear": "Weapon", "set": "SpeedSet", "main": {"type": "Attack", "value": 525}, "substats": [{"type": "Speed"}]},
+        "Helmet": {"gear": "Helmet", "set": "SpeedSet", "main": {"type": "Health", "value": 2835}, "substats": [{"type": "Speed"}]},
+        "Armor": {"gear": "Armor", "set": "SpeedSet", "main": {"type": "Defense", "value": 310}, "substats": [{"type": "AttackPercent"}]},
+        "Necklace": {"gear": "Necklace", "set": "SpeedSet", "main": {"type": "CriticalHitDamagePercent", "value": 65}, "substats": [{"type": "Speed"}]},
+        "Ring": {"gear": "Ring", "set": "HitSet", "main": {"type": "AttackPercent", "value": 60}, "substats": [{"type": "Speed"}]},
+        "Boots": {"gear": "Boots", "set": "HitSet", "main": {"type": "Speed", "value": 45}, "substats": [{"type": "AttackPercent"}]}
+      }
+    },
+    {
+      "name": "Belian",
+      "atk": 1200,
+      "hp": 24000,
+      "def": 1600,
+      "spd": 190,
+      "cr": 90,
+      "cd": 240,
+      "eff": 40,
+      "res": 80,
+      "artifactName": "3F",
+      "artifactLevel": "30",
+      "stars": 6,
+      "equipment": {
+        "Weapon": {"gear": "Weapon", "set": "CounterSet", "main": {"type": "Attack", "value": 525}, "substats": [{"type": "HealthPercent"}]},
+        "Helmet": {"gear": "Helmet", "set": "CounterSet", "main": {"type": "Health", "value": 2835}, "substats": [{"type": "DefensePercent"}]},
+        "Armor": {"gear": "Armor", "set": "CounterSet", "main": {"type": "Defense", "value": 310}, "substats": [{"type": "HealthPercent"}]},
+        "Necklace": {"gear": "Necklace", "set": "CounterSet", "main": {"type": "HealthPercent", "value": 60}, "substats": [{"type": "DefensePercent"}]},
+        "Ring": {"gear": "Ring", "set": "ImmunitySet", "main": {"type": "HealthPercent", "value": 60}, "substats": [{"type": "EffectResistancePercent"}]},
+        "Boots": {"gear": "Boots", "set": "ImmunitySet", "main": {"type": "Speed", "value": 45}, "substats": [{"type": "HealthPercent"}]}
+      }
+    },
+    {
+      "name": "Lisette",
+      "atk": 1100,
+      "hp": 20000,
+      "def": 1400,
+      "spd": 210,
+      "cr": 15,
+      "cd": 150,
+      "eff": 20,
+      "res": 180,
+      "artifactName": "War Horn",
+      "stars": 6,
+      "equipment": {
+        "Weapon": {"gear": "Weapon", "set": "ProtectionSet", "main": {"type": "Attack", "value": 525}, "substats": [{"type": "HealthPercent"}]},
+        "Helmet": {"gear": "Helmet", "set": "ProtectionSet", "main": {"type": "Health", "value": 2835}, "substats": [{"type": "Speed"}]},
+        "Armor": {"gear": "Armor", "set": "ProtectionSet", "main": {"type": "Defense", "value": 310}, "substats": [{"type": "HealthPercent"}]},
+        "Necklace": {"gear": "Necklace", "set": "ProtectionSet", "main": {"type": "HealthPercent", "value": 60}, "substats": [{"type": "Speed"}]},
+        "Ring": {"gear": "Ring", "set": "HealthSet", "main": {"type": "HealthPercent", "value": 60}, "substats": [{"type": "EffectResistancePercent"}]},
+        "Boots": {"gear": "Boots", "set": "HealthSet", "main": {"type": "Speed", "value": 45}, "substats": [{"type": "HealthPercent"}]}
+      }
+    },
+    {
+      "name": "Estelle",
+      "atk": 1400,
+      "hp": 26000,
+      "def": 1500,
+      "spd": 160,
+      "cr": 100,
+      "cd": 260,
+      "eff": 0,
+      "res": 40,
+      "artifactName": "Holy Sacrifice",
+      "stars": 6,
+      "equipment": {
+        "Weapon": {"gear": "Weapon", "set": "CounterSet", "main": {"type": "Attack", "value": 525}, "substats": [{"type": "HealthPercent"}]},
+        "Helmet": {"gear": "Helmet", "set": "CounterSet", "main": {"type": "Health", "value": 2835}, "substats": [{"type": "DefensePercent"}]},
+        "Armor": {"gear": "Armor", "set": "CounterSet", "main": {"type": "Defense", "value": 310}, "substats": [{"type": "HealthPercent"}]},
+        "Necklace": {"gear": "Necklace", "set": "CounterSet", "main": {"type": "CriticalHitDamagePercent", "value": 65}, "substats": [{"type": "HealthPercent"}]},
+        "Ring": {"gear": "Ring", "set": "ImmunitySet", "main": {"type": "HealthPercent", "value": 60}, "substats": [{"type": "HealthPercent"}]},
+        "Boots": {"gear": "Boots", "set": "ImmunitySet", "main": {"type": "HealthPercent", "value": 60}, "substats": [{"type": "DefensePercent"}]}
+      }
+    },
+    {
+      "name": "School Nurse Yulha",
+      "atk": 1600,
+      "hp": 18000,
+      "def": 1200,
+      "spd": 250,
+      "cr": 20,
+      "cd": 150,
+      "eff": 30,
+      "res": 120,
+      "stars": 6,
+      "equipment": {
+        "Weapon": {"gear": "Weapon", "set": "SpeedSet", "main": {"type": "Attack", "value": 525}, "substats": [{"type": "Speed"}]},
+        "Helmet": {"gear": "Helmet", "set": "SpeedSet", "main": {"type": "Health", "value": 2835}, "substats": [{"type": "HealthPercent"}]},
+        "Armor": {"gear": "Armor", "set": "SpeedSet", "main": {"type": "Defense", "value": 310}, "substats": [{"type": "Speed"}]},
+        "Necklace": {"gear": "Necklace", "set": "SpeedSet", "main": {"type": "HealthPercent", "value": 60}, "substats": [{"type": "EffectResistancePercent"}]},
+        "Ring": {"gear": "Ring", "set": "HealthSet", "main": {"type": "HealthPercent", "value": 60}, "substats": [{"type": "Speed"}]},
+        "Boots": {"gear": "Boots", "set": "HealthSet", "main": {"type": "Speed", "value": 45}, "substats": [{"type": "HealthPercent"}]}
+      }
+    },
+    {
+      "name": "Notos",
+      "atk": 1500,
+      "hp": 23000,
+      "def": 1500,
+      "spd": 200,
+      "cr": 70,
+      "cd": 220,
+      "eff": 20,
+      "res": 40,
+      "artifactName": "Holy Sacrifice",
+      "stars": 6,
+      "equipment": {
+        "Weapon": {"gear": "Weapon", "set": "WarfareSet", "main": {"type": "Attack", "value": 525}, "substats": [{"type": "HealthPercent"}]},
+        "Helmet": {"gear": "Helmet", "set": "WarfareSet", "main": {"type": "Health", "value": 2835}, "substats": [{"type": "Speed"}]},
+        "Armor": {"gear": "Armor", "set": "WarfareSet", "main": {"type": "Defense", "value": 310}, "substats": [{"type": "HealthPercent"}]},
+        "Necklace": {"gear": "Necklace", "set": "WarfareSet", "main": {"type": "HealthPercent", "value": 60}, "substats": [{"type": "CriticalHitChancePercent"}]},
+        "Ring": {"gear": "Ring", "set": "ImmunitySet", "main": {"type": "HealthPercent", "value": 60}, "substats": [{"type": "DefensePercent"}]},
+        "Boots": {"gear": "Boots", "set": "ImmunitySet", "main": {"type": "Speed", "value": 45}, "substats": [{"type": "HealthPercent"}]}
+      }
+    },
+    {
+      "name": "Boss Arunka",
+      "atk": 2000,
+      "hp": 18000,
+      "def": 1800,
+      "spd": 180,
+      "cr": 100,
+      "cd": 250,
+      "eff": 0,
+      "res": 30,
+      "stars": 6,
+      "equipment": {
+        "Weapon": {"gear": "Weapon", "set": "ProtectionSet", "main": {"type": "Attack", "value": 525}, "substats": [{"type": "DefensePercent"}]},
+        "Helmet": {"gear": "Helmet", "set": "ProtectionSet", "main": {"type": "Health", "value": 2835}, "substats": [{"type": "DefensePercent"}]},
+        "Armor": {"gear": "Armor", "set": "ProtectionSet", "main": {"type": "Defense", "value": 310}, "substats": [{"type": "HealthPercent"}]},
+        "Necklace": {"gear": "Necklace", "set": "ProtectionSet", "main": {"type": "DefensePercent", "value": 65}, "substats": [{"type": "HealthPercent"}]},
+        "Ring": {"gear": "Ring", "set": "ImmunitySet", "main": {"type": "HealthPercent", "value": 60}, "substats": [{"type": "DefensePercent"}]},
+        "Boots": {"gear": "Boots", "set": "ImmunitySet", "main": {"type": "Speed", "value": 45}, "substats": [{"type": "HealthPercent"}]}
+      }
+    }
+  ]
+}
