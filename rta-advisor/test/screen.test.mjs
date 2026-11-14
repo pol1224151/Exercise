@@ -488,10 +488,15 @@ assert.match(brief.reason.summary, /開大/);
 assert.match(brief.reason.summary, /先殺|增益|減益|開大給/);
 assert.equal(brief.reason.summary.includes("不指定先殺"), false);
 assert.equal(brief.reason.summary.includes("擦傷"), false);
+assert.equal(brief.reason.summary.includes("cannotCrit"), false);
 assert.match(brief.reason.summary, /還活著的機會/);
 assert.match(brief.reason.summary, /開戰常見做法/);
 assert.match(brief.reason.summary, /大招/);
 assert.match(brief.reason.summary, /被動/);
+assert.equal(brief.reason.summary, brief.reason.lines.join("\n"));
+for (const label of ["誰先打誰：", "要不要開大：", "打到誰：", "先殺誰：", "開戰配裝：", "大招效果：", "被動效果："]) {
+  assert.ok(brief.reason.lines.some((row) => row.startsWith(label)), label);
+}
 
 const added = ["lone-crescent-bellona", "midnight-gala-lilias", "sylvan-sage-vivian"];
 for (const id of added) {
@@ -648,8 +653,12 @@ assert.match(rangerSlice, /隱形的觀察者/);
 assert.match(rangerSlice, /秩序護牆/);
 assert.match(rangerSlice, /應對/);
 assert.match(yulhaBrief.reason.summary, /增益/);
-assert.equal(yulhaBrief.reason.summary.includes("先打"), false);
-assert.equal(yulhaBrief.reason.summary.includes("要開大"), false);
+const yulhaWho = yulhaBrief.reason.lines.find((row) => row.startsWith("誰先打誰："));
+const yulhaUlt = yulhaBrief.reason.lines.find((row) => row.startsWith("要不要開大："));
+assert.match(yulhaWho, /先動/);
+assert.equal(yulhaWho.slice("誰先打誰：".length).includes("先打"), false);
+assert.match(yulhaUlt, /開大給/);
+assert.equal(yulhaUlt.includes("要開大。"), false);
 assert.equal(yulhaBrief.reason.summary.includes("不指定先殺"), false);
 const protectedBan = heroIds[7];
 assert.equal(lastBan.action.id === protectedBan, false);

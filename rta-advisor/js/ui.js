@@ -218,13 +218,27 @@ function setScreenEnabled(on) {
   else if (!stream) $("captureState").textContent = "帳號已讀入。等世界競技場開打，再分享遊戲視窗。";
 }
 
-function showCard({ action, rate, reason, click }) {
+function showCard({ action, rate, reason, lines, click }) {
   const button = $("liveAction");
   button.textContent = action || "這一手沒有建議";
   button.disabled = !click;
   button.dataset.click = click || "";
   $("liveRate").textContent = rate || "尚無勝率";
-  $("liveReason").textContent = reason || "";
+  const node = $("liveReason");
+  node.replaceChildren();
+  if (Array.isArray(lines) && lines.length) {
+    const list = document.createElement("ul");
+    list.className = "advice-lines";
+    for (const row of lines) {
+      if (!row) continue;
+      const item = document.createElement("li");
+      item.textContent = row;
+      list.appendChild(item);
+    }
+    node.appendChild(list);
+    return;
+  }
+  node.textContent = reason || "";
 }
 
 function showReadyCard() {
@@ -654,6 +668,17 @@ function applyDraftChoice(slot, heroId) {
   renderGuide();
 }
 
+function battleLines(result) {
+  if (result?.phase !== "battle" || !result.reason?.lines?.length) return null;
+  const lines = [...result.reason.lines];
+  if (result.history?.switched) {
+    const was = Math.round(result.history.replaced.rate * 100);
+    const cutoff = Math.round(result.history.cutoff * 100);
+    lines.unshift(`原本那組實戰 ${was}%，低於門檻 ${cutoff}%，所以改這一組。`);
+  }
+  return lines;
+}
+
 function renderLive(result) {
   if (!result?.ok) {
     const title = result?.action?.title || "這一手沒有建議";
@@ -668,6 +693,7 @@ function renderLive(result) {
       action: oneAction(result),
       rate: rateLine(result),
       reason: oneReason(result),
+      lines: battleLines(result),
       click: result.action?.kind === "preban" ? "preban" : "",
     });
   }

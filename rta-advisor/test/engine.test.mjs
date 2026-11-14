@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { advise, adviseFromScreen, buildGearReport, clearAccount, draftPlans, elementRelation, fightFromRoster, heroKit, heroListed, loadAccount, matchesPicker, parseRoster, readAccountText, saveAccount, selectableHeroes, skillDamage } from "../js/engine.js";
+import { advise, adviseFromScreen, buildGearReport, clearAccount, draftPlans, elementRelation, fightFromRoster, heroKit, heroListed, loadAccount, matchesPicker, parseRoster, readAccountText, saveAccount, selectableHeroes, skillDamage, unclearSkills } from "../js/engine.js";
 import { chooseComposition, draftType } from "../js/records.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
@@ -212,6 +212,41 @@ assert.match(elena, /無法恢復/);
 assert.match(elena, /束縛/);
 assert.match(elena, /這是被動，沒有攻擊倍率/);
 assert.equal(elena.includes("缺倍率"), false);
+
+const badCat = heroKit(catalog, "bad-cat-armin");
+assert.match(badCat, /巨盾/);
+assert.match(badCat, /45%/);
+assert.match(badCat, /50%/);
+assert.match(badCat, /暴擊傷害增加 70%/);
+assert.match(badCat, /2 倍/);
+assert.match(badCat, /防禦力增加 60%/);
+assert.match(badCat, /燒魂 10/);
+assert.match(badCat, /畫面沒有印防護罩吸收比例，不另編/);
+assert.match(badCat, /這是被動，沒有攻擊倍率/);
+assert.equal(badCat.includes("缺倍率"), false);
+
+const ainz = heroKit(catalog, "ainz-ooal-gown");
+assert.match(ainz, /雷霆審判/);
+assert.match(ainz, /25%/);
+assert.match(ainz, /燒魂 20：產生追加回合/);
+assert.match(ainz, /死亡支配者/);
+assert.match(ainz, /光明屬性敵人造成的傷害量增加 30%/);
+assert.match(ainz, /魔力屏障/);
+assert.match(ainz, /畫面沒有印防護罩係數，不另編/);
+assert.match(ainz, /生命終將死亡/);
+assert.match(ainz, /70%/);
+assert.match(ainz, /50000/);
+assert.match(ainz, /第 12 回合/);
+assert.match(ainz, /冷卻 4 回合/);
+assert.match(ainz, /不受技能冷卻增加與減少的影響/);
+assert.match(ainz, /這是被動，沒有攻擊倍率/);
+assert.equal(ainz.includes("缺倍率"), false);
+
+const skipped = new Set(["奧樂緹", "夏率", "達拉士", "偵查兵瑪伊堤", "野生安卡拉"]);
+const blankNames = unclearSkills(catalog).map((row) => row.name);
+for (const name of skipped) assert.equal(blankNames.includes(name), false, name);
+assert.equal(blankNames.includes("壞壞貓亞敏"), false);
+assert.equal(blankNames.includes("安茲‧烏爾‧恭"), false);
 
 const listed = selectableHeroes(catalog);
 const arm = listed.find((hero) => hero.id === "armin");

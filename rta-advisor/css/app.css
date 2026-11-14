@@ -92,6 +92,15 @@ body {
   max-width: 40rem;
 }
 
+.advice-lines {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.advice-lines li {
+  margin: 0.15rem 0;
+}
+
 .heard {
   margin: 0;
   max-width: 46rem;

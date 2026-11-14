@@ -533,8 +533,10 @@ function effectText(effect) {
       return effect.full ? "完全回復生命" : "回復生命";
     case "extraTurn":
       return "再行動一次";
+    case "cannotCrit":
+      return "不會暴擊";
     default:
-      return effect.kind;
+      return "";
   }
 }
 
@@ -2195,6 +2197,24 @@ function kitBlock(catalog, hero) {
   ].filter(Boolean).join("");
 }
 
+function enemyAdviceLines(catalog, hero) {
+  const name = hero?.nameZh || hero?.name || "這名";
+  const passiveBits = [];
+  for (const slot of ["S1", "S2", "S3"]) {
+    if (!hero?.skills?.[slot]?.passive) continue;
+    const label = slot === "S1" ? "一技" : slot === "S2" ? "二技" : "大招";
+    addBit(passiveBits, skillBrief(hero, slot, label));
+  }
+  const note = passiveNote(hero);
+  if (note) addBit(passiveBits, note);
+  return [
+    name,
+    `開戰配裝：${openingLine(catalog, hero)}`,
+    `大招效果：${skillBrief(hero, "S3", "大招")}`,
+    `被動效果：${passiveBits.length ? passiveBits.join("") : "沒有另列被動。"}`,
+  ];
+}
+
 export function heroKit(catalog, id) {
   const pools = [catalog?.heroes || [], catalog?.database || []];
   for (const pool of pools) {
@@ -2219,6 +2239,7 @@ export function unclearSkills(catalog) {
   const rows = [];
   for (const hero of [...(catalog?.database || []), ...(catalog?.heroes || [])]) {
     if (!hero?.id || seen.has(hero.id)) continue;
+    if (["orte", "hasol", "talaz", "mighty-scout", "wild-angara"].includes(hero.id)) continue;
     seen.add(hero.id);
     const slots = [];
     for (const slot of ["S1", "S2", "S3"]) {
@@ -2605,15 +2626,17 @@ export function battleBrief(catalog, roster, draft) {
   const allyNames = targets.filter((name) => sameSide(name));
   const foeNames = targets.filter((name) => !sameSide(name));
   let who = opener ? `${side}${openerName}先動。` : "看不出誰先動。";
-  let ult = "";
-  let kill = "";
+  let ult = "沒有讀到開大。";
+  let hit = "沒有讀到目標。";
+  let kill = "沒有讀到先殺對象。";
   let title = who.replace(/。$/, "");
   if (opener && parts.damage) {
-    const hit = foeNames[0] || "";
-    who = hit ? `${side}${openerName}先打${hit}。` : `${side}${openerName}先動。`;
+    const first = foeNames[0] || "";
+    who = first ? `${side}${openerName}先打${first}。` : `${side}${openerName}先動。`;
     ult = slot === "S3" ? "要開大。" : "不開大。";
     title = who.replace(/。$/, "");
     if (foeNames.length === 1) {
+      hit = `打到${foeNames[0]}。`;
       kill = `先殺${foeNames[0]}。`;
     } else if (foeNames.length > 1) {
       const ranked = foeNames
@@ -2621,31 +2644,46 @@ export function battleBrief(catalog, roster, draft) {
         .filter((row) => typeof row.hp === "number")
         .sort((left, right) => left.hp - right.hp);
       const focus = ranked[0];
-      kill = focus ? `這一動打到${foeNames.join("、")}。先殺生命最低的${focus.name}。` : `這一動打到${foeNames.join("、")}。`;
+      hit = `打到${foeNames.join("、")}。`;
+      kill = focus ? `先殺生命最低的${focus.name}。` : "沒有讀到先殺對象。";
     }
   } else if (opener && parts.buffs.length) {
     const onto = allyNames.length ? allyNames.join("、") : "隊友";
+    who = `${side}${openerName}先動。`;
     ult = slot === "S3" ? `開大給${onto}。` : `開給${onto}。`;
+    hit = `開給${onto}。`;
+    kill = "這是增益。";
     title = `${side}${openerName}${ult.replace(/。$/, "")}`;
   } else if (opener && parts.debuffs.length) {
     const onto = foeNames[0] || "對手";
     ult = slot === "S3" ? `開大在${onto}。` : `開在${onto}。`;
+    hit = `打到${onto}。`;
+    kill = "這是減益。";
     title = `${side}${openerName}${ult.replace(/。$/, "")}`;
   } else if (opener) {
-    ult = slot === "S3" ? "不開大。" : "";
+    ult = slot === "S3" ? "不開大。" : "沒有讀到開大。";
   }
+  const lines = [
+    `誰先打誰：${who}`,
+    `要不要開大：${ult}`,
+    `打到誰：${hit}`,
+    `先殺誰：${kill}`,
+  ];
   const numbered = skill ? traitLine(skill) : "";
+  if (numbered) lines.push(numbered);
   const book = (fight.log || []).find((row) => row.includes("魂書")) || "";
   const wave = survivalChance(catalog, roster, userFight, enemyFight, draft.userFirst !== false);
   const survive = wave == null ? "" : `對方大招打下來後，我方還活著的機會是 ${chancePct(wave.chance)}，整組剩下的生命是 ${chancePct(wave.hp)}。`;
-  const kits = enemyFight.map((id) => `${byId[id].nameZh}。${kitBlock(catalog, byId[id])}`).join("");
-  const summary = [who, ult, kill, numbered, survive, kits, book].filter(Boolean).join("");
+  if (survive) lines.push(survive);
+  for (const id of enemyFight) lines.push(...enemyAdviceLines(catalog, byId[id]));
+  if (book) lines.push(book);
+  const summary = lines.join("\n");
   return {
     ok: true,
     phase: "battle",
     firstPick: draft.userFirst === true,
     action: { kind: "brief", title, detail: `${ult}${kill}${numbered}${survive}` },
-    reason: { summary, lines: [who, ult, kill, numbered, survive, kits, book].filter(Boolean) },
+    reason: { summary, lines },
     rate: null,
     version: basis.version,
     basis,
