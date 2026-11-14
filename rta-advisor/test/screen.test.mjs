@@ -413,9 +413,23 @@ assert.notEqual(adviceStateKey({ user: [], enemy: [], turnSide: null }), adviceS
 const asked = guidedDraft(catalog, roster, {}, { trials: 1, rank: "champion" });
 assert.equal(asked.action.kind, "ask");
 
+const askEnemyBan = guidedDraft(catalog, roster, {
+  userFirst: true,
+  prebansDone: false,
+  enemyPrebansDone: false,
+  userPicks: [],
+  enemyPicks: [],
+  prebans: [],
+  enemyPrebans: [],
+}, { trials: 1, rank: "champion" });
+assert.equal(askEnemyBan.ok, true, askEnemyBan.reason?.summary);
+assert.equal(askEnemyBan.action.kind, "enemy-preban");
+assert.match(askEnemyBan.action.title, /對方預禁了哪 2 名/);
 const openingBan = guidedDraft(catalog, roster, {
   userFirst: true,
   prebansDone: false,
+  enemyPrebansDone: true,
+  enemyPrebans: ["brieg", "charlotte"],
   userPicks: [],
   enemyPicks: [],
   prebans: [],
@@ -423,6 +437,8 @@ const openingBan = guidedDraft(catalog, roster, {
 assert.equal(openingBan.ok, true, openingBan.reason?.summary);
 assert.equal(openingBan.action.kind, "preban");
 assert.equal(openingBan.action.ids.length, 2);
+assert.equal(openingBan.action.ids.includes("brieg"), false);
+assert.equal(openingBan.action.ids.includes("charlotte"), false);
 assert.match(openingBan.action.title, /先禁/);
 
 const firstMove = guidedDraft(catalog, roster, {
@@ -490,13 +506,14 @@ assert.equal(brief.reason.summary.includes("不指定先殺"), false);
 assert.equal(brief.reason.summary.includes("擦傷"), false);
 assert.equal(brief.reason.summary.includes("cannotCrit"), false);
 assert.match(brief.reason.summary, /還活著的機會/);
-assert.match(brief.reason.summary, /開戰常見做法/);
-assert.match(brief.reason.summary, /大招/);
-assert.match(brief.reason.summary, /被動/);
+assert.match(brief.action.title, /^我方/);
+assert.equal(brief.reason.summary.includes("使用率"), false);
+assert.equal(brief.reason.summary.includes("速度分位"), false);
 assert.equal(brief.reason.summary, brief.reason.lines.join("\n"));
-for (const label of ["誰先打誰：", "要不要開大：", "打到誰：", "先殺誰：", "開戰配裝：", "大招效果：", "被動效果："]) {
+for (const label of ["誰先打誰：", "要不要開大：", "打到誰：", "先殺誰："]) {
   assert.ok(brief.reason.lines.some((row) => row.startsWith(label)), label);
 }
+assert.match(brief.reason.lines.find((row) => row.startsWith("誰先打誰：")), /我方/);
 
 const added = ["lone-crescent-bellona", "midnight-gala-lilias", "sylvan-sage-vivian"];
 for (const id of added) {
@@ -575,15 +592,12 @@ assert.equal(notosPick.ok, true, notosPick.reason?.summary);
 assert.equal(notosPick.action.kind, "pick");
 assert.equal(notosPick.action.ids.length, 2);
 assert.match(notosPick.reason.summary, /諾托斯/);
-assert.match(notosPick.reason.summary, /開戰常見做法/);
-assert.match(notosPick.reason.summary, /大招/);
-assert.match(notosPick.reason.summary, /2 倍/);
-assert.match(notosPick.reason.summary, /被動/);
-assert.match(notosPick.reason.summary, /還活著的機會/);
+assert.match(notosPick.reason.summary, /計數器|反制|協同|速度|建造|配對/);
 assert.match(notosPick.reason.summary, /我方已選/);
 assert.match(notosPick.reason.summary, /對方已選/);
 assert.match(notosPick.reason.summary, /保護位|關鍵位/);
-assert.equal(notosPick.reason.summary.includes("克制"), false);
+assert.equal(notosPick.action.ids.includes("estelle"), false);
+assert.equal(notosPick.action.ids.includes("notos"), false);
 assert.equal(notosPick.reason.summary.includes("無視所有"), false);
 
 const damagePick = guidedDraft(catalog, roster, {
@@ -602,10 +616,7 @@ const buffPick = guidedDraft(catalog, roster, {
 }, { trials: 1, rank: "champion" });
 assert.equal(damagePick.ok, true, damagePick.reason?.summary);
 assert.equal(buffPick.ok, true, buffPick.reason?.summary);
-assert.notEqual(
-  damagePick.reason.summary.match(/整組剩下的生命是 \d+%/)?.[0],
-  buffPick.reason.summary.match(/整組剩下的生命是 \d+%/)?.[0],
-);
+assert.notDeepEqual(damagePick.action.ids, buffPick.action.ids);
 assert.match(buffPick.reason.summary, /迪埃妮|艾蕾娜/);
 assert.match(damagePick.reason.summary, /玫勒賽德絲|拉斯/);
 
@@ -615,8 +626,9 @@ const yulhaBrief = battleBrief(catalog, roster, {
   enemyFight: ["school-nurse-yulha", "perfumer-byblis", "notos", "lisette"],
 });
 assert.equal(yulhaBrief.ok, true, yulhaBrief.reason?.summary);
-assert.match(yulhaBrief.reason.summary, /保健室老師律荷/);
-assert.match(yulhaBrief.reason.summary, /開大給/);
+assert.match(yulhaBrief.action.title, /^我方/);
+assert.equal(/^對方/.test(yulhaBrief.action.title), false);
+assert.match(yulhaBrief.reason.summary, /我方/);
 
 const specterBrief = battleBrief(catalog, roster, {
   userFirst: true,
@@ -627,10 +639,9 @@ assert.equal(specterBrief.ok, true, specterBrief.reason?.summary);
 const specterAt = specterBrief.reason.summary.indexOf("海上幽靈佛里蒂絲");
 const specterEnd = specterBrief.reason.summary.indexOf("玫勒賽德絲", specterAt);
 const specterSlice = specterBrief.reason.summary.slice(specterAt, specterEnd);
-assert.match(specterSlice, /60% 機率隱身/);
+assert.match(specterSlice, /隱身/);
 assert.match(specterSlice, /資源減少 50%/);
-assert.equal(specterSlice.includes("沒有公開的開戰配裝"), false);
-assert.match(specterSlice, /弓系沒有公開的神器出場率|建造來自世界競技場頁/);
+assert.equal(specterSlice.includes("使用率"), false);
 
 const warfare = battleBrief(catalog, roster, {
   userFirst: false,
@@ -639,7 +650,7 @@ const warfare = battleBrief(catalog, roster, {
 });
 assert.equal(warfare.ok, true, warfare.reason?.summary);
 for (const name of ["諾托斯", "赫卡特", "梅鈴", "黑暗的科爾布思"]) {
-  assert.match(warfare.reason.summary, new RegExp(`${name}[\\s\\S]{0,180}預設對方穿開戰套`));
+  assert.match(warfare.reason.summary, new RegExp(`${name}[\\s\\S]{0,80}開場大招可用`));
 }
 const ranger = battleBrief(catalog, roster, {
   userFirst: true,
@@ -648,14 +659,10 @@ const ranger = battleBrief(catalog, roster, {
 });
 assert.equal(ranger.ok, true, ranger.reason?.summary);
 const rangerAt = ranger.reason.summary.indexOf("黎明的序曲魯特比");
-const rangerSlice = ranger.reason.summary.slice(rangerAt, rangerAt + 700);
-assert.match(rangerSlice, /引導之光，出場 16\.41%/);
-assert.match(rangerSlice, /開場賦予隱身 1 回合/);
-assert.match(rangerSlice, /黎明寶珠/);
-assert.match(rangerSlice, /隱形的觀察者/);
-assert.match(rangerSlice, /秩序護牆/);
-assert.match(rangerSlice, /應對/);
-assert.match(ranger.reason.summary, /沙盤用技能頁寫出的最大：回合結束 70%/);
+const rangerSlice = ranger.reason.summary.slice(rangerAt, rangerAt + 180);
+assert.match(rangerSlice, /黎明的序曲魯特比/);
+assert.equal(rangerSlice.includes("16.41%"), false);
+assert.equal(ranger.reason.summary.includes("使用率"), false);
 const worn = fightFromRoster({
   userFight: ["arbiter-vildred", "belian", "estelle", "harsetti"],
   enemyFight: ["aubade-ludwig", "mercedes", "ras", "diene"],
@@ -672,10 +679,9 @@ assert.match(light.log.join("\n"), /隱身 1 回合/);
 assert.match(yulhaBrief.reason.summary, /增益/);
 const yulhaWho = yulhaBrief.reason.lines.find((row) => row.startsWith("誰先打誰："));
 const yulhaUlt = yulhaBrief.reason.lines.find((row) => row.startsWith("要不要開大："));
-assert.match(yulhaWho, /先動/);
-assert.equal(yulhaWho.slice("誰先打誰：".length).includes("先打"), false);
-assert.match(yulhaUlt, /開大給/);
-assert.equal(yulhaUlt.includes("要開大。"), false);
+assert.match(yulhaWho, /我方/);
+assert.match(yulhaUlt, /我方|要開大|不開大|開大給/);
+assert.equal(yulhaBrief.action.title.includes("對方"), false);
 assert.equal(yulhaBrief.reason.summary.includes("不指定先殺"), false);
 const ruled = battleBrief(catalog, roster, {
   userFirst: true,
@@ -701,9 +707,9 @@ const aubeFight = battleBrief(catalog, roster, {
 assert.equal(aubeFight.ok, true, aubeFight.reason?.summary);
 assert.match(aubeFight.reason.summary, /可提升回收量與防護強度 30%/);
 assert.match(aubeFight.reason.summary, /奧芙/);
-assert.match(aubeFight.reason.summary, /速度分位：25 291、50 299、75 305、90 310/);
-assert.match(aubeFight.reason.summary, /攻擊力 1600～2400，高峰 56%/);
-assert.match(aubeFight.reason.summary, /梯隊 A/);
+assert.equal(aubeFight.reason.summary.includes("速度分位"), false);
+assert.equal(aubeFight.reason.summary.includes("使用率"), false);
+assert.equal(aubeFight.reason.summary.includes("梯隊"), false);
 assert.equal(aubeFight.reason.summary.includes("Aubade"), false);
 assert.equal(aubeFight.reason.summary.includes("Postban"), false);
 const protectedBan = heroIds[7];
@@ -760,5 +766,44 @@ for (let y = 36; y < 92; y += 1) {
 }
 assert.equal(readPickMark(badge, badgeW, badgeH), "FIRST PICK");
 assert.equal(readPickMark(new Uint8ClampedArray(badgeW * badgeH * 4), badgeW, badgeH), null);
+
+function sideDraft(enemyIds) {
+  const state = {
+    userFirst: true,
+    prebansDone: true,
+    enemyPrebansDone: true,
+    enemyPrebans: [],
+    prebans: [],
+    userPicks: [],
+    enemyPicks: [],
+  };
+  const reasons = [];
+  for (let guard = 0; state.userPicks.length < 5 && guard < 20; guard += 1) {
+    const result = guidedDraft(catalog, roster, state, { rank: "champion", trials: 1 });
+    if (result.action.kind === "pick") {
+      for (const id of result.action.ids) {
+        assert.equal(state.userPicks.includes(id) || state.enemyPicks.includes(id), false, id);
+        state.userPicks.push(id);
+      }
+      reasons.push(result.reason.summary);
+    } else if (result.action.kind === "report") {
+      const next = enemyIds[state.enemyPicks.length];
+      assert.ok(next);
+      state.enemyPicks.push(next);
+    } else {
+      break;
+    }
+  }
+  return { picks: state.userPicks, reasons: reasons.join("\n") };
+}
+const knights = sideDraft(["brieg", "unbound-knight-arowell", "charles", "hasol", "charlotte"]);
+const buffers = sideDraft(["diene", "elena", "mercedes", "ras", "dark-corvus"]);
+assert.equal(knights.picks.length, 5, knights.reasons);
+assert.equal(buffers.picks.length, 5, buffers.reasons);
+assert.notDeepEqual(knights.picks, buffers.picks);
+assert.match(knights.reasons, /計數器|反制|速度|建造|協同|配對/);
+assert.match(buffers.reasons, /計數器|反制|速度|建造|協同|配對/);
+const fixed = ["rhianna-and-luciella", "eye-of-the-abyss-fumyr", "school-nurse-yulha", "aubade-ludwig", "lady-of-the-scales"];
+assert.notDeepEqual(knights.picks, fixed);
 
 console.log("screen tests passed", { next: advice.action.title, skill: cast.action.title, burn: cast.action.burn.yes });

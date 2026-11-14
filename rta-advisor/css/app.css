@@ -469,15 +469,23 @@ footer { padding: 8px 0 28px; color: var(--muted); font-size: 0.9rem; }
 .picker-list button {
   font: inherit;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 8px 12px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 6px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: white;
   color: var(--ink);
   cursor: pointer;
+}
+
+.picker-list img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
 }
 
 code {

@@ -1,4 +1,4 @@
-import { adviceStateKey, adviseFromScreen, battleBrief, buildGearReport, clearAccount, counterEdges, guidedDraft, loadAccount, matchesPicker, parseRoster, readAccountText, rtaSummary, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
+import { adviceStateKey, adviseFromScreen, battleBrief, buildGearReport, clearAccount, counterEdges, guidedDraft, loadAccount, matchesPicker, parseRoster, readAccountText, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, recordResult, saveMatches } from "./records.js";
 import { matchHeroName, matchNamedCard, readDraft, refreshCardMemory, rememberCard } from "./screen.js";
 
@@ -40,6 +40,8 @@ function blankDraft(userFirst = null) {
     enemyPicks: [],
     prebans: [],
     prebansDone: false,
+    enemyPrebans: [],
+    enemyPrebansDone: false,
     userBanId: null,
     enemyBanId: null,
     steps: [],
@@ -260,8 +262,12 @@ function draftedFight() {
   return { userFight, enemyFight, userFirst: manual.userFirst === true, rule: manual.rule || "" };
 }
 
+function draftTaken() {
+  return new Set([...(manual.userPicks || []), ...(manual.enemyPicks || []), ...(manual.prebans || []), ...(manual.enemyPrebans || [])].filter(Boolean));
+}
+
 function draftKey() {
-  return [manual.rule || "", manual.userFirst, manual.prebansDone, (manual.prebans || []).join(","), manual.userPicks.join(","), manual.enemyPicks.join(","), manual.userBanId || "", manual.enemyBanId || "", $("rank")?.value || ""].join("|");
+  return [manual.rule || "", manual.userFirst, manual.enemyPrebansDone, (manual.enemyPrebans || []).join(","), manual.prebansDone, (manual.prebans || []).join(","), manual.userPicks.join(","), manual.enemyPicks.join(","), manual.userBanId || "", manual.enemyBanId || "", $("rank")?.value || ""].join("|");
 }
 
 function paintRule() {
@@ -288,9 +294,19 @@ function renderGuide() {
   if (manual.userFirst == null) {
     guideKey = "";
     paintBoard();
-    $("draftStatus").textContent = "點「我先手」或「對方先手」。先給預禁，再填格子。";
+    $("draftStatus").textContent = manual.rule
+      ? "規則已選。點「我先手」或「對方先手」。接著先問對方預禁了哪 2 名。"
+      : "先選戰爭規則，再點「我先手」或「對方先手」。";
     $("weFirst")?.classList.toggle("primary", false);
     $("theyFirst")?.classList.toggle("primary", false);
+    return;
+  }
+  if (!manual.rule && !manual.prebansDone) {
+    guideKey = "";
+    paintBoard();
+    $("draftStatus").textContent = "先選戰爭規則。選完才問對方預禁。";
+    $("weFirst")?.classList.toggle("primary", manual.userFirst === true);
+    $("theyFirst")?.classList.toggle("primary", manual.userFirst === false);
     return;
   }
   if (draftKey() === guideKey && lastAdvice) {
@@ -340,6 +356,10 @@ function slotWords(index) {
 function draftStatusText(result) {
   const side = manual.userFirst ? "我方先手。" : "對方先手。";
   const rule = "先手規則：先手 1-2-2，後手 2-2-1。雙方第 1、2 選和第 4、5 選都是關鍵。";
+  if (!manual.enemyPrebansDone) {
+    const title = result?.action?.title || "對方預禁了哪 2 名";
+    return `${side}${title}。點下面選對方預禁的人。選完才給我方預禁。`;
+  }
   if (!manual.prebansDone) {
     const title = result?.action?.title || "先給預禁";
     return `${side}${title}。點下面的預禁，再開始填格子。`;
@@ -421,6 +441,10 @@ function paintBan(button, label, id) {
 function onCell(side, index) {
   if (manual.userFirst == null) {
     $("draftStatus").textContent = "先點「我先手」或「對方先手」。";
+    return;
+  }
+  if (!manual.enemyPrebansDone || !manual.prebansDone) {
+    $("draftStatus").textContent = "先選完對方預禁和我方預禁。";
     return;
   }
   const full = manual.userPicks.length >= 5 && manual.enemyPicks.length >= 5;
@@ -601,6 +625,9 @@ function fillPicker(query = "") {
   if (pickerIds) {
     const allow = new Set(pickerIds);
     heroes = heroes.filter((hero) => allow.has(hero.id));
+  } else {
+    const taken = draftTaken();
+    heroes = heroes.filter((hero) => !taken.has(hero.id));
   }
   heroes = heroes.filter((hero) => matchesPicker(hero, filters));
   for (const hero of heroes) {
@@ -608,10 +635,16 @@ function fillPicker(query = "") {
     if (needle && !labels.some((label) => label.toLowerCase().includes(needle.toLowerCase()))) continue;
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = hero.listed === false ? `${hero.nameZh}（未收錄）` : hero.nameZh;
-    const note = document.createElement("small");
-    note.textContent = rtaSummary(hero);
-    button.append(note);
+    const name = document.createElement("span");
+    name.textContent = hero.listed === false ? `${hero.nameZh}（未收錄）` : hero.nameZh;
+    if (hero.code) {
+      const face = document.createElement("img");
+      face.alt = "";
+      face.src = `./data/faces/${hero.code}.webp`;
+      face.addEventListener("error", () => face.remove());
+      button.append(face);
+    }
+    button.append(name);
     button.addEventListener("click", () => chooseFace(hero.id));
     list.appendChild(button);
   }
@@ -670,10 +703,22 @@ function chooseFace(heroId) {
 
 function applyDraftChoice(slot, heroId) {
   if (!heroId) return;
-  if (slot.kind === "enemy") {
-    const taken = new Set([...manual.userPicks, ...manual.enemyPicks]);
+  if (slot.kind === "enemy-preban") {
+    const taken = draftTaken();
     if (taken.has(heroId)) {
-      $("draftStatus").textContent = `${heroName(heroId)}已經在場上。`;
+      $("draftStatus").textContent = `${heroName(heroId)}已經選過或預禁過。`;
+      return;
+    }
+    manual.enemyPrebans.push(heroId);
+    const each = $("rank")?.value === "below" ? 1 : 2;
+    if (manual.enemyPrebans.length >= each) manual.enemyPrebansDone = true;
+    renderGuide();
+    return;
+  }
+  if (slot.kind === "enemy") {
+    const taken = draftTaken();
+    if (taken.has(heroId)) {
+      $("draftStatus").textContent = `${heroName(heroId)}已經選過或預禁過。`;
       return;
     }
     if (manual.enemyPicks.length !== slot.index) return;
@@ -725,7 +770,7 @@ function renderLive(result) {
       rate: rateLine(result),
       reason: oneReason(result),
       lines: battleLines(result),
-      click: result.action?.kind === "preban" ? "preban" : "",
+      click: result.action?.kind === "preban" ? "preban" : result.action?.kind === "enemy-preban" ? "enemy-preban" : "",
     });
   }
   const type = currentType();
@@ -1204,6 +1249,12 @@ $("ourBan").addEventListener("click", () => onBan("enemy"));
 $("theirBan").addEventListener("click", () => onBan("user"));
 $("liveAction").addEventListener("click", () => {
   const click = $("liveAction").dataset.click;
+  if (click === "enemy-preban") {
+    pendingSlot = { kind: "enemy-preban" };
+    pickerIds = null;
+    openDraftPicker("對方預禁了哪一名");
+    return;
+  }
   if (click === "preban") {
     manual.prebans = [...(lastAdvice?.action?.ids || [])];
     manual.prebansDone = true;
