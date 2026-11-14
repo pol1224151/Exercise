@@ -32,6 +32,15 @@
       </div>
     </section>
     <section id="draft" class="draft">
+      <p class="lane-label">戰爭規則</p>
+      <div class="rule-row" id="ruleRow">
+        <button type="button" data-rule="attack">進攻</button>
+        <button type="button" data-rule="defense">防守</button>
+        <button type="button" data-rule="resist">抵抗</button>
+        <button type="button" data-rule="special">特別節目</button>
+        <button type="button" data-rule="none">無規則</button>
+      </div>
+      <p id="ruleText" class="note">先選戰爭規則，再算戰況。</p>
       <div class="row">
         <button id="weFirst" type="button">我先手</button>
         <button id="theyFirst" type="button">對方先手</button>
@@ -122,7 +131,7 @@
               <option value="below">冠軍以下，各預禁 1 名</option>
             </select>
           </label>
-          <label class="check"><input id="maxEnhance" type="checkbox"> 技能用滿強化估算（檔案通常沒有強化等級）</label>
+          <label class="check"><input id="maxEnhance" type="checkbox" checked> 技能用滿強化估算（檔案通常沒有強化等級）</label>
           <label>實戰門檻
             <input id="cutoff" type="number" min="0" max="100" step="1" value="40"> %
           </label>

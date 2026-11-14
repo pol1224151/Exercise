@@ -1,4 +1,4 @@
-import { adviceStateKey, adviseFromScreen, battleBrief, buildGearReport, clearAccount, counterEdges, guidedDraft, loadAccount, matchesPicker, parseRoster, readAccountText, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
+import { adviceStateKey, adviseFromScreen, battleBrief, buildGearReport, clearAccount, counterEdges, guidedDraft, loadAccount, matchesPicker, parseRoster, readAccountText, rtaSummary, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, recordResult, saveMatches } from "./records.js";
 import { matchHeroName, matchNamedCard, readDraft, refreshCardMemory, rememberCard } from "./screen.js";
 
@@ -257,14 +257,30 @@ function draftedFight() {
   const userFight = manual.userPicks.filter((id) => id !== manual.enemyBanId);
   const enemyFight = manual.enemyPicks.filter((id) => id !== manual.userBanId);
   if (userFight.length !== 4 || enemyFight.length !== 4) return null;
-  return { userFight, enemyFight, userFirst: manual.userFirst === true };
+  return { userFight, enemyFight, userFirst: manual.userFirst === true, rule: manual.rule || "" };
 }
 
 function draftKey() {
-  return [manual.userFirst, manual.prebansDone, (manual.prebans || []).join(","), manual.userPicks.join(","), manual.enemyPicks.join(","), manual.userBanId || "", manual.enemyBanId || "", $("rank")?.value || ""].join("|");
+  return [manual.rule || "", manual.userFirst, manual.prebansDone, (manual.prebans || []).join(","), manual.userPicks.join(","), manual.enemyPicks.join(","), manual.userBanId || "", manual.enemyBanId || "", $("rank")?.value || ""].join("|");
+}
+
+function paintRule() {
+  const text = {
+    attack: "進攻：靈魂燃燒技能造成的傷害提升 15%。",
+    defense: "防守：可提升回收量與防護強度 30%。",
+    resist: "抵抗：效果抗性提升 50%。",
+    special: "特別節目：閃避減少 30%。",
+    none: "無規則：不加這些。",
+  };
+  for (const button of document.querySelectorAll("#ruleRow button")) {
+    button.classList.toggle("primary", button.dataset.rule === manual.rule);
+  }
+  const node = $("ruleText");
+  if (node) node.textContent = manual.rule ? text[manual.rule] : "先選戰爭規則，再算戰況。";
 }
 
 function renderGuide() {
+  paintRule();
   if (!catalog || !roster?.heroes?.length) {
     paintBoard();
     return;
@@ -296,6 +312,16 @@ function renderGuide() {
     guard += 1;
   }
   const fight = draftedFight();
+  if (fight && !manual.rule) {
+    guideKey = draftKey();
+    lastAdvice = result;
+    renderLive(result);
+    paintBoard();
+    $("draftStatus").textContent = "先選戰爭規則，再算戰況。";
+    $("weFirst")?.classList.toggle("primary", manual.userFirst === true);
+    $("theyFirst")?.classList.toggle("primary", manual.userFirst === false);
+    return;
+  }
   if (fight) result = battleBrief(catalog, roster, fight);
   guideKey = draftKey();
   lastAdvice = result;
@@ -334,7 +360,9 @@ function draftStatusText(result) {
 }
 
 function setOrder(userFirst) {
+  const rule = manual.rule || "";
   manual = blankDraft(userFirst);
+  manual.rule = rule;
   guideKey = "";
   openRecord = null;
   const record = $("liveRecord");
@@ -581,6 +609,9 @@ function fillPicker(query = "") {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = hero.listed === false ? `${hero.nameZh}（未收錄）` : hero.nameZh;
+    const note = document.createElement("small");
+    note.textContent = rtaSummary(hero);
+    button.append(note);
     button.addEventListener("click", () => chooseFace(hero.id));
     list.appendChild(button);
   }
@@ -1157,6 +1188,13 @@ for (const button of document.querySelectorAll("#pickerFilters button")) {
   button.addEventListener("click", () => {
     button.setAttribute("aria-pressed", button.getAttribute("aria-pressed") === "true" ? "false" : "true");
     fillPicker($("pickerSearch").value);
+  });
+}
+for (const button of document.querySelectorAll("#ruleRow button")) {
+  button.addEventListener("click", () => {
+    manual.rule = button.dataset.rule;
+    guideKey = "";
+    renderGuide();
   });
 }
 $("weFirst").addEventListener("click", () => setOrder(true));

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { advise, adviseFromScreen, buildGearReport, clearAccount, draftPlans, elementRelation, fightFromRoster, heroKit, heroListed, loadAccount, matchesPicker, parseRoster, readAccountText, saveAccount, selectableHeroes, skillDamage, unclearSkills } from "../js/engine.js";
+import { advise, adviseFromScreen, buildGearReport, clearAccount, draftPlans, elementRelation, fightFromRoster, heroKit, heroListed, loadAccount, matchesPicker, parseRoster, readAccountText, rtaSummary, saveAccount, selectableHeroes, skillDamage, unclearSkills } from "../js/engine.js";
 import { chooseComposition, draftType } from "../js/records.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
@@ -191,7 +191,8 @@ assert.match(peira, /最多 5 層/);
 assert.match(peira, /全體隊友戰鬥準備度 \+10%/);
 assert.match(peira, /解除全體隊友 2 個弱化/);
 assert.match(peira, /再行動一次/);
-assert.match(peira, /沒有公開的開戰配裝/);
+assert.match(peira, /量身特製力量之錨/);
+assert.equal(peira.includes("沒有公開的開戰配裝"), false);
 assert.equal(peira.includes("沒有另編數字"), false);
 assert.equal(/大招：冷卻 8 回合，沒有傷害倍率，持續 3 回合/.test(peira), false);
 
@@ -247,6 +248,27 @@ const blankNames = unclearSkills(catalog).map((row) => row.name);
 for (const name of skipped) assert.equal(blankNames.includes(name), false, name);
 assert.equal(blankNames.includes("壞壞貓亞敏"), false);
 assert.equal(blankNames.includes("安茲‧烏爾‧恭"), false);
+assert.equal(blankNames.includes("奧芙"), false);
+
+const aube = heroKit(catalog, "aube");
+assert.match(aube, /珊瑚波濤/);
+assert.match(aube, /速攻值減少 20%/);
+assert.match(aube, /底片嘉年華/);
+assert.match(aube, /100%/);
+assert.match(aube, /4000/);
+assert.match(aube, /永恆的剎那/);
+assert.match(aube, /冷卻 6 回合/);
+assert.match(aube, /黎明寶珠/);
+assert.match(aube, /使用率 53%/);
+assert.match(aube, /頁上沒有印神器效果，不另編/);
+assert.equal(aube.includes("Aubade"), false);
+assert.equal(aube.includes("Speed"), false);
+const aubeHero = catalog.database.find((hero) => hero.id === "aube");
+assert.match(rtaSummary(aubeHero), /勝率 53\.8%/);
+assert.match(rtaSummary(aubeHero), /選擇 1\.5%/);
+assert.match(rtaSummary(aubeHero), /禁令前 0\.9%/);
+assert.match(rtaSummary(aubeHero), /64166/);
+assert.equal(rtaSummary(catalog.database.find((hero) => hero.id === "mighty-scout")), "沒有世界競技場頁");
 
 const listed = selectableHeroes(catalog);
 const arm = listed.find((hero) => hero.id === "armin");

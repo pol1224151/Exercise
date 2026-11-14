@@ -627,7 +627,7 @@ const specterSlice = specterBrief.reason.summary.slice(specterAt, specterEnd);
 assert.match(specterSlice, /60% 機率隱身/);
 assert.match(specterSlice, /資源減少 50%/);
 assert.equal(specterSlice.includes("沒有公開的開戰配裝"), false);
-assert.match(specterSlice, /弓系沒有公開的神器出場率/);
+assert.match(specterSlice, /弓系沒有公開的神器出場率|建造來自世界競技場頁/);
 
 const warfare = battleBrief(catalog, roster, {
   userFirst: false,
@@ -660,6 +660,35 @@ assert.equal(yulhaWho.slice("誰先打誰：".length).includes("先打"), false)
 assert.match(yulhaUlt, /開大給/);
 assert.equal(yulhaUlt.includes("要開大。"), false);
 assert.equal(yulhaBrief.reason.summary.includes("不指定先殺"), false);
+const ruled = battleBrief(catalog, roster, {
+  userFirst: true,
+  rule: "attack",
+  userFight: heroIds.slice(0, 4),
+  enemyFight: heroIds.slice(4, 8),
+});
+assert.equal(ruled.reason.lines[0], "戰爭規則：進攻。靈魂燃燒技能造成的傷害提升 15%。");
+const plain = battleBrief(catalog, roster, {
+  userFirst: true,
+  rule: "none",
+  userFight: heroIds.slice(0, 4),
+  enemyFight: heroIds.slice(4, 8),
+});
+assert.equal(plain.reason.lines[0], "戰爭規則：無規則。");
+assert.equal(plain.reason.summary.includes("靈魂燃燒技能造成的傷害提升 15%"), false);
+const aubeFight = battleBrief(catalog, roster, {
+  userFirst: true,
+  rule: "defense",
+  userFight: ["arbiter-vildred", "belian", "estelle", "harsetti"],
+  enemyFight: ["aube", "mercedes", "ras", "diene"],
+});
+assert.equal(aubeFight.ok, true, aubeFight.reason?.summary);
+assert.match(aubeFight.reason.summary, /可提升回收量與防護強度 30%/);
+assert.match(aubeFight.reason.summary, /奧芙/);
+assert.match(aubeFight.reason.summary, /速度分位：25 291、50 299、75 305、90 310/);
+assert.match(aubeFight.reason.summary, /攻擊力 1600～2400，高峰 56%/);
+assert.match(aubeFight.reason.summary, /梯隊 A/);
+assert.equal(aubeFight.reason.summary.includes("Aubade"), false);
+assert.equal(aubeFight.reason.summary.includes("Postban"), false);
 const protectedBan = heroIds[7];
 assert.equal(lastBan.action.id === protectedBan, false);
 
