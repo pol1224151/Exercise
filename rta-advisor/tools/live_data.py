@@ -300,7 +300,21 @@ def attach_database(fetch, hero_url: str, artifact_url: str, zh_url: str, fresh_
     heroes = json.loads(fetch(hero_url, fresh=fresh_files))
     artifacts = json.loads(fetch(artifact_url, fresh=fresh_files))
     zh = json.loads(fetch(zh_url, fresh=fresh_files))
-    catalog["database"] = build_database(heroes, zh)
+    previous = {row.get("id"): row for row in catalog.get("database") or []}
+    built = build_database(heroes, zh)
+    for row in built:
+        old = previous.get(row.get("id"))
+        if not old:
+            continue
+        for key in ("role", "roleZh", "base", "skillText"):
+            if old.get(key) is not None and row.get(key) is None:
+                row[key] = old[key]
+        for slot in ("S1", "S2", "S3"):
+            extra = (old.get("skills") or {}).get(slot) or {}
+            fresh = row["skills"][slot]
+            # A later Fribbels refresh keeps the new multipliers and the skill text already collected.
+            row["skills"][slot] = {**extra, **fresh}
+    catalog["database"] = built
     catalog["artifactNames"] = {
         art["code"]: {"name": name, "nameZh": zh.get(name, name)}
         for name, art in artifacts.items()

@@ -87,6 +87,20 @@ function activeSets(setNamesOrCounts) {
   return active;
 }
 
+function fightRecord(catalog, id) {
+  const modeled = (catalog?.heroes || []).find((hero) => hero.id === id);
+  if (modeled) return hasPublicDamage(modeled) ? modeled : null;
+  const row = (catalog?.database || []).find((hero) => hero.id === id);
+  if (!row || !hasPublicDamage(row)) return null;
+  const normalized = normalizeHeroDef(row);
+  return {
+    ...normalized,
+    role: row.role || normalized.role || "",
+    rtaGear: row.rtaGear || null,
+    reference: row.reference || null,
+  };
+}
+
 function normalizeHeroDef(row) {
   if (!row) return null;
   if (row.base && (row.base.speed != null || row.base.attack != null)) return row;
@@ -105,14 +119,20 @@ function normalizeHeroDef(row) {
   };
 }
 
+export function hasPublicDamage(hero) {
+  const skills = hero?.skills || {};
+  return ["S1", "S2", "S3"].some((slot) => {
+    const skill = skills[slot];
+    if (!skill) return false;
+    const scaling = (skill.selfHpScaling || 0) + (skill.selfAtkScaling || 0) + (skill.selfDefScaling || 0) + (skill.selfSpdScaling || 0);
+    return (typeof skill.rate === "number" && typeof skill.pow === "number" && skill.rate > 0 && skill.pow > 0) || scaling > 0;
+  });
+}
+
 export function heroListed(hero) {
   if (!hero) return false;
   if (typeof hero.listed === "boolean") return hero.listed;
-  const skills = hero.skills || {};
-  return ["S1", "S2", "S3"].some((slot) => {
-    const skill = skills[slot];
-    return typeof skill?.rate === "number" && typeof skill?.pow === "number" && skill.rate > 0 && skill.pow > 0;
-  });
+  return hasPublicDamage(hero);
 }
 
 function personOf(id) {
@@ -1010,12 +1030,13 @@ export function simulateFight(draft, plan, byId, enhanceMode, rand) {
 }
 
 export function fightFromRoster(draft, roster, catalog, plan, enhanceMode, rand, enemyMode = "reference") {
-  const byId = Object.fromEntries(catalog.heroes.map((h) => [h.id, h]));
   const owned = Object.fromEntries(roster.heroes.map((h) => [h.id, h]));
   const make = (id, side) => {
-    const def = byId[id];
+    const def = fightRecord(catalog, id);
+    if (!def) throw new Error(`沒有公開技能倍率：${id}`);
     const own = side === "user" ? owned[id] : null;
     const ref = def.reference?.median;
+    const gearNames = def.rtaGear?.setCombos?.[0]?.names || [];
     const stats = (side === "user" && own) ? own : {
       hp: ref?.hp ?? def.base.hp,
       attack: ref?.attack ?? def.base.attack,
@@ -1025,10 +1046,10 @@ export function fightFromRoster(draft, roster, catalog, plan, enhanceMode, rand,
       critDamage: ref?.critDamage ?? def.base.critDamage,
       effectiveness: ref?.effectiveness ?? def.base.effectiveness,
       effectResistance: ref?.effectResistance ?? def.base.effectResistance,
-      sets: (def.rtaGear.setCombos?.[0]?.names) || [],
+      sets: gearNames,
     };
     if (enemyMode === "reference" && side === "enemy") {
-      stats.sets = (def.rtaGear.setCombos?.[0]?.names) || stats.sets;
+      stats.sets = gearNames.length ? gearNames : stats.sets;
     }
     const unit = unitFrom({
       hp: stats.hp,
@@ -1196,6 +1217,7 @@ function takeTurn(actor, units, plan, rand, log) {
     parts.push(`${target.nameZh}${glance ? "擦傷" : ""}${Math.round(damage)}`);
   }
   if (skill.cooldown) actor.cdLeft[skill.slot] = skill.cooldown;
+  else if (skill.slot !== "S1" && skill.cooldownShown == null) actor.cdLeft[skill.slot] = 99;
   const soulCut = foes.some((u) => u.alive && u.passives.some((e) => e.kind === "soulCut" && e.ratio >= 1));
   if (!soulCut) purse.purse.value += skill.soulGain || 0;
   const burnNote = doBurn ? `，燒魂 ${skill.soulburnCost}` : "";
@@ -1895,7 +1917,7 @@ function skillHasNumberedEffect(skill) {
 }
 
 function storedHp(catalog, roster, id, side) {
-  const def = (catalog.heroes || []).find((hero) => hero.id === id);
+  const def = fightRecord(catalog, id);
   if (side === "user") {
     const own = (roster?.heroes || []).find((hero) => hero.id === id);
     if (typeof own?.hp === "number") return own.hp;
@@ -1912,8 +1934,13 @@ export function battleBrief(catalog, roster, draft) {
   if (userFight.length !== 4 || enemyFight.length !== 4) {
     return invalid(catalog, "選滿並禁完才有戰況", "兩邊各留下 4 名之後，才寫誰先打誰。");
   }
-  const byId = Object.fromEntries((catalog.heroes || []).map((hero) => [hero.id, hero]));
-  const missing = [...userFight, ...enemyFight].filter((id) => !byId[id] || !heroListed(byId[id]));
+  const byId = {};
+  const missing = [];
+  for (const id of [...userFight, ...enemyFight]) {
+    const record = fightRecord(catalog, id);
+    if (!record) missing.push(id);
+    else byId[id] = record;
+  }
   if (missing.length) {
     const names = missing.map((id) => screenName(catalog, id) || "這名").join("、");
     return invalid(catalog, "這份戰況不編沒有倍率的人", `${names}沒有技能倍率，不另編傷害。`);
@@ -1944,7 +1971,7 @@ export function battleBrief(catalog, roster, draft) {
       }
     }
   }
-  const names = new Map((catalog.heroes || []).map((hero) => [hero.nameZh, hero.id]));
+  const names = new Map(Object.values(byId).map((hero) => [hero.nameZh, hero.id]));
   const targets = line
     ? line.split("→")[1].split("、").map((part) => part.replace(/擦傷/g, "").replace(/\d+/g, "").trim()).filter((name) => names.has(name))
     : [];

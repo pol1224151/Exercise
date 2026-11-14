@@ -121,6 +121,9 @@ def fetch(url: str, data: bytes | None = None, timeout: int = 60, fresh: bool = 
             cached.write_bytes(body)
             return body
         except Exception as exc:  # noqa: BLE001 - retry then surface
+            import urllib.error
+            if isinstance(exc, urllib.error.HTTPError) and exc.code == 404:
+                raise
             last = exc
             import time
             time.sleep(1.5 * (attempt + 1))
@@ -747,14 +750,299 @@ def main(fresh: bool = False, commit: str | None = None, commit_date: str | None
     print("wrote sample", len(sample_heroes))
 
 
+def public_numbered_effects(text: str, effects: list[dict]) -> None:
+    """Record percents and durations the sentence states. Do not simulate them."""
+    if not text:
+        return
+    have = {(effect.get("kind"), effect.get("source")) for effect in effects}
+
+    def add(kind: str, source: str, **fields) -> None:
+        if (kind, source) in have:
+            return
+        effects.append({"kind": kind, "simulated": False, "source": source, **fields})
+        have.add((kind, source))
+
+    for match in re.finditer(r"increases Evasion by (\d+)%", text, re.I):
+        add("evasion", match.group(0), ratio=int(match.group(1)) / 100)
+    for match in re.finditer(r"up to (\d+)%[^.]{0,24}injur\w*|injur\w*[^.]{0,48}?up to (\d+)%", text, re.I):
+        raw = next(group for group in match.groups() if group)
+        add("injury", match.group(0), ratio=int(raw) / 100)
+    for match in re.finditer(r"gains (\d+) Fighting Spirit", text, re.I):
+        add("fightingSpirit", match.group(0), amount=int(match.group(1)))
+    for match in re.finditer(r"consumes (\d+) Fighting Spirit", text, re.I):
+        add("fightingSpirit", match.group(0), amount=int(match.group(1)))
+    for match in re.finditer(r"gains (\d+) Focus\b", text):
+        add("focus", match.group(0), amount=int(match.group(1)))
+    for match in re.finditer(r"Focus is (\d+) or higher", text):
+        add("focus", match.group(0), amount=int(match.group(1)))
+    for match in re.finditer(r"increasing Attack by (\d+)%", text, re.I):
+        stacks = re.search(r"stack up to (\d+) time", text, re.I)
+        fields = {"ratio": int(match.group(1)) / 100}
+        if stacks:
+            fields["stacks"] = int(stacks.group(1))
+        add("attackUp", match.group(0), **fields)
+    for match in re.finditer(r"increased Attack to (?:all allies except for the caster|the caster) for (\d+) turns?", text, re.I):
+        add("attackUp", match.group(0), turns=int(match.group(1)))
+    for match in re.finditer(r"vigor to the caster for (\d+) turns?", text, re.I):
+        add("vigor", match.group(0), turns=int(match.group(1)))
+    for match in re.finditer(r"grants immunity to the caster for (\d+) turns?", text, re.I):
+        add("immunity", match.group(0), turns=int(match.group(1)))
+    for match in re.finditer(r"damage limit to the caster for (\d+) turns?", text, re.I):
+        add("damageLimit", match.group(0), turns=int(match.group(1)))
+    for match in re.finditer(r"Health is (\d+)% or less", text, re.I):
+        add("healthThreshold", match.group(0), ratio=int(match.group(1)) / 100)
+    for match in re.finditer(r"equivalent to (\d+)% or more of max Health", text, re.I):
+        add("damageThreshold", match.group(0), ratio=int(match.group(1)) / 100)
+    for match in re.finditer(r"granting (\d+)% damage reduction", text, re.I):
+        add("damageReduction", match.group(0), ratio=int(match.group(1)) / 100)
+    for match in re.finditer(r"decreasing skill cooldowns of all allies by (\d+) turns?", text, re.I):
+        add("cooldownCut", match.group(0), turns=int(match.group(1)))
+    for match in re.finditer(r"Increases Speed by (\d+)%", text):
+        add("speedUp", match.group(0), ratio=int(match.group(1)) / 100)
+
+
+def pin_proportional_pen(text: str, effects: list[dict]) -> None:
+    match = re.search(r"penetrates (?:the target's )?Defense proportionally,?\s*up to (\d+)%", text or "", re.I)
+    if not match:
+        return
+    for effect in effects:
+        if effect.get("kind") == "penetrate":
+            effect["ratio"] = int(match.group(1)) / 100
+            effect["simulated"] = False
+            effect["source"] = match.group(0)
+            effect["gap"] = (
+                "The cap is proportional to the Health difference. "
+                "Fribbels publishes no penetration coefficient, so this is not applied as flat penetration."
+            )
+            return
+    effects.append({
+        "kind": "penetrate",
+        "simulated": False,
+        "ratio": int(match.group(1)) / 100,
+        "source": match.group(0),
+        "gap": (
+            "The cap is proportional to the Health difference. "
+            "Fribbels publishes no penetration coefficient, so this is not applied as flat penetration."
+        ),
+    })
+
+
+def unnamed_cr(effects: list[dict]) -> None:
+    for effect in effects:
+        if effect.get("kind") not in ("crPush", "crPushback"):
+            continue
+        source = effect.get("source") or ""
+        if "of the" in source:
+            continue
+        effect["simulated"] = False
+        effect["gap"] = "The sentence gives a Combat Readiness percent but does not name who receives it."
+
+
+def article_bits(html: str) -> tuple[dict, dict]:
+    bodies = {}
+    chips = {}
+    parts = re.split(r'(?=<article class="skw__detail")', html)
+    for part in parts:
+        slot_match = re.search(r'data-skill="(\d)"', part[:240])
+        if not slot_match:
+            continue
+        end = part.find("</article>")
+        chunk = part[: end if end > 0 else len(part)]
+        slot = f"S{slot_match.group(1)}"
+        body = re.search(r'<p class="skw__text"(?![^>]*--b)[^>]*>([\s\S]*?)</p>', chunk)
+        if body:
+            bodies[slot] = plain_html(body.group(1)).strip()
+        head = chunk.split("skw__burn", 1)[0]
+        chips[slot] = [
+            plain_html(line).strip()
+            for _name, line in re.findall(
+                r'ichip__name[^>]*>([^<]+)</span>[\s\S]{0,400}?fx__line[^>]*>([^<]+)',
+                head,
+            )
+        ]
+    return bodies, chips
+
+
+def note_soulburn(text: str | None, effects: list[dict]) -> None:
+    if not text:
+        return
+    public_numbered_effects(text, effects)
+    for effect in effects:
+        if effect.get("kind") != "unparsed":
+            continue
+        if re.search(r"Attacks all enemies", text, re.I):
+            effect["gap"] = (
+                "Soul burn says this attack hits all enemies, but Fribbels publishes no separate multiplier, "
+                "so the single-target rate and target count stay."
+            )
+        elif re.search(r"injur", text, re.I):
+            effect["gap"] = (
+                "The injury cap in this sentence is stored and not applied. "
+                "The damage increase has no published multiplier."
+            )
+
+
+def skill_from_sources(fb: dict, tx: dict, text: str, chips: list[str]) -> dict:
+    effects = effects_from_text(text)
+    public_numbered_effects(text, effects)
+    for chip in chips:
+        public_numbered_effects(chip, effects)
+    pin_proportional_pen(text, effects)
+    unnamed_cr(effects)
+    burn = soulburn_effects(tx.get("soulburnText"))
+    note_soulburn(tx.get("soulburnText"), burn)
+    rate = fb.get("rate") or 0
+    power = 0 if fb.get("pow") is None else fb.get("pow")
+    return {
+        "name": tx.get("name") or "",
+        "passive": bool(tx.get("passive")) if tx else False,
+        "rate": rate,
+        "pow": power,
+        "targets": fb.get("targets") or 0,
+        "selfHpScaling": fb.get("selfHpScaling") or 0,
+        "selfAtkScaling": fb.get("selfAtkScaling") or 0,
+        "selfDefScaling": fb.get("selfDefScaling") or 0,
+        "selfSpdScaling": fb.get("selfSpdScaling") or 0,
+        "penetration": fb.get("penetration") or 0,
+        "increasedValue": fb.get("increasedValue") or 0,
+        "cdmgIncrease": fb.get("cdmgIncrease") or 0,
+        "note": fb.get("note") or "",
+        "options": [
+            {key: value for key, value in opt.items() if value not in (None, "", [], {})}
+            for opt in (fb.get("options") or [])
+        ],
+        "cooldownShown": tx.get("cooldownShown"),
+        "soulGain": tx.get("soulGain") or 0,
+        "soulburnCost": tx.get("soulburnCost"),
+        "soulburnText": tx.get("soulburnText"),
+        "soulburnEffects": burn,
+        "enhanceSummary": tx.get("enhanceSummary"),
+        "enhanceDamagePct": tx.get("enhanceDamagePct") or 0,
+        "enhanceEffectPct": tx.get("enhanceEffectPct") or 0,
+        "enhanceCooldownCut": tx.get("enhanceCooldownCut") or 0,
+        "text": text,
+        "effects": effects,
+        "fribbelsOnly": not bool(tx),
+    }
+
+
+def annotate_hero_skills(hero: dict, html: str | None) -> dict:
+    """Fribbels multipliers stay. Cooldown, soul burn, and numbered sentences come from the public page."""
+    skills_txt = parse_skills(html) if html else {}
+    bodies, chips = article_bits(html) if html else ({}, {})
+    skills = {}
+    for slot in ("S1", "S2", "S3"):
+        fb = (hero.get("skills") or {}).get(slot) or {}
+        tx = skills_txt.get(slot) or {}
+        text = bodies.get(slot) or tx.get("text") or ""
+        skills[slot] = skill_from_sources(fb, tx, text, chips.get(slot) or [])
+        if re.search(r"Attacks all enemies", text) and (fb.get("targets") or 0) != 3:
+            skills[slot]["targetNote"] = (
+                f"The skill text says this attack hits all enemies, but Fribbels target count is {fb.get('targets') or 0}."
+            )
+    return skills
+
+
+def has_public_damage(skills: dict) -> bool:
+    for skill in skills.values():
+        scaling = (skill.get("selfHpScaling") or 0) + (skill.get("selfAtkScaling") or 0) + (skill.get("selfDefScaling") or 0) + (skill.get("selfSpdScaling") or 0)
+        if ((skill.get("rate") or 0) > 0 and (skill.get("pow") or 0) > 0) or scaling > 0:
+            return True
+    return False
+
+
+def enrich_database() -> None:
+    """Add cooldown, soul burn, and numbered skill text to every database hero. Does not rewrite the season model."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import urllib.error
+
+    catalog = json.loads((DATA / "catalog.json").read_text())
+    heroes = json.loads(fetch(HERO_URL))
+    by_code = {hero["code"]: hero for hero in heroes.values()}
+    rows = catalog["database"]
+
+    def one(row: dict) -> tuple[str, dict | None, str | None, str | None]:
+        src = by_code.get(row["code"])
+        if not src:
+            return row["id"], None, None, "missing from Fribbels"
+        slug = src.get("_id") or row["id"]
+        slugs = [slug]
+        hyphenated = re.sub(r"-(\d)(\d)$", r"-\1-\2", slug)
+        if hyphenated != slug:
+            slugs.append(hyphenated)
+        last_error = "no page"
+        for candidate in slugs:
+            url = f"https://epic7tools.dev/heroes/{candidate}/"
+            try:
+                html = fetch(url, timeout=25).decode("utf-8", "replace")
+            except urllib.error.HTTPError as exc:
+                last_error = f"http {exc.code}"
+                continue
+            except Exception as exc:  # noqa: BLE001
+                return row["id"], src, None, type(exc).__name__
+            return row["id"], src, html, None
+        return row["id"], src, None, last_error
+
+    found = {}
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [pool.submit(one, row) for row in rows]
+        done = 0
+        for future in as_completed(futures):
+            hero_id, src, html, error = future.result()
+            found[hero_id] = (src, html, error)
+            done += 1
+            if done % 40 == 0 or done == len(rows):
+                print("pages", done, "/", len(rows), flush=True)
+
+    missing_page = []
+    no_damage = []
+    with_cooldown = 0
+    for row in rows:
+        src, page, error = found.get(row["id"], (None, None, "missing"))
+        if src is None:
+            missing_page.append(f"{row['nameZh']} ({error})")
+            continue
+        if error:
+            missing_page.append(f"{row['nameZh']} ({error})")
+        row["role"] = src.get("role") or row.get("role") or ""
+        row["roleZh"] = ROLE_ZH.get(row["role"], row["role"])
+        base = (src.get("calculatedStatus") or {}).get("lv60SixStarFullyAwakened") or {}
+        if base:
+            row["base"] = {
+                "attack": base.get("atk"),
+                "hp": base.get("hp"),
+                "defense": base.get("def"),
+                "speed": base.get("spd"),
+                "crit": round(base["chc"] * 100) if base.get("chc") is not None else None,
+                "critDamage": round(base["chd"] * 100) if base.get("chd") is not None else None,
+                "effectiveness": round(base["eff"] * 100) if base.get("eff") is not None else None,
+                "effectResistance": round(base["efr"] * 100) if base.get("efr") is not None else None,
+            }
+        row["skills"] = annotate_hero_skills(src, page)
+        row["skillText"] = "epic7tools" if page else "unavailable"
+        if any(isinstance(skill.get("cooldownShown"), int) for skill in row["skills"].values()):
+            with_cooldown += 1
+        if not has_public_damage(row["skills"]):
+            no_damage.append(row["nameZh"])
+    (DATA / "catalog.json").write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n")
+    print("cooldown pages", with_cooldown)
+    print("no public damage", len(no_damage), "、".join(no_damage))
+    print("page missing", len(missing_page))
+    for name in missing_page:
+        print(" missing", name)
+
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--refresh", action="store_true", help="Download the latest Fribbels commit and the current RTA ladder")
     parser.add_argument("--attach", action="store_true", help="Attach the Fribbels hero database to the current catalog")
+    parser.add_argument("--skills", action="store_true", help="Add public cooldown, soul burn, and numbered effects to every database hero")
     args = parser.parse_args()
-    if args.refresh:
+    if args.skills:
+        enrich_database()
+    elif args.refresh:
         import sys
         from live_data import refresh_all
         refresh_all(sys.modules[__name__])

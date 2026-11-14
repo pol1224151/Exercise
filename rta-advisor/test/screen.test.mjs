@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { adviceStateKey, adviseFromScreen, battleBrief, detectFirstPick, fightFromRoster, guidedDraft, parseRoster, selectableHeroes, sourceBasis } from "../js/engine.js";
+import { adviceStateKey, adviseFromScreen, battleBrief, detectFirstPick, fightFromRoster, guidedDraft, hasPublicDamage, parseRoster, selectableHeroes, sourceBasis } from "../js/engine.js";
 import { DEFAULT_REGIONS, bindRememberedCards, findDraftCards, inferPhase, liveStateKey, matchCardMemory, matchHeroName, matchPortrait, paintFixture, readDraft, readFrame, readPickMark, rememberCard, rememberCorrection, slotFrame } from "../js/screen.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
@@ -522,6 +522,35 @@ const filled = battleBrief(catalog, roster, {
 });
 assert.equal(filled.ok, true, filled.reason?.summary);
 assert.equal(filled.reason.summary.includes("沒有技能倍率"), false);
+
+const noRate = catalog.database.filter((hero) => !hasPublicDamage(hero)).map((hero) => hero.nameZh).sort();
+assert.deepEqual(noRate, ["偵查兵瑪伊堤", "野生安卡拉"]);
+for (const hero of catalog.database) {
+  for (const slot of ["S1", "S2", "S3"]) {
+    const skill = hero.skills[slot];
+    assert.equal(typeof skill.rate, "number", `${hero.id} ${slot} rate`);
+    assert.equal(typeof skill.pow, "number", `${hero.id} ${slot} pow`);
+    assert.ok("cooldownShown" in skill, `${hero.id} ${slot} cooldown`);
+    assert.ok("soulburnCost" in skill, `${hero.id} ${slot} soulburn`);
+  }
+}
+const withCooldown = catalog.database.filter((hero) => ["S1", "S2", "S3"].some((slot) => typeof hero.skills[slot].cooldownShown === "number"));
+assert.ok(withCooldown.length > 300, String(withCooldown.length));
+const outsider = battleBrief(catalog, roster, {
+  userFirst: true,
+  userFight: ["sigret", "vildred", "mercedes", "ravi"],
+  enemyFight: heroIds.slice(0, 4),
+});
+assert.equal(outsider.ok, true, outsider.reason?.summary);
+assert.equal(outsider.reason.summary.includes("沒有技能倍率"), false);
+const scout = battleBrief(catalog, roster, {
+  userFirst: true,
+  userFight: ["mighty-scout", heroIds[0], heroIds[1], heroIds[2]],
+  enemyFight: heroIds.slice(3, 7),
+});
+assert.equal(scout.ok, false);
+assert.match(scout.reason.summary, /偵查兵瑪伊堤/);
+assert.match(scout.reason.summary, /沒有技能倍率/);
 assert.match(filled.reason.summary, /先打|先動/);
 const protectedBan = heroIds[7];
 assert.equal(lastBan.action.id === protectedBan, false);
