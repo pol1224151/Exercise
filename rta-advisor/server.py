@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import json
+import mimetypes
 import sys
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
+
+mimetypes.add_type("application/wasm", ".wasm")
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "tools"))

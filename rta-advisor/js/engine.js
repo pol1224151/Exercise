@@ -1319,7 +1319,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
   const slots = [...(recognition.user || []), ...(recognition.enemy || []), ...(recognition.prebans || [])];
   const phase = recognition.phase;
   if (slots.includes("unknown") || (phase === "battle" && recognition.actorId === "unknown")) {
-    return invalid(catalog, "點格子填上英雄", "這一格還沒有名字，不會猜一個接近的人。");
+    return invalid(catalog, "點這張卡選英雄", "這張卡上的名字讀不到，不會猜一個接近的人。");
   }
   const outside = slots.filter((id) => id && id !== "empty" && id !== "unknown" && !byId[id]);
   const actorOutside = phase === "battle" && recognition.actorId && recognition.actorId !== "empty" && recognition.actorId !== "unknown" && !byId[recognition.actorId];
@@ -1430,7 +1430,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
   const lockedPre = (recognition.prebans || []).filter(known);
   const nothingOnBoard = userPicks.length === 0 && enemyPicks.length === 0 && lockedPre.length === 0;
   if (nothingOnBoard && phase !== "preban" && !recognition.turnSide && !recognition.leadSide) {
-    return invalid(catalog, "畫面上還沒有選角", "對準預禁或兩邊的頭像後，下一步會出現。");
+    return invalid(catalog, "畫面上還沒有選角", "左右大卡出現英雄後，下一步會出現。");
   }
   const detected = detectFirstPick(userPicks.length, enemyPicks.length, recognition.turnSide, recognition.leadSide);
   let userFirst = detected.firstPick;

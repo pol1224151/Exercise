@@ -17,7 +17,7 @@ import (
 
 // packVersion is written next to the extracted files. Bump it when shipping a new exe
 // so a newer double-click replaces the packed hero data.
-const packVersion = "2026-11-14.2"
+const packVersion = "2026-11-14.3"
 
 const listenAddr = "127.0.0.1:8765"
 
@@ -28,6 +28,7 @@ const listenAddr = "127.0.0.1:8765"
 //go:embed server.py
 //go:embed tools/build-catalog.py
 //go:embed tools/live_data.py
+//go:embed vendor
 var packed embed.FS
 
 func main() {

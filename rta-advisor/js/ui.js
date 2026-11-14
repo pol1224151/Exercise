@@ -1,15 +1,13 @@
 import { adviseFromScreen, buildGearReport, clearAccount, counterEdges, loadAccount, parseRoster, readAccountText, saveAccount, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, recordResult, saveMatches } from "./records.js";
-import { DEFAULT_REGIONS, liveStateKey, paintFixture, readFrame, rememberCorrection, slotFrame } from "./screen.js";
+import { liveStateKey, matchHeroName, matchNamedCard, readDraft, rememberCard } from "./screen.js";
 
 const $ = (id) => document.getElementById(id);
-const REGION_KEY = "rta-advisor-regions-v2";
-const FACE_KEY = "rta-advisor-faces";
+const CARD_KEY = "rta-advisor-cards";
 
 let catalog = null;
 let book = null;
 let roster = null;
-let regions = loadRegions();
 let stream = null;
 let timer = 0;
 let watchHandle = 0;
@@ -23,7 +21,10 @@ let lastRead = null;
 let openRecord = null;
 let orderLock = null;
 let reading = false;
-let corrections = loadCorrections();
+let cardMemory = loadCardMemory();
+let namedCards = [];
+let ocrQueued = false;
+let workerPromise = null;
 let pendingFace = null;
 
 async function boot() {
@@ -37,7 +38,6 @@ async function boot() {
   const version = versionRes.ok ? await versionRes.json() : sourceBasis(catalog).version;
   renderVersion(version);
   renderCounters();
-  mountBoxes();
   setScreenEnabled(false);
   const params = new URLSearchParams(location.search);
   if (params.get("account") === "example" || params.get("fixture")) await loadExample();
@@ -47,24 +47,14 @@ async function boot() {
   if (fixture) runFixture(fixture);
 }
 
-function loadCorrections() {
+function loadCardMemory() {
   try {
-    const saved = JSON.parse(localStorage.getItem(FACE_KEY) || "[]");
-    if (Array.isArray(saved)) return saved.filter((row) => row?.id && Array.isArray(row.rgb));
+    const saved = JSON.parse(localStorage.getItem(CARD_KEY) || "[]");
+    if (Array.isArray(saved)) return saved.filter((row) => row?.id && Array.isArray(row.sig));
   } catch {
     /* start with an empty memory */
   }
   return [];
-}
-
-function loadRegions() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(REGION_KEY) || "null");
-    if (saved?.user && saved?.enemy && saved?.preban && saved?.skills && saved?.actor) return saved;
-  } catch {
-    /* use the defaults */
-  }
-  return structuredClone(DEFAULT_REGIONS);
 }
 
 function renderVersion(version) {
@@ -217,39 +207,10 @@ function showFrame(on) {
   $("stage").hidden = !on;
 }
 
-function slotFractions(region, index) {
-  return slotFrame(region, index);
-}
-
-function placeRegion(key) {
-  const region = regions[key];
-  for (const box of $("boxes").querySelectorAll(`[data-key="${key}"]`)) {
-    placeBox(box, slotFractions(region, Number(box.dataset.index)));
-  }
-}
-
 function renderCounters() {
   const edges = counterEdges(catalog).filter((edge) => edge.kind !== "element").slice(0, 12);
   const byId = Object.fromEntries(catalog.heroes.map((hero) => [hero.id, hero]));
   $("counters").innerHTML = edges.map((edge) => `<li><strong>${byId[edge.from].nameZh}</strong> 對 <strong>${byId[edge.to].nameZh}</strong>：${edge.why}</li>`).join("");
-}
-
-function mountBoxes() {
-  const root = $("boxes");
-  root.replaceChildren();
-  for (const [key, region] of Object.entries(regions)) {
-    for (let index = 0; index < region.slots; index += 1) {
-      const box = document.createElement("button");
-      box.type = "button";
-      box.className = "box";
-      box.dataset.key = key;
-      box.dataset.index = String(index);
-      placeBox(box, slotFractions(region, index));
-      box.innerHTML = "<span></span><i data-resize=\"1\"></i>";
-      root.appendChild(box);
-      box.addEventListener("pointerdown", (event) => startDrag(event, key, index));
-    }
-  }
 }
 
 function placeBox(box, region) {
@@ -257,34 +218,6 @@ function placeBox(box, region) {
   box.style.top = `${region.y * 100}%`;
   box.style.width = `${region.w * 100}%`;
   box.style.height = `${region.h * 100}%`;
-}
-
-function startDrag(event, key, index) {
-  const stage = $("stage").getBoundingClientRect();
-  const region = regions[key];
-  const resize = event.target.dataset.resize === "1";
-  const origin = { px: event.clientX, py: event.clientY, x: region.x, y: region.y, w: region.w, h: region.h };
-  const move = (ev) => {
-    const dx = (ev.clientX - origin.px) / stage.width;
-    const dy = (ev.clientY - origin.py) / stage.height;
-    if (resize) {
-      region.w = Math.min(0.8, Math.max(0.04, origin.w + dx));
-      region.h = Math.min(0.8, Math.max(0.04, origin.h + dy));
-    } else {
-      region.x = Math.min(0.95, Math.max(0, origin.x + dx));
-      region.y = Math.min(0.95, Math.max(0, origin.y + dy));
-    }
-    placeRegion(key);
-  };
-  const up = (ev) => {
-    window.removeEventListener("pointermove", move);
-    window.removeEventListener("pointerup", up);
-    const moved = Math.hypot(ev.clientX - origin.px, ev.clientY - origin.py);
-    if (moved < 6 && ev.target?.dataset?.resize !== "1") openSlot(key, index);
-  };
-  window.addEventListener("pointermove", move);
-  window.addEventListener("pointerup", up);
-  event.currentTarget.setPointerCapture?.(event.pointerId);
 }
 
 function oneAction(result) {
@@ -322,12 +255,37 @@ function heroName(id) {
   return catalog.heroes.find((hero) => hero.id === id)?.nameZh || "";
 }
 
-function paintSlots(faces) {
-  const named = new Map((faces || []).filter((face) => face?.id && face.id !== "empty" && face.id !== "unknown").map((face) => [`${face.side}:${face.index}`, face]));
-  for (const box of $("boxes").querySelectorAll(".box")) {
-    const face = named.get(`${box.dataset.key}:${box.dataset.index}`);
-    box.querySelector("span").textContent = face ? heroName(face.id) : "";
+function paintCards(cards) {
+  const root = $("boxes");
+  const buttons = [...root.querySelectorAll(".box")];
+  if (buttons.length !== cards.length) {
+    root.replaceChildren();
+    for (const card of cards) root.appendChild(cardButton(card));
+    return;
   }
+  cards.forEach((card, index) => labelCard(buttons[index], card));
+}
+
+function cardButton(card) {
+  const box = document.createElement("button");
+  box.type = "button";
+  box.className = "box";
+  box.innerHTML = "<span></span>";
+  labelCard(box, card);
+  box.addEventListener("click", () => {
+    const face = (lastRead?.faces || []).find((row) => row.side === box.dataset.side && row.index === Number(box.dataset.index));
+    if (face) openPicker(face);
+  });
+  return box;
+}
+
+function labelCard(box, card) {
+  placeBox(box, card);
+  box.dataset.side = card.side;
+  box.dataset.index = String(card.index ?? "");
+  box.dataset.id = card.id || "unknown";
+  const named = card.id && card.id !== "unknown" && card.id !== "empty";
+  box.querySelector("span").textContent = named ? heroName(card.id) : "";
 }
 
 function fillPicker(query = "") {
@@ -352,28 +310,30 @@ function openPicker(face) {
   if (!$("picker").open) $("picker").showModal();
 }
 
-function openSlot(key, index) {
-  if (key === "skills" || !lastRead?.faces) return;
-  const face = lastRead.faces.find((row) => row.side === key && row.index === index);
-  if (face) openPicker(face);
-}
-
 function chooseFace(heroId) {
   const face = pendingFace;
   $("picker").close();
   pendingFace = null;
-  if (!face || !heroId) return;
-  if (face.id !== "empty" && face.rgb) {
-    corrections = rememberCorrection(corrections, face.rgb, heroId);
-    localStorage.setItem(FACE_KEY, JSON.stringify(corrections));
-  }
+  if (!face || !heroId || !face.signature) return;
+  cardMemory = rememberCard(cardMemory, face.signature, heroId);
+  localStorage.setItem(CARD_KEY, JSON.stringify(cardMemory));
+  namedCards = namedCards.filter((row) => matchNamedCard(face.signature, [row]) === undefined);
   if (!lastRead) return;
-  if (face.side === "actor") lastRead.actorId = heroId;
-  else if (face.side === "preban") lastRead.prebans[face.index] = heroId;
-  else if (lastRead[face.side]) lastRead[face.side][face.index] = heroId;
-  const chip = (lastRead.faces || []).find((row) => row.side === face.side && row.index === face.index);
-  if (chip) chip.id = heroId;
-  paintSlots(lastRead.faces);
+  const apply = (row) => {
+    if (row.side === face.side && row.key === face.key) row.id = heroId;
+  };
+  (lastRead.cards || []).forEach(apply);
+  (lastRead.faces || []).forEach(apply);
+  const user = [];
+  const enemy = [];
+  for (const row of lastRead.faces) {
+    if (row.side === "user") user.push(row.id);
+    if (row.side === "enemy") enemy.push(row.id);
+  }
+  lastRead.user = user;
+  lastRead.enemy = enemy;
+  lastRead.phase = lastRead.user.length + lastRead.enemy.length > 0 ? "pick" : lastRead.phase;
+  paintCards(lastRead.faces);
   lastKey = "";
   if (reading) consider(lastRead);
 }
@@ -446,7 +406,7 @@ function consider(read) {
     const type = currentType();
     if (!type || openRecord?.type !== type.key) openRecord = type ? { type: type.key, id: null } : null;
     renderLive(lastAdvice);
-    paintSlots(read.faces);
+    paintCards(read.faces || []);
     return lastAdvice;
   } catch (error) {
     showCard({ action: "這一手沒有建議", rate: "尚無勝率", reason: error.message || "判讀時發生錯誤。" });
@@ -468,7 +428,7 @@ async function shareWindow() {
   video.srcObject = stream;
   await video.play();
   showFrame(Boolean(video.videoWidth));
-  $("captureState").textContent = "已接到視窗。關掉設定後，主畫面顯示這一幀。把格子拖到頭像上，按記住框線，再按開始判讀。";
+  $("captureState").textContent = "已接到視窗。關掉設定後，主畫面顯示這一幀。再按開始判讀。左右大卡上的名字會對上英雄。";
   watchStream();
   if (!reading) showReadyCard();
   stream.getVideoTracks()[0].addEventListener("ended", () => {
@@ -503,11 +463,6 @@ function watchStream() {
   else watchHandle = requestAnimationFrame(pump);
   timer = 1;
   paintVideoFrame();
-}
-
-function rememberRegions() {
-  localStorage.setItem(REGION_KEY, JSON.stringify(regions));
-  $("captureState").textContent = "框線已記在這台瀏覽器。之後還是要先分享遊戲視窗。";
 }
 
 function startReading() {
@@ -557,9 +512,10 @@ function analyzeFrame() {
   const board = $("board");
   if (!board.width || !board.height) return;
   const frame = board.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, board.width, board.height);
-  const read = readFrame(frame.data, board.width, board.height, regions, book, corrections);
-  paintSlots(read.faces);
+  const read = readDraft(frame.data, board.width, board.height, cardMemory, namedCards);
+  paintCards(read.faces || []);
   pendingRead = read;
+  scheduleNames(frame.data, board.width, board.height, read);
   if (!reading) {
     lastRead = read;
     return;
@@ -576,43 +532,168 @@ function analyzeFrame() {
   }, 0);
 }
 
-function runFixture(name) {
-  const owned = new Set((roster?.heroes || []).map((hero) => hero.id));
-  const ids = catalog.heroes.map((hero) => hero.id).filter((id) => !owned.size || owned.has(id));
-  const assignment = {
-    user: [],
-    enemy: [],
-    prebans: [],
-    actor: null,
-    skills: [],
-    scale: 1,
-  };
-  if (name === "draft") {
-    assignment.prebans = [ids[0]];
-    assignment.user = [ids[3]];
-    assignment.enemy = [ids[1], ids[2]];
-  } else if (name === "battle") {
-    assignment.user = ids.slice(0, 4);
-    assignment.enemy = ids.slice(4, 8);
-    assignment.actor = ids[0];
-    assignment.skills = ["bright", "bright", "bright"];
-  } else if (name === "scaled") {
-    assignment.user = [ids[9]];
-    assignment.scale = 1.15;
-  } else {
-    assignment.user = ["noise"];
+function scheduleNames(data, width, height, read) {
+  const pending = (read.cards || []).filter((card) => card.id === "unknown" && matchNamedCard(card.signature, namedCards) === undefined);
+  if (!pending.length || ocrQueued) return;
+  ocrQueued = true;
+  const jobs = pending.map((card) => ({ signature: card.signature, canvas: cropCard(data, width, height, card) }));
+  setTimeout(async () => {
+    try {
+      const worker = await ocrWorker();
+      for (const job of jobs) {
+        if (matchNamedCard(job.signature, namedCards) !== undefined) continue;
+        const result = await worker.recognize(job.canvas);
+        const id = matchHeroName(result?.data?.text || "", catalog?.heroes || []);
+        namedCards.unshift({ sig: job.signature, id: id || "" });
+        namedCards = namedCards.slice(0, 40);
+      }
+    } catch {
+      for (const job of jobs) {
+        if (matchNamedCard(job.signature, namedCards) === undefined) namedCards.unshift({ sig: job.signature, id: "" });
+      }
+      namedCards = namedCards.slice(0, 40);
+    } finally {
+      ocrQueued = false;
+      const board = $("board");
+      if (!board.width) return;
+      const latestFrame = board.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, board.width, board.height);
+      const latest = readDraft(latestFrame.data, board.width, board.height, cardMemory, namedCards);
+      pendingRead = latest;
+      paintCards(latest.faces || []);
+      if (!reading) {
+        lastRead = latest;
+        return;
+      }
+      if (stateKey(latest) === lastKey && lastAdvice) return;
+      consider(latest);
+    }
+  }, 0);
+}
+
+function cropCard(data, width, height, card) {
+  const x0 = Math.max(0, Math.round(card.x * width));
+  const y0 = Math.max(0, Math.round(card.y * height));
+  const boxW = Math.max(1, Math.min(width - x0, Math.round(card.w * width)));
+  const boxH = Math.max(1, Math.min(height - y0, Math.round(card.h * height)));
+  const scale = 3;
+  const source = document.createElement("canvas");
+  source.width = boxW;
+  source.height = boxH;
+  const image = source.getContext("2d").createImageData(boxW, boxH);
+  for (let y = 0; y < boxH; y += 1) {
+    for (let x = 0; x < boxW; x += 1) {
+      const from = ((y0 + y) * width + (x0 + x)) * 4;
+      const to = (y * boxW + x) * 4;
+      image.data[to] = data[from];
+      image.data[to + 1] = data[from + 1];
+      image.data[to + 2] = data[from + 2];
+      image.data[to + 3] = 255;
+    }
   }
+  source.getContext("2d").putImageData(image, 0, 0);
+  const canvas = document.createElement("canvas");
+  canvas.width = boxW * scale;
+  canvas.height = boxH * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
+async function ocrWorker() {
+  if (!workerPromise) {
+    workerPromise = (async () => {
+      const tesseract = await import("../vendor/tesseract/tesseract.esm.min.js");
+      const createWorker = tesseract.createWorker || tesseract.default?.createWorker;
+      const base = new URL("../vendor/tesseract/", import.meta.url);
+      const worker = await createWorker("chi_tra+eng", 1, {
+        workerPath: new URL("worker.min.js", base).href,
+        corePath: new URL("tesseract-core-simd-lstm.wasm.js", base).href,
+        langPath: base.href,
+        workerBlobURL: false,
+        gzip: false,
+      });
+      await worker.setParameters({ tessedit_pageseg_mode: "6" });
+      return worker;
+    })().catch((error) => {
+      workerPromise = null;
+      throw error;
+    });
+  }
+  return workerPromise;
+}
+
+function paintLevelLabel(data, width, height, cx, cy) {
+  const th = Math.max(10, Math.round(height * 0.02));
+  const gw = Math.max(4, Math.round(th * 0.7));
+  const gap = Math.max(2, Math.round(th * 0.25));
+  let x = Math.round(cx - (4 * gw + 3 * gap) / 2);
+  const y = Math.round(cy - th / 2);
+  for (let letter = 0; letter < 4; letter += 1) {
+    for (let yy = y; yy < y + th; yy += 1) {
+      for (let xx = x; xx < x + gw; xx += 1) {
+        const offset = (yy * width + xx) * 4;
+        data[offset] = 230;
+        data[offset + 1] = 150;
+        data[offset + 2] = 40;
+        data[offset + 3] = 255;
+      }
+    }
+    x += gw + gap;
+  }
+}
+
+function runFixture() {
   const width = 960;
   const height = 540;
-  const data = paintFixture(width, height, DEFAULT_REGIONS, book, assignment);
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let index = 0; index < data.length; index += 4) {
+    data[index] = 16;
+    data[index + 1] = 18;
+    data[index + 2] = 28;
+    data[index + 3] = 255;
+  }
+  for (let y = 30; y < 70; y += 1) {
+    for (let x = 400; x < 560; x += 1) {
+      const offset = (y * width + x) * 4;
+      data[offset] = 40;
+      data[offset + 1] = 130;
+      data[offset + 2] = 220;
+    }
+  }
+  paintLevelLabel(data, width, height, Math.round(width * 0.28), Math.round(height * 0.34));
+  paintLevelLabel(data, width, height, Math.round(width * 0.62), Math.round(height * 0.34));
+  const fill = (x, y, bw, bh, color) => {
+    for (let yy = y; yy < y + bh; yy += 1) {
+      for (let xx = x; xx < x + bw; xx += 1) {
+        const offset = (yy * width + xx) * 4;
+        data[offset] = color[0];
+        data[offset + 1] = color[1];
+        data[offset + 2] = color[2];
+      }
+    }
+  };
+  fill(150, 150, 80, 50, [190, 80, 40]);
+  fill(620, 150, 80, 50, [40, 150, 90]);
+  for (let index = 0; index < 8; index += 1) {
+    const cx = Math.round(width * (0.3 + index * 0.05));
+    const cy = Math.round(height * 0.86);
+    for (let y = cy - 8; y < cy + 8; y += 1) {
+      for (let x = cx - 8; x < cx + 8; x += 1) {
+        const offset = (y * width + x) * 4;
+        data[offset] = 180;
+        data[offset + 1] = 140;
+        data[offset + 2] = 70;
+      }
+    }
+  }
   showFrame(true);
   const board = $("board");
   board.width = width;
   board.height = height;
-  const ctx = board.getContext("2d");
-  ctx.putImageData(new ImageData(data, width, height), 0, 0);
-  const read = readFrame(data, width, height, DEFAULT_REGIONS, book, corrections);
-  paintSlots(read.faces);
+  board.getContext("2d").putImageData(new ImageData(data, width, height), 0, 0);
+  const read = readDraft(data, width, height, cardMemory, namedCards);
+  paintCards(read.faces || []);
   $("captureState").textContent = "這張是內建檢查畫面，不是你的遊戲。正式使用請分享遊戲視窗。";
   reading = true;
   consider(read);
@@ -697,7 +778,6 @@ $("markLoss").addEventListener("click", () => markMatch("loss"));
 $("share").addEventListener("click", () => shareWindow().catch((error) => {
   $("captureState").textContent = `沒有接上視窗：${error.message || error}`;
 }));
-$("remember").addEventListener("click", rememberRegions);
 $("read").addEventListener("click", startReading);
 $("update").addEventListener("click", async () => {
   $("updateState").textContent = "正在跟 Fribbels 和 Epic7RTAStats 重新抓英雄、倍率、神器和賽季。這會花幾分鐘，完成前不要關頁面。";

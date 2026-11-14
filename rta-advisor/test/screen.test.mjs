@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { adviseFromScreen, detectFirstPick, parseRoster, sourceBasis } from "../js/engine.js";
-import { DEFAULT_REGIONS, inferPhase, liveStateKey, matchPortrait, paintFixture, readFrame, rememberCorrection, slotFrame } from "../js/screen.js";
+import { DEFAULT_REGIONS, findDraftCards, inferPhase, liveStateKey, matchCardMemory, matchHeroName, matchPortrait, paintFixture, readDraft, readFrame, rememberCard, rememberCorrection, slotFrame } from "../js/screen.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
 const book = JSON.parse(readFileSync(new URL("../data/portrait-signatures.json", import.meta.url)));
@@ -45,7 +45,7 @@ const noiseRead = readFrame(noise, 960, 540, DEFAULT_REGIONS, book);
 assert.equal(noiseRead.user[0], "unknown");
 const blocked = adviseFromScreen(catalog, noiseRead, { trials: 1, roster });
 assert.equal(blocked.ok, false);
-assert.equal(blocked.action.title, "點格子填上英雄");
+assert.equal(blocked.action.title, "點這張卡選英雄");
 assert.match(blocked.reason.summary, /不會猜一個接近的人/);
 assert.equal(blocked.version.season, catalog.provenance.rtaSeason);
 
@@ -179,5 +179,93 @@ const wideBox = {
   y: Math.round(narrow.y * 1080) / 1080,
 };
 assert.ok(Math.abs(wideBox.x - narrow.x) < 0.002 && Math.abs(wideBox.y - narrow.y) < 0.002);
+
+function paintLevelLabel(data, width, height, cx, cy) {
+  const th = Math.max(10, Math.round(height * 0.02));
+  const gw = Math.max(4, Math.round(th * 0.7));
+  const gap = Math.max(2, Math.round(th * 0.25));
+  let x = Math.round(cx - (4 * gw + 3 * gap) / 2);
+  const y = Math.round(cy - th / 2);
+  for (let letter = 0; letter < 4; letter += 1) {
+    for (let yy = y; yy < y + th; yy += 1) {
+      for (let xx = x; xx < x + gw; xx += 1) {
+        const offset = (yy * width + xx) * 4;
+        data[offset] = 230;
+        data[offset + 1] = 150;
+        data[offset + 2] = 40;
+        data[offset + 3] = 255;
+      }
+    }
+    x += gw + gap;
+  }
+}
+
+const draftWidth = 960;
+const draftHeight = 540;
+const draftFrame = new Uint8ClampedArray(draftWidth * draftHeight * 4);
+for (let index = 0; index < draftFrame.length; index += 4) draftFrame[index + 3] = 255;
+paintLevelLabel(draftFrame, draftWidth, draftHeight, Math.round(draftWidth * 0.28), Math.round(draftHeight * 0.32));
+paintLevelLabel(draftFrame, draftWidth, draftHeight, Math.round(draftWidth * 0.28), Math.round(draftHeight * 0.48));
+paintLevelLabel(draftFrame, draftWidth, draftHeight, Math.round(draftWidth * 0.64), Math.round(draftHeight * 0.32));
+paintLevelLabel(draftFrame, draftWidth, draftHeight, Math.round(draftWidth * 0.9), Math.round(draftHeight * 0.4));
+for (let index = 0; index < 6; index += 1) {
+  const cx = Math.round(draftWidth * (0.32 + index * 0.06));
+  const cy = Math.round(draftHeight * 0.88);
+  for (let y = cy - 7; y < cy + 7; y += 1) {
+    for (let x = cx - 7; x < cx + 7; x += 1) {
+      const offset = (y * draftWidth + x) * 4;
+      draftFrame[offset] = 220;
+      draftFrame[offset + 1] = 150;
+      draftFrame[offset + 2] = 40;
+    }
+  }
+}
+const draftCards = findDraftCards(draftFrame, draftWidth, draftHeight);
+assert.equal(draftCards.filter((card) => card.side === "user").length, 2);
+assert.equal(draftCards.filter((card) => card.side === "enemy").length, 1);
+assert.ok(draftCards.every((card) => card.y < 0.7), "recommendation and preban circles are not picks");
+assert.ok(draftCards.every((card) => card.x < 0.8), "the hero list on the far right is not a pick");
+
+function paintBlock(x, y, bw, bh, color) {
+  for (let yy = y; yy < y + bh; yy += 1) {
+    for (let xx = x; xx < x + bw; xx += 1) {
+      const offset = (yy * draftWidth + xx) * 4;
+      draftFrame[offset] = color[0];
+      draftFrame[offset + 1] = color[1];
+      draftFrame[offset + 2] = color[2];
+    }
+  }
+}
+paintBlock(150, 140, 70, 50, [180, 90, 40]);
+paintBlock(150, 230, 70, 50, [40, 90, 180]);
+paintBlock(640, 140, 70, 50, [40, 160, 80]);
+
+for (let y = 24; y < 64; y += 1) {
+  for (let x = 380; x < 560; x += 1) {
+    const offset = (y * draftWidth + x) * 4;
+    draftFrame[offset] = 40;
+    draftFrame[offset + 1] = 130;
+    draftFrame[offset + 2] = 220;
+  }
+}
+const namedDraft = readDraft(draftFrame, draftWidth, draftHeight);
+assert.equal(namedDraft.prebans.length, 0);
+assert.equal(namedDraft.turnSide, "user");
+assert.equal(namedDraft.user.length, 2);
+assert.ok(namedDraft.user.every((id) => id === "unknown"));
+assert.equal(namedDraft.phase, "pick");
+
+const hero = catalog.heroes.find((row) => row.nameZh.length >= 2 && catalog.heroes.filter((other) => other.nameZh.includes(row.nameZh) || row.nameZh.includes(other.nameZh)).length === 1);
+assert.ok(hero);
+assert.equal(matchHeroName(`Lv.60 ${hero.nameZh}`, catalog.heroes), hero.id);
+assert.equal(matchHeroName(hero.name, catalog.heroes), hero.id);
+assert.equal(matchHeroName("Lv.60", catalog.heroes), null);
+assert.equal(matchHeroName("推薦英雄", catalog.heroes), null);
+assert.equal(matchHeroName(hero.nameZh.slice(0, 1), catalog.heroes), null);
+
+const remembered = rememberCard([], namedDraft.cards[0].signature, hero.id);
+const withMemory = readDraft(draftFrame, draftWidth, draftHeight, remembered);
+assert.equal(withMemory.user[0], hero.id);
+assert.equal(matchCardMemory(namedDraft.cards[1].signature, remembered), null);
 
 console.log("screen tests passed", { next: advice.action.title, skill: cast.action.title, burn: cast.action.burn.yes });

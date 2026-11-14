@@ -1,4 +1,4 @@
-/** Screen reading for the RTA advisor. A slot is shrunk to the hero-library grid, then compared by face shape and color blocks. */
+/** Screen reading for the RTA advisor. Live draft cards are found by the Lv.60 label and named from the text on the card. The portrait grid below is only for the old fixture checks. */
 
 // Fractions of the captured 16:9 frame, measured on the STOVE draft.
 // Slots in a row share one height and split the width, so resizing the window stays on the portraits.
@@ -478,4 +478,307 @@ export function paintFixture(imageWidth, imageHeight, regions, book, assignment)
     }
   }
   return data;
+}
+
+function levelOrange(red, green, blue) {
+  return red > 200 && green > 100 && green < 200 && blue < 110 && red > green + 15 && green - blue > 30;
+}
+
+function draftBlobs(data, imageWidth, imageHeight) {
+  const rad = Math.max(1, Math.round(imageHeight / 280));
+  const minPts = Math.max(8, Math.floor(0.00003 * imageHeight * imageHeight));
+  const visited = new Uint8Array(imageWidth * imageHeight);
+  const blobs = [];
+  for (let y = 0; y < imageHeight; y += 1) {
+    for (let x = 0; x < imageWidth; x += 1) {
+      const start = y * imageWidth + x;
+      if (visited[start]) continue;
+      const origin = start * 4;
+      if (!levelOrange(data[origin], data[origin + 1], data[origin + 2])) continue;
+      const queue = [x, y];
+      visited[start] = 1;
+      let head = 0;
+      let minX = x;
+      let maxX = x;
+      let minY = y;
+      let maxY = y;
+      let count = 0;
+      while (head < queue.length) {
+        const cx = queue[head];
+        const cy = queue[head + 1];
+        head += 2;
+        count += 1;
+        if (cx < minX) minX = cx;
+        if (cx > maxX) maxX = cx;
+        if (cy < minY) minY = cy;
+        if (cy > maxY) maxY = cy;
+        for (let dy = -rad; dy <= rad; dy += 1) {
+          const ny = cy + dy;
+          if (ny < 0 || ny >= imageHeight) continue;
+          for (let dx = -rad; dx <= rad; dx += 1) {
+            const nx = cx + dx;
+            if (nx < 0 || nx >= imageWidth) continue;
+            const index = ny * imageWidth + nx;
+            if (visited[index]) continue;
+            const offset = index * 4;
+            if (!levelOrange(data[offset], data[offset + 1], data[offset + 2])) continue;
+            visited[index] = 1;
+            queue.push(nx, ny);
+          }
+        }
+      }
+      if (count < minPts) continue;
+      const bw = maxX - minX + 1;
+      const bh = maxY - minY + 1;
+      if (bh < 0.012 * imageHeight || bh > 0.034 * imageHeight) continue;
+      if (bw > 0.045 * imageHeight || bw >= bh * 2.2) continue;
+      blobs.push({ x: minX, y: minY, w: bw, h: bh });
+    }
+  }
+  return blobs;
+}
+
+function draftLines(blobs, imageHeight) {
+  const pending = [...blobs].sort((left, right) => left.y - right.y || left.x - right.x);
+  const used = new Array(pending.length).fill(false);
+  const yTol = 0.012 * imageHeight;
+  const gap = 0.03 * imageHeight;
+  const lines = [];
+  for (let index = 0; index < pending.length; index += 1) {
+    if (used[index]) continue;
+    const line = [pending[index]];
+    used[index] = true;
+    let grew = true;
+    while (grew) {
+      grew = false;
+      const mid = line.reduce((sum, blob) => sum + blob.y + blob.h / 2, 0) / line.length;
+      const x0 = Math.min(...line.map((blob) => blob.x));
+      const x1 = Math.max(...line.map((blob) => blob.x + blob.w));
+      for (let other = 0; other < pending.length; other += 1) {
+        if (used[other]) continue;
+        const blob = pending[other];
+        if (Math.abs(blob.y + blob.h / 2 - mid) > yTol) continue;
+        if (blob.x > x1 + gap || blob.x + blob.w < x0 - gap) continue;
+        used[other] = true;
+        line.push(blob);
+        grew = true;
+      }
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+
+export function findDraftCards(data, imageWidth, imageHeight) {
+  const lines = draftLines(draftBlobs(data, imageWidth, imageHeight), imageHeight);
+  const cards = [];
+  for (const line of lines) {
+    const x0 = Math.min(...line.map((blob) => blob.x));
+    const x1 = Math.max(...line.map((blob) => blob.x + blob.w));
+    const y0 = Math.min(...line.map((blob) => blob.y));
+    const y1 = Math.max(...line.map((blob) => blob.y + blob.h));
+    const tw = x1 - x0;
+    const th = Math.max(1, y1 - y0);
+    if (line.length < 3 || line.length > 5) continue;
+    if (tw < 0.048 * imageHeight || tw > 0.1 * imageHeight) continue;
+    if (th < 0.015 * imageHeight || tw / th >= 6.5) continue;
+    const cx = (x0 + x1) / 2;
+    const cy = (y0 + y1) / 2;
+    if (cx < 0.12 * imageWidth || cx > 0.8 * imageWidth) continue;
+    const side = cx < imageWidth * 0.5 ? "user" : "enemy";
+    const left = side === "user" ? cx - th * 12 : cx - th * 3.2;
+    const top = cy - th * 2.6;
+    const boxW = th * 15.2;
+    const boxH = th * 6.2;
+    const x = Math.max(0, left / imageWidth);
+    const y = Math.max(0, top / imageHeight);
+    const right = Math.min(1, (left + boxW) / imageWidth);
+    const bottom = Math.min(1, (top + boxH) / imageHeight);
+    cards.push({ side, x, y, w: Math.max(0.02, right - x), h: Math.max(0.02, bottom - y), letters: line.length });
+  }
+  cards.sort((left, right) => left.y - right.y || left.x - right.x);
+  const kept = [];
+  for (const card of cards) {
+    const near = kept.find((other) => Math.abs(other.y - card.y) < 0.04 && Math.abs(other.x - card.x) < 0.08);
+    if (!near) kept.push(card);
+  }
+  return kept;
+}
+
+export function cardSignature(data, imageWidth, imageHeight, card) {
+  const cols = 12;
+  const rows = 8;
+  const x0 = Math.max(0, Math.round(card.x * imageWidth));
+  const y0 = Math.max(0, Math.round(card.y * imageHeight));
+  const width = Math.max(1, Math.round(card.w * imageWidth));
+  const height = Math.max(1, Math.round(card.h * imageHeight));
+  const values = [];
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const left = x0 + Math.floor((col * width) / cols);
+      const right = Math.max(left + 1, x0 + Math.floor(((col + 1) * width) / cols));
+      const top = y0 + Math.floor((row * height) / rows);
+      const bottom = Math.max(top + 1, y0 + Math.floor(((row + 1) * height) / rows));
+      let sum = 0;
+      let count = 0;
+      for (let y = top; y < bottom && y < imageHeight; y += 1) {
+        for (let x = left; x < right && x < imageWidth; x += 1) {
+          const offset = (y * imageWidth + x) * 4;
+          sum += (data[offset] + data[offset + 1] + data[offset + 2]) / 3;
+          count += 1;
+        }
+      }
+      values.push(count ? Math.round(sum / count) : 0);
+    }
+  }
+  return values;
+}
+
+export function signatureKey(signature) {
+  return signature.map((value) => Math.round(value / 12)).join(".");
+}
+
+function signatureDistance(left, right) {
+  if (!left || !right || left.length !== right.length) return Infinity;
+  let sum = 0;
+  for (let index = 0; index < left.length; index += 1) sum += Math.abs(left[index] - right[index]);
+  return sum / left.length;
+}
+
+export function matchCardMemory(signature, memories) {
+  let best = null;
+  let bestDistance = 16;
+  for (const row of memories || []) {
+    const distance = signatureDistance(signature, row?.sig);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = row.id;
+    }
+  }
+  return best;
+}
+
+export function rememberCard(memories, signature, id) {
+  const next = (memories || []).filter((row) => signatureDistance(signature, row?.sig) > 14);
+  next.unshift({ id, sig: [...signature] });
+  return next.slice(0, 40);
+}
+
+export function matchNamedCard(signature, rows) {
+  let best;
+  let bestDistance = 16;
+  for (const row of rows || []) {
+    const distance = signatureDistance(signature, row?.sig);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = row.id || "";
+    }
+  }
+  return best;
+}
+
+export function matchHeroName(text, heroes) {
+  const compact = String(text || "").replace(/[\s.。·・,，:：|/\\]/g, "");
+  if (compact.length < 2) return null;
+  const lower = compact.toLowerCase();
+  const hits = [];
+  for (const hero of heroes || []) {
+    const zh = String(hero.nameZh || "").replace(/\s/g, "");
+    const en = String(hero.name || "").replace(/\s/g, "");
+    const zhHit = zh.length >= 2 && compact.includes(zh);
+    const enHit = en.length >= 4 && lower.includes(en.toLowerCase());
+    if (zhHit || enHit) hits.push(hero.id);
+  }
+  const unique = [...new Set(hits)];
+  return unique.length === 1 ? unique[0] : null;
+}
+
+function bandFraction(data, imageWidth, imageHeight, rect, pred) {
+  const x0 = Math.max(0, Math.round(rect.x * imageWidth));
+  const y0 = Math.max(0, Math.round(rect.y * imageHeight));
+  const x1 = Math.min(imageWidth, Math.round((rect.x + rect.w) * imageWidth));
+  const y1 = Math.min(imageHeight, Math.round((rect.y + rect.h) * imageHeight));
+  let hit = 0;
+  let count = 0;
+  for (let y = y0; y < y1; y += 2) {
+    for (let x = x0; x < x1; x += 2) {
+      const offset = (y * imageWidth + x) * 4;
+      count += 1;
+      if (pred(data[offset], data[offset + 1], data[offset + 2])) hit += 1;
+    }
+  }
+  return count ? hit / count : 0;
+}
+
+function blueText(red, green, blue) {
+  return blue > red + 35 && blue > 90 && green > 40 && blue > green;
+}
+
+function redText(red, green, blue) {
+  return red > 170 && red > blue + 50 && green < 140;
+}
+
+function goldText(red, green, blue) {
+  return red > 180 && green > 140 && blue < 120 && red + green > blue * 3;
+}
+
+export function readDraftTurn(data, imageWidth, imageHeight) {
+  const band = { x: 0.28, y: 0.02, w: 0.44, h: 0.2 };
+  const blue = bandFraction(data, imageWidth, imageHeight, band, blueText);
+  const red = bandFraction(data, imageWidth, imageHeight, band, redText);
+  if (blue >= 0.008 && blue > red * 1.5) return "user";
+  if (red >= 0.008 && red > blue * 1.5) return "enemy";
+  return null;
+}
+
+export function readDraftLead(data, imageWidth, imageHeight) {
+  const left = bandFraction(data, imageWidth, imageHeight, { x: 0.04, y: 0.0, w: 0.28, h: 0.12 }, goldText);
+  const right = bandFraction(data, imageWidth, imageHeight, { x: 0.68, y: 0.0, w: 0.28, h: 0.12 }, goldText);
+  if (left >= 0.02 && left >= right * 2.5) return "user";
+  if (right >= 0.02 && right >= left * 2.5) return "enemy";
+  return null;
+}
+
+export function readDraft(data, imageWidth, imageHeight, memories = [], names = []) {
+  const found = findDraftCards(data, imageWidth, imageHeight);
+  const cards = found.map((card) => {
+    const signature = cardSignature(data, imageWidth, imageHeight, card);
+    const key = signatureKey(signature);
+    const remembered = matchCardMemory(signature, memories);
+    const named = matchNamedCard(signature, names);
+    let id = "unknown";
+    if (remembered) id = remembered;
+    else if (named) id = named;
+    return { ...card, signature, key, id };
+  });
+  const userCards = cards.filter((card) => card.side === "user");
+  const enemyCards = cards.filter((card) => card.side === "enemy");
+  const face = (card, index) => ({
+    side: card.side,
+    index,
+    id: card.id,
+    signature: card.signature,
+    key: card.key,
+    x: card.x,
+    y: card.y,
+    w: card.w,
+    h: card.h,
+  });
+  const read = {
+    user: userCards.map((card) => card.id),
+    enemy: enemyCards.map((card) => card.id),
+    prebans: [],
+    actorId: "empty",
+    skillsReady: [false, false, false],
+    yourTurn: false,
+    turnSide: readDraftTurn(data, imageWidth, imageHeight),
+    leadSide: readDraftLead(data, imageWidth, imageHeight),
+    cards,
+    faces: [
+      ...userCards.map((card, index) => face(card, index)),
+      ...enemyCards.map((card, index) => face(card, index)),
+    ],
+  };
+  read.phase = inferPhase(read);
+  return read;
 }

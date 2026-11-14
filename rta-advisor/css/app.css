@@ -293,15 +293,8 @@ footer { padding: 8px 0 28px; color: var(--muted); font-size: 0.9rem; }
 
 .box span:empty { display: none; }
 
-.box i {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 14px;
-  height: 14px;
-  background: white;
-  cursor: nwse-resize;
-}
+.box[data-side="enemy"] { border-color: #2f6f9f; }
+.box[data-id="unknown"] { border-style: dashed; }
 
 .action {
   font-size: 1.8rem;
