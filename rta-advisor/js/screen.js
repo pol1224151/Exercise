@@ -664,17 +664,23 @@ export function rememberCard(memories, signature, id) {
   return next.slice(0, 40);
 }
 
-export function matchNamedCard(signature, rows) {
-  let best;
+export function namedReading(signature, rows) {
+  let best = null;
   let bestDistance = 16;
   for (const row of rows || []) {
     const distance = signatureDistance(signature, row?.sig);
     if (distance < bestDistance) {
       bestDistance = distance;
-      best = row.id || "";
+      best = row;
     }
   }
   return best;
+}
+
+export function matchNamedCard(signature, rows) {
+  const row = namedReading(signature, rows);
+  if (!row) return undefined;
+  return row.id || "";
 }
 
 export function matchHeroName(text, heroes) {
@@ -745,11 +751,11 @@ export function readDraft(data, imageWidth, imageHeight, memories = [], names = 
     const signature = cardSignature(data, imageWidth, imageHeight, card);
     const key = signatureKey(signature);
     const remembered = matchCardMemory(signature, memories);
-    const named = matchNamedCard(signature, names);
+    const reading = namedReading(signature, names);
     let id = "unknown";
     if (remembered) id = remembered;
-    else if (named) id = named;
-    return { ...card, signature, key, id };
+    else if (reading?.id) id = reading.id;
+    return { ...card, signature, key, id, text: reading?.text || "" };
   });
   const userCards = cards.filter((card) => card.side === "user");
   const enemyCards = cards.filter((card) => card.side === "enemy");
@@ -757,6 +763,7 @@ export function readDraft(data, imageWidth, imageHeight, memories = [], names = 
     side: card.side,
     index,
     id: card.id,
+    text: card.text || "",
     signature: card.signature,
     key: card.key,
     x: card.x,

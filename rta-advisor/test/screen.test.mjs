@@ -89,7 +89,7 @@ const unseen = adviseFromScreen(catalog, {
 assert.equal(unseen.ok, false);
 assert.equal(unseen.action.title, "畫面上還沒有選角");
 
-const opening = adviseFromScreen(catalog, {
+const turnOnly = adviseFromScreen(catalog, {
   user: ["empty"],
   enemy: ["empty"],
   prebans: [],
@@ -98,14 +98,27 @@ const opening = adviseFromScreen(catalog, {
   turnSide: "user",
   skillsReady: [],
 }, { trials: 1, rank: "champion", roster });
+assert.equal(turnOnly.ok, false);
+assert.equal(turnOnly.action.title, "還看不出先後手");
+assert.match(turnOnly.reason.summary, /不給禁選/);
+
+const opening = adviseFromScreen(catalog, {
+  user: ["empty"],
+  enemy: ["empty"],
+  prebans: [],
+  actorId: "empty",
+  phase: "preban",
+  leadSide: "user",
+  skillsReady: [],
+}, { trials: 1, rank: "champion", roster });
 assert.equal(opening.ok, true, opening.reason?.summary);
 assert.equal(opening.firstPick, true);
-assert.match(opening.action.title, /預禁|選/);
+assert.match(opening.action.title, /預禁/);
 
 assert.deepEqual(detectFirstPick(1, 2, null, null), { firstPick: true, source: "counts" });
 assert.deepEqual(detectFirstPick(0, 1, null, null), { firstPick: false, source: "counts" });
 assert.equal(detectFirstPick(0, 0, null, "enemy").firstPick, false);
-assert.equal(detectFirstPick(0, 0, "user", null).firstPick, true);
+assert.equal(detectFirstPick(0, 0, "user", null).firstPick, null);
 assert.equal(detectFirstPick(1, 1, null, null).firstPick, null);
 
 const lead = paintFixture(960, 540, DEFAULT_REGIONS, book, { lead: "user" });
@@ -262,6 +275,10 @@ assert.equal(matchHeroName(hero.name, catalog.heroes), hero.id);
 assert.equal(matchHeroName("Lv.60", catalog.heroes), null);
 assert.equal(matchHeroName("推薦英雄", catalog.heroes), null);
 assert.equal(matchHeroName(hero.nameZh.slice(0, 1), catalog.heroes), null);
+
+const unread = readDraft(draftFrame, draftWidth, draftHeight, [], [{ sig: namedDraft.cards[0].signature, id: "", text: "柳潔特" }]);
+assert.equal(unread.cards[0].text, "柳潔特");
+assert.equal(unread.user[0], "unknown");
 
 const remembered = rememberCard([], namedDraft.cards[0].signature, hero.id);
 const withMemory = readDraft(draftFrame, draftWidth, draftHeight, remembered);

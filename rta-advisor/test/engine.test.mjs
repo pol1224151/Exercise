@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { advise, buildGearReport, clearAccount, elementRelation, fightFromRoster, loadAccount, parseRoster, readAccountText, saveAccount, skillDamage } from "../js/engine.js";
+import { advise, adviseFromScreen, buildGearReport, clearAccount, draftPlans, elementRelation, fightFromRoster, heroListed, loadAccount, parseRoster, readAccountText, saveAccount, skillDamage } from "../js/engine.js";
 import { chooseComposition, draftType } from "../js/records.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
@@ -136,5 +136,32 @@ const avoided = chooseComposition(result.considered, {
 assert.equal(avoided.switched, true);
 assert.notEqual(avoided.key, sandboxKey);
 assert.ok(avoided.line.rate <= result.best.rate);
+
+const season = JSON.parse(readFileSync(new URL("../data/season-heroes.json", import.meta.url)));
+const withSeason = { ...catalog, seasonHeroes: season.heroes };
+assert.equal(season.heroes.length > 16, true);
+assert.ok(season.heroes.every((hero) => hero.nameZh && hero.rtaPresence && typeof hero.listed === "boolean"));
+assert.equal(season.heroes.filter((hero) => !hero.listed).length, 0);
+const plans = draftPlans(withSeason, roster);
+assert.ok(plans.first.length >= 1 && plans.second.length >= 1);
+assert.equal(plans.first[0].picks.length, 5);
+assert.equal(plans.first[0].prebans.length, 2);
+assert.equal(plans.second[0].prebans.length, 2);
+assert.notEqual(plans.first[0].id, plans.second[0].id);
+const unlistedCatalog = {
+  ...catalog,
+  seasonHeroes: [{ id: "ghost", code: "c0000", name: "Ghost", nameZh: "測試未收錄", listed: false, rtaPresence: { wins: 1, losses: 1, prebans: 3, games: 2 } }],
+};
+assert.equal(heroListed(unlistedCatalog.seasonHeroes[0]), false);
+const unlisted = adviseFromScreen(unlistedCatalog, {
+  user: ["ghost"],
+  enemy: [],
+  prebans: [],
+  phase: "pick",
+  leadSide: "user",
+}, { trials: 1, roster });
+assert.equal(unlisted.ok, false);
+assert.equal(unlisted.action.title, "這個英雄未收錄");
+assert.match(unlisted.reason.summary, /沒有技能倍率/);
 
 console.log("engine tests passed", { rate: result.best.rate, first: fight.firstActor });

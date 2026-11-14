@@ -28,12 +28,19 @@ let workerPromise = null;
 let pendingFace = null;
 
 async function boot() {
-  const [catalogRes, versionRes, portraitRes] = await Promise.all([
+  const [catalogRes, versionRes, portraitRes, seasonRes] = await Promise.all([
     fetch("./data/catalog.json"),
     fetch("./data/version.json"),
     fetch("./data/portrait-signatures.json"),
+    fetch("./data/season-heroes.json"),
   ]);
   catalog = await catalogRes.json();
+  if (seasonRes.ok) {
+    const season = await seasonRes.json();
+    catalog.seasonHeroes = Array.isArray(season.heroes) ? season.heroes : [];
+  } else {
+    catalog.seasonHeroes = [];
+  }
   book = await portraitRes.json();
   const version = versionRes.ok ? await versionRes.json() : sourceBasis(catalog).version;
   renderVersion(version);
@@ -64,7 +71,7 @@ function renderVersion(version) {
     `賽季 ${version.seasonLabel || version.season || "沒有"}（${version.season || "無代號"}）`,
     `遊戲版本 ${version.patchZh || version.patch || "沒有"}`,
     `Fribbels ${commit || "沒有"}（${version.fribbelsCommitDate || "無日期"}）`,
-    `英雄資料庫 ${version.heroCount || 0} 名，賽季模型 ${version.metaCount || 0} 名，神器 ${version.artifactCount || 0}`,
+    `英雄資料庫 ${version.heroCount || catalog.database?.length || 0} 名，本季會出現 ${catalog.seasonHeroes?.length || 0} 名，賽季模型 ${version.metaCount || 0} 名，神器 ${version.artifactCount || 0}`,
     `頭像樣本 ${version.portraitCount ?? book?.portraits?.length ?? 0}`,
   ].join("。");
   $("versionLine").textContent = text;
@@ -133,8 +140,14 @@ function renderGear() {
     root.innerHTML = "<p>先讀入帳號，才會對照賽季配裝。</p>";
     return;
   }
-  const byId = Object.fromEntries(catalog.heroes.map((hero) => [hero.id, hero]));
-  root.innerHTML = roster.heroes.map((hero) => {
+  const byId = Object.fromEntries([
+    ...(catalog.database || []),
+    ...(catalog.seasonHeroes || []),
+    ...catalog.heroes,
+  ].map((hero) => [hero.id, hero]));
+  const modeled = roster.heroes.filter((hero) => byId[hero.id]?.rtaGear);
+  const rest = roster.heroes.filter((hero) => !byId[hero.id]?.rtaGear);
+  const cards = modeled.map((hero) => {
     const def = byId[hero.id];
     const report = buildGearReport(hero, def, catalog, roster);
     if (report.foreign) {
@@ -169,6 +182,10 @@ function renderGear() {
       <p class="note">${report.editorialNote} 賽季 ${catalog.provenance.rtaSeasonLabel}。</p>
     </article>`;
   }).join("");
+  const extra = rest.length
+    ? `<p>帳號裡另有 ${rest.length} 名英雄沒有這一季的配裝統計，不建議裝備，也不編倍率。</p>`
+    : "";
+  root.innerHTML = cards + extra;
 }
 
 function setScreenEnabled(on) {
@@ -252,7 +269,31 @@ function rateLine(result) {
 }
 
 function heroName(id) {
-  return catalog.heroes.find((hero) => hero.id === id)?.nameZh || "";
+  const pools = [catalog.heroes || [], catalog.seasonHeroes || [], catalog.database || []];
+  for (const pool of pools) {
+    const hero = pool.find((row) => row.id === id);
+    if (hero?.nameZh) return hero.nameZh;
+  }
+  return "";
+}
+
+function renderHeard(read) {
+  const node = $("heard");
+  if (!node) return;
+  const cards = read?.faces || [];
+  if (!cards.length) {
+    node.textContent = "";
+    return;
+  }
+  const bits = cards.map((card) => {
+    const side = card.side === "enemy" ? "對方" : "我方";
+    const raw = String(card.text || "").replace(/\s+/g, " ").trim();
+    const hero = card.id && card.id !== "unknown" && card.id !== "empty" ? heroName(card.id) : "";
+    if (raw && hero) return `${side}讀到「${raw}」，對上${hero}`;
+    if (raw) return `${side}讀到「${raw}」，沒對上`;
+    return `${side}還沒讀出字`;
+  });
+  node.textContent = `這一幀讀到：${bits.join("。")}。`;
 }
 
 function paintCards(cards) {
@@ -270,7 +311,7 @@ function cardButton(card) {
   const box = document.createElement("button");
   box.type = "button";
   box.className = "box";
-  box.innerHTML = "<span></span>";
+  box.innerHTML = "<span></span><small></small>";
   labelCard(box, card);
   box.addEventListener("click", () => {
     const face = (lastRead?.faces || []).find((row) => row.side === box.dataset.side && row.index === Number(box.dataset.index));
@@ -286,18 +327,21 @@ function labelCard(box, card) {
   box.dataset.id = card.id || "unknown";
   const named = card.id && card.id !== "unknown" && card.id !== "empty";
   box.querySelector("span").textContent = named ? heroName(card.id) : "";
+  box.querySelector("small").textContent = String(card.text || "").replace(/\s+/g, " ").trim();
 }
 
 function fillPicker(query = "") {
   const needle = query.trim();
   const list = $("pickerList");
   list.replaceChildren();
-  const heroes = [...catalog.heroes].sort((left, right) => left.nameZh.localeCompare(right.nameZh, "zh-Hant"));
+  const source = (catalog.seasonHeroes || []).length ? catalog.seasonHeroes : catalog.heroes;
+  const heroes = [...source].sort((left, right) => left.nameZh.localeCompare(right.nameZh, "zh-Hant"));
   for (const hero of heroes) {
-    if (needle && !hero.nameZh.includes(needle) && !hero.id.includes(needle)) continue;
+    const english = hero.name || "";
+    if (needle && !hero.nameZh.includes(needle) && !english.toLowerCase().includes(needle.toLowerCase()) && !hero.id.includes(needle)) continue;
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = hero.nameZh;
+    button.textContent = hero.listed === false ? `${hero.nameZh}（未收錄）` : hero.nameZh;
     button.addEventListener("click", () => chooseFace(hero.id));
     list.appendChild(button);
   }
@@ -407,6 +451,7 @@ function consider(read) {
     if (!type || openRecord?.type !== type.key) openRecord = type ? { type: type.key, id: null } : null;
     renderLive(lastAdvice);
     paintCards(read.faces || []);
+    renderHeard(read);
     return lastAdvice;
   } catch (error) {
     showCard({ action: "這一手沒有建議", rate: "尚無勝率", reason: error.message || "判讀時發生錯誤。" });
@@ -481,6 +526,7 @@ function paintVideoFrame() {
   if (!video.videoWidth) {
     showFrame(false);
     if (reading) showCard({ action: "沒有收到畫面", rate: "尚無勝率", reason: "遊戲視窗還沒畫出來。確認分享的是第七史詩那個視窗。" });
+    renderHeard(null);
     return;
   }
   showFrame(true);
@@ -514,6 +560,7 @@ function analyzeFrame() {
   const frame = board.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, board.width, board.height);
   const read = readDraft(frame.data, board.width, board.height, cardMemory, namedCards);
   paintCards(read.faces || []);
+  renderHeard(read);
   pendingRead = read;
   scheduleNames(frame.data, board.width, board.height, read);
   if (!reading) {
@@ -543,8 +590,10 @@ function scheduleNames(data, width, height, read) {
       for (const job of jobs) {
         if (matchNamedCard(job.signature, namedCards) !== undefined) continue;
         const result = await worker.recognize(job.canvas);
-        const id = matchHeroName(result?.data?.text || "", catalog?.heroes || []);
-        namedCards.unshift({ sig: job.signature, id: id || "" });
+        const text = String(result?.data?.text || "").replace(/\s+/g, " ").trim();
+        const pool = (catalog?.database || []).length ? catalog.database : (catalog?.seasonHeroes || catalog?.heroes || []);
+        const id = matchHeroName(text, pool);
+        namedCards.unshift({ sig: job.signature, id: id || "", text });
         namedCards = namedCards.slice(0, 40);
       }
     } catch {
@@ -560,6 +609,7 @@ function scheduleNames(data, width, height, read) {
       const latest = readDraft(latestFrame.data, board.width, board.height, cardMemory, namedCards);
       pendingRead = latest;
       paintCards(latest.faces || []);
+      renderHeard(latest);
       if (!reading) {
         lastRead = latest;
         return;

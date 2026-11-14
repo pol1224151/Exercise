@@ -86,9 +86,43 @@ function activeSets(setNamesOrCounts) {
   return active;
 }
 
+function normalizeHeroDef(row) {
+  if (!row) return null;
+  if (row.base && (row.base.speed != null || row.base.attack != null)) return row;
+  return {
+    ...row,
+    base: {
+      attack: row.baseAttack ?? null,
+      hp: row.baseHp ?? null,
+      defense: row.baseDefense ?? null,
+      speed: row.baseSpeed ?? null,
+      crit: null,
+      critDamage: null,
+      effectiveness: null,
+      effectResistance: null,
+    },
+  };
+}
+
+export function heroListed(hero) {
+  if (!hero) return false;
+  if (typeof hero.listed === "boolean") return hero.listed;
+  const skills = hero.skills || {};
+  return ["S1", "S2", "S3"].some((slot) => {
+    const skill = skills[slot];
+    return typeof skill?.rate === "number" && typeof skill?.pow === "number" && skill.rate > 0 && skill.pow > 0;
+  });
+}
+
 function heroByName(catalog, name) {
   const key = String(name || "").trim().toLowerCase();
-  return catalog.heroes.find((h) => h.name.toLowerCase() === key || h.nameZh === name || h.id === key);
+  if (!key) return null;
+  const pools = [catalog.heroes || [], catalog.seasonHeroes || [], catalog.database || []];
+  for (const pool of pools) {
+    const found = pool.find((hero) => hero.name?.toLowerCase() === key || hero.nameZh === name || hero.id === key);
+    if (found) return normalizeHeroDef(found);
+  }
+  return null;
 }
 
 export const ACCOUNT_STORAGE_KEY = "rta-advisor-account";
@@ -498,6 +532,24 @@ function ownsArtifact(owned, name) {
 }
 
 export function buildGearReport(rosterHero, def, catalog, roster = {}) {
+  if (!def?.rtaGear) {
+    const listed = heroListed(def);
+    return {
+      foreign: false,
+      haveSets: [],
+      metaSets: [],
+      haveArtifact: null,
+      metaArtifact: null,
+      changes: [listed ? "資料庫有這名英雄，但沒有這一季的配裝統計，不建議裝備。" : "這個英雄未收錄，沒有技能倍率，不建議裝備。"],
+      mains: null,
+      substatPriority: [],
+      substatAvoid: [],
+      haveSubs: {},
+      speed: null,
+      editorialNote: listed ? "不編配裝。" : "未收錄。",
+      unlisted: !listed,
+    };
+  }
   const editorial = def.editorialGear || {};
   const mainLine = translateMains(editorial.mainsSentence);
   const priority = (editorial.substatPriority || []).map(translateStat);
@@ -1302,11 +1354,117 @@ export function detectFirstPick(userCount, enemyCount, turnSide, leadSide) {
   if (userCount === 5 && enemyCount === 5) return { firstPick: true, source: "locked" };
   if (leadSide === "user") return { firstPick: true, source: "lead" };
   if (leadSide === "enemy") return { firstPick: false, source: "lead" };
-  const nextIfUser = nextSide(userCount, enemyCount, true);
-  const nextIfEnemy = nextSide(userCount, enemyCount, false);
-  if (turnSide === "user" && nextIfUser === "user" && nextIfEnemy !== "user") return { firstPick: true, source: "turn" };
-  if (turnSide === "enemy" && nextIfEnemy === "enemy" && nextIfUser !== "enemy") return { firstPick: false, source: "turn" };
-  return { firstPick: null, source: "unseen" };
+  return { firstPick: null, source: "unseen", turnSide: turnSide || null };
+}
+
+function presenceOf(catalog, id) {
+  const season = (catalog.seasonHeroes || []).find((hero) => hero.id === id);
+  if (season?.rtaPresence) return season.rtaPresence;
+  return (catalog.heroes || []).find((hero) => hero.id === id)?.rtaPresence || null;
+}
+
+function gamesOf(presence) {
+  if (!presence) return 0;
+  if (typeof presence.games === "number") return presence.games;
+  return (presence.wins || 0) + (presence.losses || 0);
+}
+
+function takeIds(list, count, skip) {
+  const picked = [];
+  for (const hero of list) {
+    const id = hero.id || hero;
+    if (skip.has(id) || picked.includes(id)) continue;
+    picked.push(id);
+    if (picked.length === count) break;
+  }
+  return picked;
+}
+
+function onePlan(side, id, label, preSource, pickSource, why) {
+  const picks = takeIds(pickSource, 5, new Set());
+  const prebans = takeIds(preSource, 2, new Set(picks));
+  return { id, side, label, prebans, picks, why };
+}
+
+export function draftPlans(catalog, roster) {
+  const season = (catalog.seasonHeroes || []).filter((hero) => hero.rtaPresence);
+  const pool = season.length ? season : (catalog.heroes || []);
+  const owned = (roster?.heroes || []).filter((hero) => presenceOf(catalog, hero.id) && heroListed(
+    pool.find((row) => row.id === hero.id) || (catalog.heroes || []).find((row) => row.id === hero.id) || hero,
+  ));
+  const byGames = [...owned].sort((left, right) => gamesOf(presenceOf(catalog, right.id)) - gamesOf(presenceOf(catalog, left.id)));
+  const byWin = [...owned].sort((left, right) => {
+    const leftPresence = presenceOf(catalog, left.id);
+    const rightPresence = presenceOf(catalog, right.id);
+    const leftRate = leftPresence.wins / Math.max(1, leftPresence.wins + leftPresence.losses);
+    const rightRate = rightPresence.wins / Math.max(1, rightPresence.wins + rightPresence.losses);
+    return rightRate - leftRate || gamesOf(rightPresence) - gamesOf(leftPresence);
+  });
+  const byPreban = [...pool].sort((left, right) => (right.rtaPresence.prebans || 0) - (left.rtaPresence.prebans || 0));
+  const bySeasonGames = [...pool].sort((left, right) => gamesOf(right.rtaPresence) - gamesOf(left.rtaPresence));
+  const first = [
+    onePlan("first", "first-preban", "先手", byPreban, byGames, "預禁用本季預禁數最高、而且不是這套要選的人。選角用你帳號裡本季場次最多的五名。"),
+    onePlan("first", "first-win", "先手另一套", byPreban.slice(2), byWin, "預禁改看本季預禁數接著的兩名。選角改用你帳號裡勝率較高的五名。"),
+  ];
+  const second = [
+    onePlan("second", "second-games", "後手", bySeasonGames, byWin, "預禁用本季場次最高、而且不是這套要選的人。選角用你帳號裡勝率較高的五名。"),
+    onePlan("second", "second-preban", "後手另一套", byPreban, byGames, "預禁用本季預禁數最高的兩名。選角用你帳號裡本季場次最多的五名。"),
+  ];
+  const ready = (plan) => plan.prebans.length > 0 && plan.picks.length > 0;
+  return { first: first.filter(ready), second: second.filter(ready) };
+}
+
+function planDraft(catalog, plan, userFirst, prebansEach) {
+  const model = catalog.heroes || [];
+  const modelIds = new Set(model.map((hero) => hero.id));
+  if (plan.picks.some((id) => !modelIds.has(id)) || plan.prebans.some((id) => !modelIds.has(id))) return null;
+  const userPre = plan.prebans.slice(0, prebansEach);
+  const banned = new Set(userPre);
+  const userPicks = plan.picks.slice(0, 5);
+  const enemyPool = [...model]
+    .filter((hero) => !banned.has(hero.id) && !userPicks.includes(hero.id))
+    .sort((left, right) => gamesOf(presenceOf(catalog, right.id)) - gamesOf(presenceOf(catalog, left.id)));
+  const enemyPre = enemyPool.slice(0, prebansEach).map((hero) => hero.id);
+  enemyPre.forEach((id) => banned.add(id));
+  const enemyPicks = enemyPool.filter((hero) => !banned.has(hero.id)).slice(0, 5).map((hero) => hero.id);
+  if (userPicks.length < 5 || enemyPicks.length < 5) return null;
+  const score = (id) => presenceOf(catalog, id)?.prebans || 0;
+  const highest = (ids) => [...ids].sort((left, right) => score(right) - score(left))[0];
+  const userBan = highest(enemyPicks.filter((_, index) => index !== 2));
+  const enemyBan = highest(userPicks.filter((_, index) => index !== 2));
+  return {
+    picked: { user: userPicks, enemy: enemyPicks },
+    userBan,
+    enemyBan,
+    userFight: userPicks.filter((id) => id !== enemyBan),
+    enemyFight: enemyPicks.filter((id) => id !== userBan),
+    userFirst,
+    userPre,
+    enemyPre,
+  };
+}
+
+function ratePlan(catalog, roster, draft, options) {
+  if (!draft || draft.userFight.length !== 4 || draft.enemyFight.length !== 4) return null;
+  const skill = { id: "s3", order: ["S3", "S2", "S1"], burn: false };
+  const trials = options.trials || 4;
+  let wins = 0;
+  for (let trial = 0; trial < trials; trial += 1) {
+    const fight = fightFromRoster(draft, roster, catalog, skill, options.assumeMaxEnhance ? "max" : "base", mulberry32(trial + 1));
+    if (fight.winner === "user") wins += 1;
+  }
+  return wins / trials;
+}
+
+function screenRecord(catalog, id) {
+  return (catalog.seasonHeroes || []).find((hero) => hero.id === id)
+    || (catalog.database || []).find((hero) => hero.id === id)
+    || (catalog.heroes || []).find((hero) => hero.id === id)
+    || null;
+}
+
+function screenName(catalog, id) {
+  return screenRecord(catalog, id)?.nameZh || "";
 }
 
 export function adviseFromScreen(catalog, recognition, options = {}) {
@@ -1321,19 +1479,25 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
   if (slots.includes("unknown") || (phase === "battle" && recognition.actorId === "unknown")) {
     return invalid(catalog, "點這張卡選英雄", "這張卡上的名字讀不到，不會猜一個接近的人。");
   }
-  const outside = slots.filter((id) => id && id !== "empty" && id !== "unknown" && !byId[id]);
-  const actorOutside = phase === "battle" && recognition.actorId && recognition.actorId !== "empty" && recognition.actorId !== "unknown" && !byId[recognition.actorId];
+  const named = (id) => id && id !== "empty" && id !== "unknown";
+  const unlisted = slots.filter((id) => named(id) && screenRecord(catalog, id) && !heroListed(screenRecord(catalog, id)));
+  if (unlisted.length || (phase === "battle" && named(recognition.actorId) && screenRecord(catalog, recognition.actorId) && !heroListed(screenRecord(catalog, recognition.actorId)))) {
+    const names = unlisted.map((id) => screenName(catalog, id)).filter(Boolean).join("、");
+    return invalid(catalog, "這個英雄未收錄", `${names || "這名英雄"}沒有技能倍率，這一步不給建議。`);
+  }
+  const outside = slots.filter((id) => named(id) && !screenRecord(catalog, id));
+  const actorOutside = phase === "battle" && named(recognition.actorId) && !screenRecord(catalog, recognition.actorId);
   if (outside.length || actorOutside) {
-    return invalid(catalog, "這個英雄不在資料庫裡", "沒有同時具備資料庫、倍率和這個賽季的模型。");
+    return invalid(catalog, "這個英雄不在資料庫裡", "資料庫沒有這名英雄，這一步不給建議。");
   }
   const roster = options.roster;
   if (!roster?.heroes?.length) {
     return invalid(catalog, "先讀入帳號", "還沒有讀入帳號。");
   }
   const ownedIds = new Set(roster.heroes.map((hero) => hero.id));
-  const missingOwn = (recognition.user || []).filter((id) => known(id) && !ownedIds.has(id));
+  const missingOwn = (recognition.user || []).filter((id) => named(id) && screenRecord(catalog, id) && !ownedIds.has(id));
   if (missingOwn.length) {
-    const names = missingOwn.map((id) => byId[id].nameZh).join("、");
+    const names = missingOwn.map((id) => screenName(catalog, id) || byId[id]?.nameZh).join("、");
     return invalid(catalog, "帳號裡沒有這名英雄", `帳號裡沒有${names}，不會拿參考面板冒充你的裝備。`);
   }
   if (phase === "battle") {
@@ -1425,9 +1589,9 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
     };
   }
 
-  const userPicks = (recognition.user || []).filter(known);
-  const enemyPicks = (recognition.enemy || []).filter(known);
-  const lockedPre = (recognition.prebans || []).filter(known);
+  const userPicks = (recognition.user || []).filter(named);
+  const enemyPicks = (recognition.enemy || []).filter(named);
+  const lockedPre = (recognition.prebans || []).filter(named);
   const nothingOnBoard = userPicks.length === 0 && enemyPicks.length === 0 && lockedPre.length === 0;
   if (nothingOnBoard && phase !== "preban" && !recognition.turnSide && !recognition.leadSide) {
     return invalid(catalog, "畫面上還沒有選角", "左右大卡出現英雄後，下一步會出現。");
@@ -1441,23 +1605,36 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
   }
   if (userFirst == null) {
     return detected.source === "mismatch"
-      ? invalid(catalog, "人數對不上選角順序", "兩邊已選的人數對不上選角順序。")
-      : invalid(catalog, "還看不出先後手", "畫面上還沒分出你是優先選擇還是稍後選擇。");
+      ? invalid(catalog, "人數對不上選角順序", "兩邊已選的人數對不上選角順序，先不給禁選。")
+      : invalid(catalog, "還看不出先後手", "先後手還沒分出來，先不給禁選。");
   }
-  const advice = advise(catalog, roster, {
-    ...options,
-    firstPick: userFirst,
-    trials: options.trials || 4,
-    lockedUserPre: lockedPre,
-    lockedUser: userPicks,
-    lockedEnemy: enemyPicks,
+  const plans = draftPlans(catalog, roster);
+  const sidePlans = userFirst ? plans.first : plans.second;
+  if (!sidePlans.length) return invalid(catalog, "這一手排不出來", "帳號裡沒有足夠的本季英雄可排一套打法。");
+  const prebansEach = options.rank === "below" ? 1 : 2;
+  const lines = sidePlans.map((plan) => {
+    const draft = planDraft(catalog, plan, userFirst, prebansEach);
+    const rate = ratePlan(catalog, roster, draft, options);
+    return {
+      ...plan,
+      draft,
+      rate,
+      userPre: plan.prebans,
+      reason: {
+        summary: `${userFirst ? "先手" : "後手"}這套：${plan.why}`,
+        lines: [
+          plan.why,
+          "數字用 Epic7RTAStats 這一季的預禁數和場次，沒有另編克制。",
+          rate == null ? "這套裡有英雄沒有沙盤用的技能效果，不估算勝率，也不編倍率。" : "估計勝率來自這套打法的沙盤，不是保證。",
+        ],
+      },
+    };
   });
-  if (!advice.ok) return invalid(catalog, "這一手排不出來", advice.reason || "沙盤排不出 4 對 4。");
   const cutoff = typeof options.cutoff === "number" ? options.cutoff : null;
   const choice = cutoff == null
     ? null
-    : chooseComposition(advice.considered || [advice.best], options.history || { matches: [] }, cutoff, userFirst);
-  const best = choice?.line || advice.best;
+    : chooseComposition(lines, options.history || { matches: [] }, cutoff, userFirst);
+  const best = choice?.line || lines[0];
   const history = choice ? {
     key: choice.key,
     wins: choice.stats.wins,
@@ -1474,48 +1651,33 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
       total: choice.replaced.stats.total,
     } : null,
   } : null;
+  const taken = new Set([...userPicks, ...enemyPicks, ...lockedPre]);
   const side = nextSide(userPicks.length, enemyPicks.length, userFirst);
+  const orderLine = orderSource === "held" ? "沿用剛才分出的先後手。" : (userFirst ? "這一幀是先手。" : "這一幀是後手。");
   let action;
-  if (phase === "preban" || (userPicks.length === 0 && enemyPicks.length === 0 && phase !== "postban")) {
-    const next = best.userPre.find((id) => !lockedPre.includes(id));
+  if (userPicks.length === 0 && enemyPicks.length === 0) {
+    const next = best.prebans.find((id) => !taken.has(id));
+    const presence = next ? presenceOf(catalog, next) : null;
     action = next
-      ? { kind: "preban", title: `預禁 ${byId[next].nameZh}`, detail: `賽季預禁數 ${byId[next].rtaPresence.prebans}。`, burn: null, id: next }
+      ? { kind: "preban", title: `預禁 ${screenName(catalog, next)}`, detail: `${best.label}。本季預禁數 ${presence?.prebans ?? "沒有"}。`, burn: null, id: next }
       : { kind: "wait", title: "預禁已經選完", detail: "等選角開始。", burn: null };
-  } else if (!side) {
-    const ban = best.draft.userBan;
-    if (!ban || !byId[ban]) return invalid(catalog, "這一手沒有可禁的人", "沙盤沒有排出最後要禁的對手。");
-    action = { kind: "ban", title: `最後禁 ${byId[ban].nameZh}`, detail: "不能禁對方的第 3 選。", burn: null, id: ban };
-    best.reason = { ...best.reason, summary: "不能禁對方的第 3 選。" };
-  } else if (side === "user") {
-    let seen = 0;
-    let next = null;
-    for (const step of best.draft.steps) {
-      if (step.side !== "user") continue;
-      if (seen === userPicks.length) next = step;
-      seen += 1;
-    }
-    if (!next || !byId[next.id]) return invalid(catalog, "這一手沒有可選的人", "沙盤排不出你擁有、而且還沒被選走的英雄。");
-    action = { kind: "pick", title: `選 ${byId[next.id].nameZh}`, detail: next.protected ? "這格是你的第 3 選，選下去就不能被最後禁掉。" : "這一手輪到你。", burn: null, id: next.id };
+  } else if (!side && userPicks.length >= 5 && enemyPicks.length >= 5) {
+    const protectedId = enemyPicks[2];
+    const ban = [...enemyPicks].filter((id) => id !== protectedId).sort((left, right) => (presenceOf(catalog, right)?.prebans || 0) - (presenceOf(catalog, left)?.prebans || 0))[0];
+    if (!ban) return invalid(catalog, "這一手沒有可禁的人", "對方沒有能禁、而且不是第 3 選的人。");
+    action = { kind: "ban", title: `最後禁 ${screenName(catalog, ban)}`, detail: "不能禁對方的第 3 選。在其餘的人裡用本季預禁數較高的那位。", burn: null, id: ban };
   } else {
-    let seenUser = 0;
-    let nextUser = null;
-    for (const step of best.draft.steps) {
-      if (step.side !== "user") continue;
-      if (seenUser === userPicks.length) nextUser = step;
-      seenUser += 1;
+    const next = best.picks.find((id) => !taken.has(id));
+    if (!next) return invalid(catalog, "這一手沒有可選的人", "這套打法裡還沒被選走的人已經沒有。");
+    if (side === "enemy") {
+      action = { kind: "pick", title: `下一手選 ${screenName(catalog, next)}`, detail: "現在是對手在選。", burn: null, id: next };
+    } else {
+      action = { kind: "pick", title: `選 ${screenName(catalog, next)}`, detail: best.why, burn: null, id: next };
     }
-    if (!nextUser || !byId[nextUser.id]) return invalid(catalog, "等對手選完", "現在是對手在選，你的下一手還沒排出來。");
-    action = {
-      kind: "pick",
-      title: `下一手選 ${byId[nextUser.id].nameZh}`,
-      detail: "現在是對手在選。",
-      burn: null,
-      id: nextUser.id,
-    };
-    best.reason = { ...best.reason, summary: "現在是對手在選。" };
   }
-  if (!action?.title) return invalid(catalog, "這一手沒有建議", "沙盤沒有排出下一步。");
-  best.reason.lines.push("你的面板用這次讀入的帳號。對手用 Fribbels 參考中位數。");
+  if (!action?.title) return invalid(catalog, "這一手沒有建議", "這套打法沒有排出下一步。");
+  best.reason.lines = [orderLine, ...best.reason.lines];
+  best.reason.summary = `${orderLine}${best.reason.summary}`;
   return {
     ok: true,
     phase: phase || (side ? "pick" : "postban"),
@@ -1525,6 +1687,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
     history,
     firstPick: userFirst,
     orderSource,
+    planId: best.id,
     version: basis.version,
     basis,
     best,
