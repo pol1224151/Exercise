@@ -6,6 +6,8 @@
 
 import { chooseComposition } from "./records.js";
 import heroLinks from "../data/hero-links.json" with { type: "json" };
+import screenSkills from "../data/screen-skills.json" with { type: "json" };
+import rarityByCode from "../data/rarity.json" with { type: "json" };
 
 const ADVANTAGE = { fire: "wind", wind: "ice", ice: "fire", light: "dark", dark: "light" };
 
@@ -175,6 +177,7 @@ export function selectableHeroes(catalog) {
     ...hero,
     aliases: names.get(hero.id) || [],
     listed: heroListed(hero),
+    rarity: hero.rarity ?? rarityByCode[hero.code] ?? null,
   }));
 }
 
@@ -2025,25 +2028,137 @@ function openingLine(catalog, hero) {
   return `開戰常見做法：${bits.join("。")}。`;
 }
 
-function ultLine(hero) {
-  const skill = hero?.skills?.S3;
-  if (!skill) return "大招：沒有公開的 3 技能。";
-  const parts = splitSkill(skill);
-  const text = `${skill.text || ""}`;
+function whoZh(raw) {
+  const key = String(raw || "").trim().toLowerCase();
+  if (!key) return "";
+  if (key.includes("dark elemental")) return "暗屬隊友";
+  if (key.includes("except")) return "除自己以外的全體隊友";
+  if (key.includes("all allies")) return "全體隊友";
+  if (key.includes("all enemies")) return "全體敵人";
+  if (key.includes("caster")) return "自己";
+  if (key.includes("front")) return "前排";
+  if (key.includes("enemy")) return "敵人";
+  return String(raw || "").trim();
+}
+
+function addBit(bits, line) {
+  const text = String(line || "").trim();
+  if (text && !bits.includes(text)) bits.push(text);
+}
+
+function clausesFrom(skill) {
+  const text = `${skill?.text || ""}`;
   const bits = [];
-  if (typeof skill.cooldownShown === "number") bits.push(`冷卻 ${skill.cooldownShown} 回合`);
-  if (parts.damage?.rate > 0) bits.push(`傷害倍率 ${parts.damage.rate}`);
-  else bits.push("沒有傷害倍率");
-  const buffs = effectLabels(parts.buffs);
-  const debuffs = effectLabels(parts.debuffs);
-  if (buffs.length) bits.push(`增益：${buffs.join("、")}`);
-  if (debuffs.length) bits.push(`減益：${debuffs.join("、")}`);
-  if (/all stats are doubled/i.test(text)) bits.push("全能力值變 2 倍");
+  if (!text.trim()) return bits;
+  if (skill.soulGain > 0) addBit(bits, `獲得 ${skill.soulGain} 點靈魂`);
+  const stun = text.match(/(\d+(?:\.\d+)?)% chance to stun(?: for (\d+) turns?)?/i);
+  if (stun) addBit(bits, `${stun[1]}% 暈眩${stun[2] ? ` ${stun[2]} 回合` : ""}`);
+  const provoke = text.match(/(\d+(?:\.\d+)?)% chance to provoke(?: for (\d+) turns?)?/i);
+  if (provoke) addBit(bits, `${provoke[1]}% 挑釁${provoke[2] ? ` ${provoke[2]} 回合` : ""}`);
+  const defDown = text.match(/(\d+(?:\.\d+)?)% chance to decrease Defense for (\d+) turns?/i);
+  if (defDown) addBit(bits, `${defDown[1]}% 降低防禦 ${defDown[2]} 回合`);
+  const atkDown = text.match(/(\d+(?:\.\d+)?)% chance to decrease Attack for (\d+) turns?/i);
+  if (atkDown) addBit(bits, `${atkDown[1]}% 降低攻擊 ${atkDown[2]} 回合`);
+  if (/all stats are doubled/i.test(text)) addBit(bits, "全能力值變 2 倍");
   const field = text.match(/changes the battlefield into the ([^.]+)/i);
-  if (field) bits.push(`戰場變成 ${field[1].trim()}`);
-  const turns = text.match(/for (\d+) turns/i);
-  if (turns) bits.push(`持續 ${turns[1]} 回合`);
-  return `大招：${bits.join("，")}。`;
+  if (field) addBit(bits, `戰場變成 ${field[1].trim()}`);
+  if (/when it is not the caster's turn/i.test(text) && /all enemies/i.test(text)) addBit(bits, "不是自己的回合時改為全體攻擊");
+  if (/proportional to the caster's Defense/i.test(text)) addBit(bits, "依自己防禦力等比增加");
+  if (/proportional to the caster's max Health/i.test(text)) addBit(bits, "依自己最大生命等比增加");
+  if (/proportional to the caster's Attack/i.test(text)) addBit(bits, "依自己攻擊力等比增加");
+  if (/proportional to the caster's Speed/i.test(text)) addBit(bits, "依自己速度等比增加");
+  if (/Grants an extra turn/i.test(text)) addBit(bits, "再行動一次");
+  const evasion = text.match(/Increases Evasion by (\d+(?:\.\d+)?)%/i);
+  if (evasion) addBit(bits, `閃避增加 ${evasion[1]}%`);
+  const attack = text.match(/increases Attack by (\d+(?:\.\d+)?)%(?:, and can stack up to (\d+) times)?/i);
+  if (attack) addBit(bits, attack[2] ? `攻擊增加 ${attack[1]}%，最多 ${attack[2]} 層` : `攻擊增加 ${attack[1]}%`);
+  const readiness = text.match(/(increases|decreases|decreasing) Combat Readiness of (all allies|all enemies|the caster|the enemy) by (\d+(?:\.\d+)?)%/i);
+  if (readiness) {
+    const sign = /decreas/i.test(readiness[1]) ? "-" : "+";
+    let when = "";
+    if (/at the start of the turn/i.test(text)) when = "回合開始";
+    if (/at the end of the turn/i.test(text)) when = when ? `${when}、回合結束` : "回合結束";
+    addBit(bits, `${when}${whoZh(readiness[2])}戰鬥準備度 ${sign}${readiness[3]}%`);
+  }
+  const dispel = text.match(/Dispels (one|two|three|\d+) debuffs? from (all allies|all enemies|the caster)/i);
+  if (dispel) {
+    const count = { one: "1", two: "2", three: "3" }[dispel[1].toLowerCase()] || dispel[1];
+    addBit(bits, `解除${whoZh(dispel[2])} ${count} 個弱化`);
+  }
+  const granting = text.match(/granting ([a-z][a-z ]+?) to ([a-z][a-z ]+?) for (\d+) turns/i);
+  if (granting) {
+    const name = { rampage: "狂暴", stealth: "隱身", barrier: "防護罩" }[granting[1].trim().toLowerCase()] || granting[1].trim();
+    addBit(bits, `${whoZh(granting[2])} ${name} ${granting[3]} 回合`);
+  }
+  if (/swift attack/i.test(text) && /except for the caster/i.test(text)) addBit(bits, "除自己以外的全體隊友迅擊");
+  const resources = text.match(/resources gained by the enemy by (\d+)%/i);
+  if (resources) addBit(bits, `敵方獲得的資源減少 ${resources[1]}%`);
+  const stealth = text.match(/(\d+)% chance to grant stealth for (\d+) turns?/i);
+  if (stealth) addBit(bits, `${stealth[1]}% 機率隱身 ${stealth[2]} 回合`);
+  else {
+    const quiet = text.match(/grant stealth for (\d+) turns?/i);
+    if (quiet) addBit(bits, `隱身 ${quiet[1]} 回合`);
+  }
+  const counter = text.match(/(\d+(?:\.\d+)?)%\s*chance to counter/i);
+  if (counter) addBit(bits, `受擊時 ${counter[1]}% 反擊`);
+  const reduction = text.match(/(\d+(?:\.\d+)?)%\s*damage reduction/i);
+  if (reduction) addBit(bits, /single attack/i.test(text) ? `我軍受到單攻時傷害減少 ${reduction[1]}%` : `傷害減少 ${reduction[1]}%`);
+  if (/increased Defense to the caster for (\d+) turns/i.test(text)) {
+    const turns = text.match(/increased Defense to the caster for (\d+) turns/i);
+    addBit(bits, `自己防禦力增加 ${turns[1]} 回合`);
+  }
+  if (/barrier/i.test(text) && /for (\d+) turns/i.test(text)) {
+    const turns = text.match(/barrier[^.]{0,80}for (\d+) turns/i);
+    if (turns) addBit(bits, `防護罩 ${turns[1]} 回合`);
+  }
+  if (skill.soulburnCost) {
+    const burn = `${skill.soulburnText || ""}`;
+    if (/ignores effect resistance/i.test(burn)) addBit(bits, `燒魂 ${skill.soulburnCost}：無視效果抗性`);
+    else if (/effect chance to 100%/i.test(burn)) addBit(bits, `燒魂 ${skill.soulburnCost}：效果發生率變為 100%`);
+    else if (/cooldown is decreased by (\d+) turns?/i.test(burn)) {
+      const cut = burn.match(/cooldown is decreased by (\d+) turns?/i);
+      addBit(bits, `燒魂 ${skill.soulburnCost}：冷卻減少 ${cut[1]} 回合`);
+    } else if (/duration of buffs granted by this skill by (\d+) turn/i.test(burn)) {
+      const extra = burn.match(/by (\d+) turn/i);
+      addBit(bits, `燒魂 ${skill.soulburnCost}：強化再延長 ${extra[1]} 回合`);
+    } else if (burn && !/\d/.test(burn)) addBit(bits, `燒魂 ${skill.soulburnCost}：沒有另寫可套用的數字`);
+  }
+  return bits;
+}
+
+function skillBrief(hero, slot, label) {
+  const skill = hero?.skills?.[slot];
+  if (!skill) return slot === "S3" ? "大招：沒有公開的 3 技能。" : "";
+  const facts = screenSkills[hero?.id]?.[slot];
+  const bits = [];
+  if (Array.isArray(facts) && facts.length) {
+    for (const fact of facts) addBit(bits, fact);
+  } else {
+    if (!`${skill.text || ""}`.trim()) return `${label}：沒有公開技能文字。`;
+    for (const bit of clausesFrom(skill)) addBit(bits, bit);
+  }
+  if (typeof skill.cooldownShown === "number" && !bits.some((bit) => bit.includes("冷卻"))) {
+    bits.unshift(`冷卻 ${skill.cooldownShown} 回合`);
+  }
+  if (skill.rate > 0 && skill.pow > 0 && !bits.some((bit) => bit.includes("傷害倍率"))) {
+    addBit(bits, `Fribbels 傷害倍率 ${skill.rate}`);
+  }
+  const scales = [];
+  if (skill.selfHpScaling) scales.push(`生命 ${skill.selfHpScaling}`);
+  if (skill.selfDefScaling) scales.push(`防禦 ${skill.selfDefScaling}`);
+  if (skill.selfAtkScaling) scales.push(`攻擊 ${skill.selfAtkScaling}`);
+  if (skill.selfSpdScaling) scales.push(`速度 ${skill.selfSpdScaling}`);
+  if (scales.length && !bits.some((bit) => bit.includes("Fribbels 係數"))) addBit(bits, `Fribbels 係數 ${scales.join("、")}`);
+  const scaling = (skill.selfHpScaling || 0) + (skill.selfDefScaling || 0) + (skill.selfAtkScaling || 0) + (skill.selfSpdScaling || 0);
+  if (skill.passive) {
+    if (!bits.some((bit) => bit.includes("被動"))) addBit(bits, "這是被動，沒有攻擊倍率");
+  } else if (!(skill.rate > 0) && scaling <= 0) {
+    if (!bits.length) addBit(bits, "沒有公開的傷害倍率，也沒有寫出效果");
+    else if (!bits.some((bit) => bit.includes("沒有傷害"))) addBit(bits, "這招沒有傷害倍率");
+  }
+  if (!bits.length) return `${label}：沒有寫出效果。`;
+  const head = skill.passive ? `${label}被動` : label;
+  return `${head}：${bits.join("。")}。`;
 }
 
 function formLine(hero) {
@@ -2055,46 +2170,78 @@ function formLine(hero) {
   return found.length ? `技能變化：${found.join("；")}。變身後沒有另一組公開倍率，仍用 Fribbels 現有倍率。` : "";
 }
 
-function passiveLine(hero) {
+function passiveNote(hero) {
   const bits = [];
   for (const slot of ["S1", "S2", "S3"]) {
-    const skill = hero?.skills?.[slot];
-    if (!skill) continue;
-    if (skill.passive) {
-      const parts = splitSkill(skill);
-      const labels = [...effectLabels(parts.buffs), ...effectLabels(parts.debuffs)];
-      if (labels.length) {
-        const line = `${slot} 被動：${labels.join("、")}`;
-        if (!bits.includes(line)) bits.push(line);
-      }
-    }
-    for (const effect of skill.effects || []) {
+    for (const effect of hero?.skills?.[slot]?.effects || []) {
       if (!effect || effect.simulated === false) continue;
       if (["crImmune", "speedCap", "fixOwnSpeed", "crLockOnCasterTurn", "soulCut", "cannotCrit"].includes(effect.kind)) {
-        const line = effectText(effect);
-        if (line && !bits.includes(line)) bits.push(line);
-      }
-      if (effect.kind === "crPush" && effect.atBattleStart && effectHasNumber(effect)) {
-        const line = `開場戰鬥準備度 +${effect.amount}`;
-        if (!bits.includes(line)) bits.push(line);
+        addBit(bits, effectText(effect));
       }
     }
   }
-  for (const grant of stealthGrants(hero?.skills)) {
-    const when = [grant.atBattleStart ? "開場" : "", grant.atTurnEnd ? "回合結束" : ""].filter(Boolean).join("、");
-    const chance = grant.chance == null ? "沒有另寫機率" : `${Math.round(grant.chance * 1000) / 10}%`;
-    const line = `${when}隱身 ${grant.turns} 回合，${chance}`;
-    if (!bits.includes(line)) bits.push(line);
-  }
-  for (const line of resourceCuts(hero?.skills)) {
-    if (!bits.includes(line)) bits.push(line);
-  }
-  return bits.length ? `被動：${bits.join("，")}。` : "被動：公開文字沒有另列被動數字。";
+  return bits.length ? `被動：${bits.join("，")}。` : "";
 }
 
 function kitBlock(catalog, hero) {
   if (!hero) return "沒有公開技能資料。";
-  return [openingLine(catalog, hero), ultLine(hero), formLine(hero), passiveLine(hero)].filter(Boolean).join("");
+  return [
+    openingLine(catalog, hero),
+    skillBrief(hero, "S1", "一技"),
+    skillBrief(hero, "S2", "二技"),
+    skillBrief(hero, "S3", "大招"),
+    passiveNote(hero),
+    formLine(hero),
+  ].filter(Boolean).join("");
+}
+
+export function heroKit(catalog, id) {
+  const pools = [catalog?.heroes || [], catalog?.database || []];
+  for (const pool of pools) {
+    const hero = pool.find((row) => row.id === id);
+    if (hero) return kitBlock(catalog, hero);
+  }
+  return "";
+}
+
+export function matchesPicker(hero, filters = {}) {
+  const stars = filters.stars || [];
+  const elements = filters.elements || [];
+  const roles = filters.roles || [];
+  if (stars.length && !stars.includes(hero?.rarity)) return false;
+  if (elements.length && !elements.includes(hero?.attribute)) return false;
+  if (roles.length && !roles.includes(hero?.role)) return false;
+  return true;
+}
+
+export function unclearSkills(catalog) {
+  const seen = new Set();
+  const rows = [];
+  for (const hero of [...(catalog?.database || []), ...(catalog?.heroes || [])]) {
+    if (!hero?.id || seen.has(hero.id)) continue;
+    seen.add(hero.id);
+    const slots = [];
+    for (const slot of ["S1", "S2", "S3"]) {
+      const skill = hero.skills?.[slot];
+      const kinds = [];
+      if (!skill || !`${skill.text || ""}`.trim()) {
+        kinds.push("沒有技能文字");
+      } else if (!screenSkills[hero.id]?.[slot]) {
+        const line = skillBrief(hero, slot, slot);
+        const scaling = (skill.selfHpScaling || 0) + (skill.selfDefScaling || 0) + (skill.selfAtkScaling || 0) + (skill.selfSpdScaling || 0);
+        const attacks = /\battacks\b/i.test(skill.text) && !skill.passive;
+        if (attacks && !(skill.rate > 0) && scaling <= 0) kinds.push("缺倍率");
+        const source = `${skill.text} ${skill.soulburnText || ""}`;
+        const percents = source.match(/\d+(?:\.\d+)?(?=%)/g) || [];
+        const turns = [...source.matchAll(/for (\d+) turns?/gi)].map((match) => match[1]);
+        if ([...percents, ...turns].some((num) => !line.includes(num))) kinds.push("缺效果");
+        if (slot !== "S1" && skill.cooldownShown == null && !skill.passive) kinds.push("沒有冷卻數字，也沒標成被動");
+      }
+      if (kinds.length) slots.push(`${slot} ${kinds.join("、")}`);
+    }
+    if (slots.length) rows.push({ name: hero.nameZh || hero.name || hero.id, slots });
+  }
+  return rows;
 }
 
 function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds, userFirst) {

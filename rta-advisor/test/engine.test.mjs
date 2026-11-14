@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { advise, adviseFromScreen, buildGearReport, clearAccount, draftPlans, elementRelation, fightFromRoster, heroListed, loadAccount, parseRoster, readAccountText, saveAccount, selectableHeroes, skillDamage } from "../js/engine.js";
+import { advise, adviseFromScreen, buildGearReport, clearAccount, draftPlans, elementRelation, fightFromRoster, heroKit, heroListed, loadAccount, matchesPicker, parseRoster, readAccountText, saveAccount, selectableHeroes, skillDamage } from "../js/engine.js";
 import { chooseComposition, draftType } from "../js/records.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
@@ -183,5 +183,44 @@ const unlisted = adviseFromScreen(unlistedCatalog, {
 assert.equal(unlisted.ok, false);
 assert.equal(unlisted.action.title, "這個英雄未收錄");
 assert.match(unlisted.reason.summary, /沒有技能倍率/);
+
+const peira = heroKit(catalog, "lone-wolf-peira");
+assert.match(peira, /閃避增加 35%/);
+assert.match(peira, /攻擊增加 20%/);
+assert.match(peira, /最多 5 層/);
+assert.match(peira, /全體隊友戰鬥準備度 \+10%/);
+assert.match(peira, /解除全體隊友 2 個弱化/);
+assert.match(peira, /再行動一次/);
+assert.match(peira, /沒有公開的開戰配裝/);
+assert.equal(peira.includes("沒有另編數字"), false);
+assert.equal(/大招：冷卻 8 回合，沒有傷害倍率，持續 3 回合/.test(peira), false);
+
+const armin = heroKit(catalog, "armin");
+assert.match(armin, /35%/);
+assert.match(armin, /防禦架勢/);
+assert.match(armin, /30% 反擊/);
+assert.match(armin, /傷害減少 30%/);
+assert.match(armin, /防禦力增加 60%/);
+assert.match(armin, /這是被動，沒有攻擊倍率/);
+assert.equal(armin.includes("缺倍率"), false);
+
+const elena = heroKit(catalog, "astromancer-elena");
+assert.match(elena, /星之庇護/);
+assert.match(elena, /15%/);
+assert.match(elena, /速度增加 20%/);
+assert.match(elena, /無法恢復/);
+assert.match(elena, /束縛/);
+assert.match(elena, /這是被動，沒有攻擊倍率/);
+assert.equal(elena.includes("缺倍率"), false);
+
+const listed = selectableHeroes(catalog);
+const arm = listed.find((hero) => hero.id === "armin");
+assert.equal(matchesPicker(arm, {}), true);
+assert.equal(arm.rarity, 4);
+assert.equal(matchesPicker(arm, { stars: [4], elements: ["wind"], roles: ["knight"] }), true);
+assert.equal(matchesPicker(arm, { stars: [5] }), false);
+assert.equal(matchesPicker(arm, { elements: ["fire"] }), false);
+assert.equal(matchesPicker(arm, { roles: ["mage"] }), false);
+assert.equal(listed.filter((hero) => matchesPicker(hero, {})).length, listed.length);
 
 console.log("engine tests passed", { rate: result.best.rate, first: fight.firstActor });

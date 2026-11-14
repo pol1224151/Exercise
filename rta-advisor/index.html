@@ -165,6 +165,23 @@
     <div class="dialog-body">
       <p class="note">點對的英雄。這台瀏覽器會記住這張卡，之後同一張用你選的人。</p>
       <input id="pickerSearch" type="search" placeholder="輸入英雄名字" aria-label="尋找英雄">
+      <div id="pickerFilters" class="picker-filters">
+        <button type="button" data-star="3" aria-pressed="false">3星</button>
+        <button type="button" data-star="4" aria-pressed="false">4星</button>
+        <button type="button" data-star="5" aria-pressed="false">5星</button>
+        <button type="button" data-element="fire" aria-pressed="false">火</button>
+        <button type="button" data-element="ice" aria-pressed="false">水</button>
+        <button type="button" data-element="wind" aria-pressed="false">木</button>
+        <button type="button" data-element="light" aria-pressed="false">光</button>
+        <button type="button" data-element="dark" aria-pressed="false">暗</button>
+        <button type="button" data-role="warrior" aria-pressed="false">戰士</button>
+        <button type="button" data-role="knight" aria-pressed="false">騎士</button>
+        <button type="button" data-role="assassin" aria-pressed="false">盜賊</button>
+        <button type="button" data-role="ranger" aria-pressed="false">射手</button>
+        <button type="button" data-role="mage" aria-pressed="false">魔導士</button>
+        <button type="button" data-role="manauser" aria-pressed="false">精靈師</button>
+      </div>
+      <p class="note">星級、屬性、職業可以一起勾。沒勾的那一類不拿來藏人。</p>
       <div id="pickerList" class="picker-list"></div>
     </div>
   </dialog>

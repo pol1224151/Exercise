@@ -406,6 +406,28 @@ footer { padding: 8px 0 28px; color: var(--muted); font-size: 0.9rem; }
   font: inherit;
 }
 
+.picker-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.picker-filters button {
+  font: inherit;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.picker-filters button[aria-pressed="true"] {
+  background: var(--ink);
+  color: white;
+}
+
 .picker-list {
   display: flex;
   flex-wrap: wrap;

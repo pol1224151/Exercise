@@ -1,4 +1,4 @@
-import { adviceStateKey, adviseFromScreen, battleBrief, buildGearReport, clearAccount, counterEdges, guidedDraft, loadAccount, parseRoster, readAccountText, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
+import { adviceStateKey, adviseFromScreen, battleBrief, buildGearReport, clearAccount, counterEdges, guidedDraft, loadAccount, matchesPicker, parseRoster, readAccountText, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, recordResult, saveMatches } from "./records.js";
 import { matchHeroName, matchNamedCard, readDraft, refreshCardMemory, rememberCard } from "./screen.js";
 
@@ -542,15 +542,25 @@ function labelCard(box, card) {
   box.querySelector("small").textContent = named && clean.length >= 2 ? clean : "";
 }
 
+function pickerChoice(name) {
+  return [...document.querySelectorAll(`#pickerFilters [data-${name}][aria-pressed="true"]`)].map((button) => button.dataset[name]);
+}
+
 function fillPicker(query = "") {
   const needle = query.trim();
   const list = $("pickerList");
   list.replaceChildren();
+  const filters = {
+    stars: pickerChoice("star").map(Number),
+    elements: pickerChoice("element"),
+    roles: pickerChoice("role"),
+  };
   let heroes = selectableHeroes(catalog).sort((left, right) => left.nameZh.localeCompare(right.nameZh, "zh-Hant"));
   if (pickerIds) {
     const allow = new Set(pickerIds);
     heroes = heroes.filter((hero) => allow.has(hero.id));
   }
+  heroes = heroes.filter((hero) => matchesPicker(hero, filters));
   for (const hero of heroes) {
     const labels = [hero.nameZh, hero.name, hero.id, ...(hero.aliases || [])].map((label) => String(label || ""));
     if (needle && !labels.some((label) => label.toLowerCase().includes(needle.toLowerCase()))) continue;
@@ -1117,6 +1127,12 @@ $("closePicker").addEventListener("click", () => {
   $("picker").close();
 });
 $("pickerSearch").addEventListener("input", (event) => fillPicker(event.target.value));
+for (const button of document.querySelectorAll("#pickerFilters button")) {
+  button.addEventListener("click", () => {
+    button.setAttribute("aria-pressed", button.getAttribute("aria-pressed") === "true" ? "false" : "true");
+    fillPicker($("pickerSearch").value);
+  });
+}
 $("weFirst").addEventListener("click", () => setOrder(true));
 $("theyFirst").addEventListener("click", () => setOrder(false));
 $("resetDraft").addEventListener("click", () => setOrder(null));
