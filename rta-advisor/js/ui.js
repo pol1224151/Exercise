@@ -1,4 +1,4 @@
-import { adviceStateKey, adviseFromScreen, buildGearReport, clearAccount, counterEdges, guidedDraft, loadAccount, parseRoster, readAccountText, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
+import { adviceStateKey, adviseFromScreen, battleBrief, buildGearReport, clearAccount, counterEdges, guidedDraft, loadAccount, parseRoster, readAccountText, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, recordResult, saveMatches } from "./records.js";
 import { matchHeroName, matchNamedCard, readDraft, refreshCardMemory, rememberCard } from "./screen.js";
 
@@ -28,7 +28,24 @@ let namedCards = [];
 let ocrQueued = false;
 let workerPromise = null;
 let pendingFace = null;
-let manual = { userFirst: null, userPicks: [], enemyPicks: [], prebans: [], prebansDone: false, steps: [] };
+let pendingSlot = null;
+let pickerIds = null;
+let manual = blankDraft();
+let guideKey = "";
+
+function blankDraft(userFirst = null) {
+  return {
+    userFirst: userFirst === true || userFirst === false ? userFirst : null,
+    userPicks: [],
+    enemyPicks: [],
+    prebans: [],
+    prebansDone: userFirst === true || userFirst === false,
+    userBanId: null,
+    enemyBanId: null,
+    steps: [],
+    filledNote: "",
+  };
+}
 
 async function boot() {
   const [catalogRes, versionRes, portraitRes, seasonRes, compRes] = await Promise.all([
@@ -213,98 +230,188 @@ function showCard({ action, rate, reason, click }) {
 function showReadyCard() {
   if (!roster?.heroes.length) {
     showCard({ action: "先讀入帳號", rate: "尚無勝率", reason: "按「匯入帳號」，選 gear.txt 或 Fribbels 的 Save all JSON。", click: "import" });
-    setDraftControls("ask");
+    paintBoard();
     return;
   }
   renderGuide();
 }
 
-function namesOf(ids) {
-  return (ids || []).map((id) => heroName(id)).filter(Boolean).join("、");
+function draftedFight() {
+  if (manual.userPicks.length < 5 || manual.enemyPicks.length < 5) return null;
+  if (!manual.userBanId || !manual.enemyBanId) return null;
+  if (manual.userPicks[2] === manual.enemyBanId || manual.enemyPicks[2] === manual.userBanId) return null;
+  const userFight = manual.userPicks.filter((id) => id !== manual.enemyBanId);
+  const enemyFight = manual.enemyPicks.filter((id) => id !== manual.userBanId);
+  if (userFight.length !== 4 || enemyFight.length !== 4) return null;
+  return { userFight, enemyFight, userFirst: manual.userFirst === true };
 }
 
-function setDraftControls(kind) {
-  const report = $("reportRow");
-  const bans = $("bansDone");
-  const lock = $("lockOurs");
-  if (report) report.hidden = kind !== "report";
-  if (bans) bans.hidden = kind !== "preban";
-  if (lock) lock.hidden = kind !== "pick";
+function draftKey() {
+  return [manual.userFirst, manual.userPicks.join(","), manual.enemyPicks.join(","), manual.userBanId || "", manual.enemyBanId || "", $("rank")?.value || ""].join("|");
+}
+
+function renderGuide() {
+  if (!catalog || !roster?.heroes?.length) {
+    paintBoard();
+    return;
+  }
+  if (manual.userFirst == null) {
+    guideKey = "";
+    paintBoard();
+    $("draftStatus").textContent = "點「我先手」或「對方先手」。我方格子會自己填上英雄。";
+    $("weFirst")?.classList.toggle("primary", false);
+    $("theyFirst")?.classList.toggle("primary", false);
+    return;
+  }
+  if (draftKey() === guideKey && lastAdvice) {
+    paintBoard();
+    $("draftStatus").textContent = draftStatusText(lastAdvice);
+    $("weFirst")?.classList.toggle("primary", manual.userFirst === true);
+    $("theyFirst")?.classList.toggle("primary", manual.userFirst === false);
+    return;
+  }
+  let result = guidedDraft(catalog, roster, manual, { rank: $("rank").value, trials: 1 });
+  let guard = 0;
+  while (result?.action?.kind === "pick" && guard < 3) {
+    const ids = (result.action.ids || []).filter((id) => !manual.userPicks.includes(id));
+    if (!ids.length) break;
+    manual.userPicks.push(...ids);
+    manual.steps.push({ side: "user", ids: [...ids] });
+    manual.filledNote = result.action.detail || result.action.title || "";
+    result = guidedDraft(catalog, roster, manual, { rank: $("rank").value, trials: 1 });
+    guard += 1;
+  }
+  const fight = draftedFight();
+  if (fight) result = battleBrief(catalog, roster, fight);
+  guideKey = draftKey();
+  lastAdvice = result;
+  renderLive(result);
+  paintBoard();
+  $("draftStatus").textContent = draftStatusText(result);
   $("weFirst")?.classList.toggle("primary", manual.userFirst === true);
   $("theyFirst")?.classList.toggle("primary", manual.userFirst === false);
 }
 
-function renderGuide() {
-  if (!catalog || !roster?.heroes?.length) return;
-  const result = guidedDraft(catalog, roster, manual, { rank: $("rank").value, trials: 1 });
-  lastAdvice = result;
-  renderLive(result);
-  setDraftControls(result.action?.kind);
-  const status = $("draftStatus");
-  if (!status) return;
-  if (manual.userFirst == null) {
-    status.textContent = "按「我先手」或「對方先手」。我會先給 2 名預禁。";
-    return;
+function draftStatusText(result) {
+  const side = manual.userFirst ? "我方先手。" : "對方先手。";
+  const note = manual.filledNote ? `${manual.filledNote}。` : "";
+  if (manual.userPicks.length >= 5 && manual.enemyPicks.length >= 5) {
+    if (!manual.userBanId || !manual.enemyBanId) {
+      const suggest = result?.action?.kind === "ban" ? `${result.action.title}。` : "";
+      return `${side}選滿 5 名。${suggest}點對方格子或「我禁對方」打叉，再點我方格子或「對方禁我」。第 3 格是保護位，不能打叉。`;
+    }
+    return `${side}禁完了。下面寫這一場誰先打誰。`;
   }
-  const side = manual.userFirst ? "我方先手" : "對方先手";
-  const bans = namesOf(manual.prebans);
-  const ours = namesOf(manual.userPicks);
-  const theirs = namesOf(manual.enemyPicks);
-  status.textContent = `${side}。預禁 ${bans || "還沒確認"}。我方 ${ours || "還沒選"}。對方 ${theirs || "還沒選"}。`;
+  if (result?.action?.kind === "report") return `${side}${note}點對方第 ${manual.enemyPicks.length + 1} 格，選他剛選的英雄。`;
+  return `${side}${note}`;
 }
 
 function setOrder(userFirst) {
-  manual = { userFirst: userFirst === true || userFirst === false ? userFirst : null, userPicks: [], enemyPicks: [], prebans: [], prebansDone: false, steps: [] };
+  manual = blankDraft(userFirst);
+  guideKey = "";
+  openRecord = null;
+  const record = $("liveRecord");
+  if (record) record.textContent = "";
   renderGuide();
 }
 
-function addEnemyPick() {
-  const input = $("enemyPick");
-  const text = input?.value || "";
-  const id = matchHeroName(text, selectableHeroes(catalog || {}));
-  if (!id) {
-    $("draftStatus").textContent = "對不上資料庫的完整中文名，留空，不猜。";
+function slotTag(index) {
+  return index === 2 ? "保護" : "關鍵";
+}
+
+function paintBoard() {
+  paintSide("userCells", "user", manual.userPicks, manual.enemyBanId);
+  paintSide("enemyCells", "enemy", manual.enemyPicks, manual.userBanId);
+  paintBan($("ourBan"), "我禁對方", manual.userBanId);
+  paintBan($("theirBan"), "對方禁我", manual.enemyBanId);
+}
+
+function paintSide(rootId, side, picks, banId) {
+  const root = $(rootId);
+  if (!root) return;
+  root.replaceChildren();
+  const full = manual.userPicks.length >= 5 && manual.enemyPicks.length >= 5;
+  for (let index = 0; index < 5; index += 1) {
+    const button = document.createElement("button");
+    button.type = "button";
+    const id = picks[index] || "";
+    const active = side === "enemy" && !full && lastAdvice?.action?.kind === "report" && index === picks.length;
+    button.className = ["cell", index === 2 ? "protect" : "key", id ? "filled" : "", id && id === banId ? "banned" : "", active ? "active" : ""].filter(Boolean).join(" ");
+    const small = document.createElement("small");
+    small.textContent = `第 ${index + 1} 選・${slotTag(index)}`;
+    const strong = document.createElement("strong");
+    strong.textContent = id ? heroName(id) : "";
+    const mark = document.createElement("em");
+    mark.className = "x";
+    mark.textContent = "✕";
+    button.append(small, strong, mark);
+    button.addEventListener("click", () => onCell(side, index));
+    root.appendChild(button);
+  }
+}
+
+function paintBan(button, label, id) {
+  if (!button) return;
+  button.classList.toggle("banned", Boolean(id));
+  button.replaceChildren();
+  const mark = document.createElement("em");
+  mark.textContent = "✕";
+  const name = document.createElement("strong");
+  name.textContent = id ? heroName(id) : "";
+  const small = document.createElement("small");
+  small.textContent = label;
+  button.append(mark, name, small);
+}
+
+function onCell(side, index) {
+  if (manual.userFirst == null) {
+    $("draftStatus").textContent = "先點「我先手」或「對方先手」。";
     return;
   }
-  if (lastAdvice?.action?.kind !== "report") return;
-  const taken = new Set([...manual.userPicks, ...manual.enemyPicks, ...manual.prebans]);
-  if (taken.has(id)) {
-    $("draftStatus").textContent = `${heroName(id)}已經選過或已經預禁。`;
+  const full = manual.userPicks.length >= 5 && manual.enemyPicks.length >= 5;
+  if (!full) {
+    if (side !== "enemy") return;
+    if (lastAdvice?.action?.kind !== "report" || index !== manual.enemyPicks.length) {
+      $("draftStatus").textContent = index === manual.enemyPicks.length
+        ? "這一手是我方，格子會自己填上。"
+        : `先點對方第 ${manual.enemyPicks.length + 1} 格。`;
+      return;
+    }
+    pendingSlot = { kind: "enemy", index };
+    pickerIds = null;
+    openDraftPicker(`對方第 ${index + 1} 格`);
     return;
   }
-  manual.enemyPicks.push(id);
-  manual.steps.push({ side: "enemy", ids: [id] });
-  input.value = "";
-  renderGuide();
-}
-
-function lockOurs() {
-  const ids = lastAdvice?.action?.ids || [];
-  if (lastAdvice?.action?.kind !== "pick" || !ids.length) return;
-  manual.userPicks.push(...ids);
-  manual.steps.push({ side: "user", ids: [...ids] });
-  renderGuide();
-}
-
-function confirmBans() {
-  const ids = lastAdvice?.action?.ids || [];
-  if (lastAdvice?.action?.kind !== "preban" || !ids.length) return;
-  manual.prebans = [...ids];
-  manual.prebansDone = true;
-  manual.steps.push({ side: "preban", ids: [...ids] });
-  renderGuide();
-}
-
-function undoDraft() {
-  const last = manual.steps.pop();
-  if (!last) return;
-  if (last.side === "preban") {
-    manual.prebansDone = false;
-    manual.prebans = [];
+  if (index === 2) {
+    $("draftStatus").textContent = "第 3 選是保護位，不能打叉。";
+    return;
   }
-  if (last.side === "enemy") manual.enemyPicks.splice(-last.ids.length);
-  if (last.side === "user") manual.userPicks.splice(-last.ids.length);
+  const picks = side === "enemy" ? manual.enemyPicks : manual.userPicks;
+  const id = picks[index];
+  if (!id) return;
+  if (side === "enemy") manual.userBanId = manual.userBanId === id ? null : id;
+  else manual.enemyBanId = manual.enemyBanId === id ? null : id;
   renderGuide();
+}
+
+function onBan(which) {
+  if (manual.userPicks.length < 5 || manual.enemyPicks.length < 5) {
+    $("draftStatus").textContent = "兩邊都選滿 5 名，才能點禁位打叉。";
+    return;
+  }
+  const picks = which === "enemy" ? manual.enemyPicks : manual.userPicks;
+  pickerIds = picks.filter((_, index) => index !== 2);
+  pendingSlot = { kind: which === "enemy" ? "ban-enemy" : "ban-user" };
+  openDraftPicker(which === "enemy" ? "我禁對方哪一名" : "對方禁了我方哪一名");
+}
+
+function openDraftPicker(title) {
+  pendingFace = null;
+  const heading = $("picker").querySelector("h2");
+  if (heading) heading.textContent = title;
+  $("pickerSearch").value = "";
+  fillPicker("");
+  if (!$("picker").open) $("picker").showModal();
 }
 
 function showFrame(on) {
@@ -332,6 +439,8 @@ function oneAction(result) {
 }
 
 function currentType() {
+  const fight = draftedFight();
+  if (fight) return draftType(fight.userFight, fight.enemyFight, fight.userFirst);
   if (lastRead?.phase !== "battle") return null;
   if (typeof lastRead.firstPick !== "boolean") return null;
   return draftType(lastRead.user, lastRead.enemy, lastRead.firstPick);
@@ -424,7 +533,11 @@ function fillPicker(query = "") {
   const needle = query.trim();
   const list = $("pickerList");
   list.replaceChildren();
-  const heroes = selectableHeroes(catalog).sort((left, right) => left.nameZh.localeCompare(right.nameZh, "zh-Hant"));
+  let heroes = selectableHeroes(catalog).sort((left, right) => left.nameZh.localeCompare(right.nameZh, "zh-Hant"));
+  if (pickerIds) {
+    const allow = new Set(pickerIds);
+    heroes = heroes.filter((hero) => allow.has(hero.id));
+  }
   for (const hero of heroes) {
     const labels = [hero.nameZh, hero.name, hero.id, ...(hero.aliases || [])].map((label) => String(label || ""));
     if (needle && !labels.some((label) => label.toLowerCase().includes(needle.toLowerCase()))) continue;
@@ -437,6 +550,8 @@ function fillPicker(query = "") {
 }
 
 function openPicker(face) {
+  pendingSlot = null;
+  pickerIds = null;
   pendingFace = face;
   $("pickerSearch").value = "";
   fillPicker("");
@@ -444,9 +559,16 @@ function openPicker(face) {
 }
 
 function chooseFace(heroId) {
+  const slot = pendingSlot;
   const face = pendingFace;
   $("picker").close();
   pendingFace = null;
+  pendingSlot = null;
+  pickerIds = null;
+  if (slot) {
+    applyDraftChoice(slot, heroId);
+    return;
+  }
   if (!face || !heroId || !face.signature) return;
   cardMemory = rememberCard(cardMemory, face.signature, heroId, {
     text: face.text || "",
@@ -478,6 +600,37 @@ function chooseFace(heroId) {
   if (reading) consider(lastRead);
 }
 
+function applyDraftChoice(slot, heroId) {
+  if (!heroId) return;
+  if (slot.kind === "enemy") {
+    const taken = new Set([...manual.userPicks, ...manual.enemyPicks]);
+    if (taken.has(heroId)) {
+      $("draftStatus").textContent = `${heroName(heroId)}已經在場上。`;
+      return;
+    }
+    if (manual.enemyPicks.length !== slot.index) return;
+    manual.enemyPicks.push(heroId);
+    manual.steps.push({ side: "enemy", ids: [heroId] });
+  }
+  if (slot.kind === "ban-enemy") {
+    const index = manual.enemyPicks.indexOf(heroId);
+    if (index < 0 || index === 2) {
+      $("draftStatus").textContent = "第 3 選是保護位，不能打叉。";
+      return;
+    }
+    manual.userBanId = heroId;
+  }
+  if (slot.kind === "ban-user") {
+    const index = manual.userPicks.indexOf(heroId);
+    if (index < 0 || index === 2) {
+      $("draftStatus").textContent = "第 3 選是保護位，不能打叉。";
+      return;
+    }
+    manual.enemyBanId = heroId;
+  }
+  renderGuide();
+}
+
 function renderLive(result) {
   if (!result?.ok) {
     const title = result?.action?.title || "這一手沒有建議";
@@ -494,16 +647,26 @@ function renderLive(result) {
   const canRecord = Boolean(type);
   $("markWin").disabled = !canRecord;
   $("markLoss").disabled = !canRecord;
+  const liveWin = $("liveWin");
+  const liveLoss = $("liveLoss");
+  if (liveWin) liveWin.disabled = !canRecord;
+  if (liveLoss) liveLoss.disabled = !canRecord;
 }
 
 function markMatch(result) {
   const type = currentType();
   if (!type) return;
   if (!openRecord || openRecord.type !== type.key) openRecord = { type: type.key, id: null };
+  const updating = Boolean(openRecord.id);
   const saved = recordResult(loadMatches(localStorage), type.key, result, openRecord.id);
   openRecord.id = saved.id;
   saveMatches(localStorage, saved);
-  $("recordState").textContent = result === "win" ? "已記下這場勝利。" : "已記下這場落敗。";
+  const text = updating
+    ? (result === "win" ? "已改成這場勝利，沒有多加一場。" : "已改成這場落敗，沒有多加一場。")
+    : (result === "win" ? "已記下這場勝利。" : "已記下這場落敗。");
+  $("recordState").textContent = text;
+  const live = $("liveRecord");
+  if (live) live.textContent = text;
   renderLive(lastAdvice);
 }
 
@@ -535,7 +698,7 @@ function consider(read) {
     lastRead = read;
     paintCards(read?.faces || []);
     renderHeard(read);
-    if (read?.phase !== "battle") {
+    if (draftedFight() || read?.phase !== "battle") {
       if (roster?.heroes?.length) renderGuide();
       return lastAdvice;
     }
@@ -550,7 +713,6 @@ function consider(read) {
     const type = currentType();
     if (!type || openRecord?.type !== type.key) openRecord = type ? { type: type.key, id: null } : null;
     renderLive(lastAdvice);
-    setDraftControls(lastAdvice?.action?.kind);
     return lastAdvice;
   } catch (error) {
     showCard({ action: "這一手沒有建議", rate: "尚無勝率", reason: error.message || "判讀時發生錯誤。" });
@@ -931,24 +1093,17 @@ $("openSetup").addEventListener("click", () => {
 $("closeSetup").addEventListener("click", () => {
   $("setup").close();
 });
-$("closePicker").addEventListener("click", () => $("picker").close());
+$("closePicker").addEventListener("click", () => {
+  pendingSlot = null;
+  pickerIds = null;
+  $("picker").close();
+});
 $("pickerSearch").addEventListener("input", (event) => fillPicker(event.target.value));
 $("weFirst").addEventListener("click", () => setOrder(true));
 $("theyFirst").addEventListener("click", () => setOrder(false));
 $("resetDraft").addEventListener("click", () => setOrder(null));
-$("undoDraft").addEventListener("click", undoDraft);
-$("addEnemy").addEventListener("click", addEnemyPick);
-$("enemyPick").addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    addEnemyPick();
-  }
-});
-$("bansDone").addEventListener("click", confirmBans);
-$("lockOurs").addEventListener("click", lockOurs);
-$("rank").addEventListener("change", () => {
-  if (!manual.prebansDone) renderGuide();
-});
+$("ourBan").addEventListener("click", () => onBan("enemy"));
+$("theirBan").addEventListener("click", () => onBan("user"));
 $("liveAction").addEventListener("click", () => {
   const click = $("liveAction").dataset.click;
   if (click === "import") {
@@ -963,6 +1118,8 @@ $("liveAction").addEventListener("click", () => {
 });
 $("markWin").addEventListener("click", () => markMatch("win"));
 $("markLoss").addEventListener("click", () => markMatch("loss"));
+$("liveWin").addEventListener("click", () => markMatch("win"));
+$("liveLoss").addEventListener("click", () => markMatch("loss"));
 $("share").addEventListener("click", () => shareWindow().catch((error) => {
   $("captureState").textContent = `沒有接上視窗：${error.message || error}`;
 }));

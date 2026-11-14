@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { adviceStateKey, adviseFromScreen, detectFirstPick, fightFromRoster, guidedDraft, parseRoster, selectableHeroes, sourceBasis } from "../js/engine.js";
+import { adviceStateKey, adviseFromScreen, battleBrief, detectFirstPick, fightFromRoster, guidedDraft, parseRoster, selectableHeroes, sourceBasis } from "../js/engine.js";
 import { DEFAULT_REGIONS, bindRememberedCards, findDraftCards, inferPhase, liveStateKey, matchCardMemory, matchHeroName, matchPortrait, paintFixture, readDraft, readFrame, readPickMark, rememberCard, rememberCorrection, slotFrame } from "../js/screen.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
@@ -464,6 +464,19 @@ assert.equal(lastBan.action.kind, "ban");
 assert.notEqual(lastBan.action.id, heroIds[7]);
 assert.match(lastBan.reason.summary, /保護/);
 assert.match(lastBan.reason.summary, /關鍵/);
+
+const brief = battleBrief(catalog, roster, {
+  userFirst: true,
+  userFight: heroIds.slice(0, 4),
+  enemyFight: heroIds.slice(4, 8),
+});
+assert.equal(brief.ok, true, brief.reason?.summary);
+assert.match(brief.reason.summary, /先打|先動/);
+assert.match(brief.reason.summary, /開大/);
+assert.match(brief.reason.summary, /先殺|不指定先殺/);
+assert.equal(brief.reason.summary.includes("擦傷"), false);
+const protectedBan = heroIds[7];
+assert.equal(lastBan.action.id === protectedBan, false);
 
 const mage = catalog.heroes.find((hero) => hero.role === "mage");
 const rest = catalog.heroes.filter((hero) => hero.id !== mage.id);

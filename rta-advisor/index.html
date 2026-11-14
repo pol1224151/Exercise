@@ -35,25 +35,35 @@
       <div class="row">
         <button id="weFirst" type="button">我先手</button>
         <button id="theyFirst" type="button">對方先手</button>
-        <button id="undoDraft" type="button">收回上一手</button>
         <button id="resetDraft" type="button">這場重來</button>
       </div>
-      <p id="draftStatus" class="note"></p>
-      <div class="row" id="reportRow" hidden>
-        <label>對方剛選了
-          <input id="enemyPick" type="search" placeholder="完整中文名" aria-label="對方剛選的英雄">
-        </label>
-        <button id="addEnemy" type="button">他選這名</button>
-      </div>
-      <div class="row">
-        <button id="bansDone" type="button" hidden>預禁好了</button>
-        <button id="lockOurs" type="button" hidden>我就選這幾名</button>
+      <p id="draftStatus" class="note">點「我先手」或「對方先手」。我方格子會自己填上英雄。</p>
+      <div class="board">
+        <div class="lane">
+          <p class="lane-label">對方</p>
+          <div class="lane-row">
+            <div id="enemyCells" class="cells"></div>
+            <button id="ourBan" type="button" class="ban-cell"><em>✕</em><small>我禁對方</small></button>
+          </div>
+        </div>
+        <div class="lane">
+          <p class="lane-label">我方</p>
+          <div class="lane-row">
+            <div id="userCells" class="cells"></div>
+            <button id="theirBan" type="button" class="ban-cell"><em>✕</em><small>對方禁我</small></button>
+          </div>
+        </div>
       </div>
     </section>
     <section id="now">
       <button id="liveAction" type="button" class="action" disabled>先讀入帳號</button>
       <p id="liveRate" class="rate">尚無勝率</p>
       <p id="liveReason">按「匯入帳號」，選 gear.txt 或 Fribbels 的 Save all JSON。</p>
+      <div class="row" id="resultRow">
+        <button id="liveWin" type="button" disabled>贏了</button>
+        <button id="liveLoss" type="button" disabled>輸了</button>
+      </div>
+      <p id="liveRecord" class="note"></p>
       <p id="heard" class="heard"></p>
     </section>
   </main>
@@ -97,7 +107,7 @@
           <li>雙擊 <code>RtaAdvisor.exe</code> 後這個頁面會自己打開。黑色視窗要留著。</li>
           <li>競技場畫面出現後，按「分享遊戲視窗」。在系統清單選第七史詩或模擬器那個視窗，然後按分享。關掉這個視窗後，主畫面會顯示程式拿到的那一幀。</li>
           <li>遊戲維持 16:9。程式讀左右兩排大卡上的名字，主畫面把這一幀的原文和英雄對在一起。整段對上資料庫才填英雄，對不上留空。底下的推薦英雄和事先禁用不會當成已經選的人。</li>
-          <li>選角不用看畫面猜。主畫面按「我先手」或「對方先手」，先給 2 名預禁。再輸入對方剛選的完整中文名。先手選 1、2、2 名，後手選 2、2、1 名。第 3 選是保護位。兩邊各 5 名之後，告訴你禁對方哪一名。開打後才讀畫面，給招式、有數字的效果和燒魂。</li>
+          <li>主畫面是方塊格子。按「我先手」或「對方先手」。我方五格由顧問填名字，第 1 格是 1 選。對方五格由你點選。選滿後，點格子或禁位打叉。對手禁了誰也由你點。第 3 格不能打叉。禁完後，主畫面寫誰先打誰、要不要開大、先殺誰。</li>
           <li>讀不到或對不上的那張卡，點一下再選。一張卡只留一個完整中文名，對上資料庫才填。碎字、亂碼、對不上的留空，不猜。清單是資料庫裡的全部英雄。沒有技能倍率的標未收錄。</li>
         </ol>
         <div class="row">
@@ -117,7 +127,7 @@
             <input id="cutoff" type="number" min="0" max="100" step="1" value="40"> %
           </label>
         </div>
-        <p class="note">同類型 4 對 4 的實戰勝率低於這個百分比，選角就改推薦沙盤裡的另一組。預設 40。剛好等於門檻不換。先後手和對方選了誰都由你輸入，不看畫面猜。先手選 1、2、2 名，後手選 2、2、1 名。第 1、2 選和第 4、5 選是關鍵位，第 3 選是保護位。開打後才讀畫面。法師位預設帶給 20 魂的魂書。沒有倍率的不另編。</p>
+        <p class="note">同類型 4 對 4 的實戰勝率低於這個百分比，選角就改推薦沙盤裡的另一組。預設 40。剛好等於門檻不換。先手自己選 1、2、2 名，後手自己選 2、2、1 名，每邊 5 名。第 1、2 格和第 4、5 格是關鍵位，第 3 格是保護位。戰況只用資料庫裡有數字的效果。法師位預設帶給 20 魂的魂書。沒有倍率的不另編。</p>
       </section>
 
       <section>

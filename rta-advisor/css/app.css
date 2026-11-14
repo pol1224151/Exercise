@@ -127,6 +127,55 @@ dialog::backdrop { background: rgba(36, 28, 22, 0.45); }
 
 .dialog-body { padding: 0 18px 18px; overflow: auto; }
 
+.board { display: grid; gap: 16px; margin: 8px 0 16px; }
+
+.lane-label { margin: 0 0 6px; font-weight: 700; }
+
+.lane-row { display: flex; gap: 10px; align-items: stretch; }
+
+.cells {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(68px, 1fr));
+  gap: 8px;
+  flex: 1;
+}
+
+.cell, .ban-cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  min-width: 68px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  color: var(--ink);
+  text-align: left;
+}
+
+.cell small, .ban-cell small { color: var(--muted); font-size: 0.75rem; }
+
+.cell strong, .ban-cell strong { font-size: 0.95rem; line-height: 1.3; }
+
+.cell .x { display: none; color: var(--warn); font-style: normal; font-size: 1.4rem; font-weight: 700; }
+
+.cell.banned .x { display: block; }
+.cell.banned .x, .ban-cell.banned em { color: var(--warn); font-style: normal; font-weight: 700; }
+
+.cell.key { box-shadow: inset 0 0 0 2px #e7d3b4; }
+
+.cell.protect { box-shadow: inset 0 0 0 2px #8c4a1f; }
+
+.cell.active { border-color: var(--brass); background: #fff4e8; }
+
+.cell.banned, .ban-cell.banned { background: #f8e7e3; }
+
+.ban-cell { width: 92px; flex: none; }
+
+.ban-cell em { font-size: 1.5rem; color: var(--muted); }
+
 .watch { margin: 18px 0 8px; }
 
 #noFrame {

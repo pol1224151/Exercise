@@ -1880,6 +1880,100 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   };
 }
 
+function skillHasListedHit(skill) {
+  return (skill?.rate || 0) > 0 && (skill?.pow || 0) > 0;
+}
+
+function skillHasNumberedEffect(skill) {
+  return [...(skill?.effects || []), ...(skill?.soulburnEffects || [])].some((effect) => effect && effect.simulated !== false && effect.kind !== "unparsed" && effectHasNumber(effect));
+}
+
+function storedHp(catalog, roster, id, side) {
+  const def = (catalog.heroes || []).find((hero) => hero.id === id);
+  if (side === "user") {
+    const own = (roster?.heroes || []).find((hero) => hero.id === id);
+    if (typeof own?.hp === "number") return own.hp;
+  }
+  const hp = def?.reference?.median?.hp ?? def?.base?.hp;
+  return typeof hp === "number" ? hp : null;
+}
+
+export function battleBrief(catalog, roster, draft) {
+  const basis = sourceBasis(catalog);
+  if (!basis.ok) return invalid(catalog, "資料還沒齊", basis.problems.slice(0, 4).join("；"));
+  const userFight = draft?.userFight || [];
+  const enemyFight = draft?.enemyFight || [];
+  if (userFight.length !== 4 || enemyFight.length !== 4) {
+    return invalid(catalog, "選滿並禁完才有戰況", "兩邊各留下 4 名之後，才寫誰先打誰。");
+  }
+  const byId = Object.fromEntries((catalog.heroes || []).map((hero) => [hero.id, hero]));
+  const missing = [...userFight, ...enemyFight].filter((id) => !byId[id] || !heroListed(byId[id]));
+  if (missing.length) {
+    const names = missing.map((id) => screenName(catalog, id) || "這名").join("、");
+    return invalid(catalog, "這份戰況不編沒有倍率的人", `${names}沒有技能倍率，不另編傷害。`);
+  }
+  const fight = fightFromRoster(
+    { userFight, enemyFight, userFirst: draft.userFirst !== false },
+    roster,
+    catalog,
+    { id: "s3", order: ["S3", "S2", "S1"], burn: true },
+    "base",
+    () => 0.5,
+  );
+  const line = (fight.log || []).find((row) => row.includes("→"));
+  const openerName = fight.firstActor || "";
+  const openerId = [...userFight, ...enemyFight].find((id) => byId[id]?.nameZh === openerName);
+  const opener = openerId ? byId[openerId] : null;
+  const side = userFight.includes(openerId) ? "我方" : "對方";
+  let skill = null;
+  let slot = "";
+  const head = line ? line.split("→")[0] : "";
+  if (opener) {
+    for (const name of ["S3", "S2", "S1"]) {
+      const candidate = opener.skills?.[name];
+      if (candidate?.name && head.includes(candidate.name)) {
+        skill = candidate;
+        slot = name;
+        break;
+      }
+    }
+  }
+  const names = new Map((catalog.heroes || []).map((hero) => [hero.nameZh, hero.id]));
+  const targets = line
+    ? line.split("→")[1].split("、").map((part) => part.replace(/擦傷/g, "").replace(/\d+/g, "").trim()).filter((name) => names.has(name))
+    : [];
+  const hit = targets[0] || "";
+  const who = opener && hit ? `${side}${openerName}先打${hit}。` : opener ? `${side}${openerName}先動。` : "看不出誰先動。";
+  const s3 = opener?.skills?.S3;
+  const s3Ready = Boolean(s3 && !s3.passive && (skillHasListedHit(s3) || skillHasNumberedEffect(s3)));
+  const ult = slot === "S3" && s3Ready ? "要開大。" : "不開大。";
+  let kill = "這一動沒有傷害倍率，不指定先殺誰。";
+  if (skillHasListedHit(skill) && targets.length === 1) {
+    kill = `先殺${targets[0]}。`;
+  } else if (skillHasListedHit(skill) && targets.length > 1) {
+    const ranked = targets
+      .map((name) => ({ name, hp: storedHp(catalog, roster, names.get(name), userFight.includes(names.get(name)) ? "user" : "enemy") }))
+      .filter((row) => typeof row.hp === "number")
+      .sort((left, right) => left.hp - right.hp);
+    const focus = ranked[0];
+    kill = focus ? `這一動打到${targets.join("、")}。先殺生命最低的${focus.name}。` : `這一動打到${targets.join("、")}。`;
+  }
+  const numbered = skill ? traitLine(skill) : "";
+  const book = (fight.log || []).find((row) => row.includes("魂書")) || "";
+  const summary = [who, ult, kill, numbered, book].filter(Boolean).join("");
+  return {
+    ok: true,
+    phase: "battle",
+    firstPick: draft.userFirst === true,
+    action: { kind: "brief", title: who.replace(/。$/, ""), detail: `${ult}${kill}` },
+    reason: { summary, lines: [who, ult, kill, numbered, book].filter(Boolean) },
+    rate: null,
+    version: basis.version,
+    basis,
+    draft: { userFight, enemyFight },
+  };
+}
+
 export function draftPlans(catalog, roster, options = {}) {
   const scored = sandboxRank(catalog, roster, [], [], true, options.trials || 1);
   const ids = scored.map((row) => row.id);
