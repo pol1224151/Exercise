@@ -658,10 +658,92 @@ export function matchCardMemory(signature, memories) {
   return best;
 }
 
-export function rememberCard(memories, signature, id) {
+let memorySerial = 0;
+
+export function rememberCard(memories, signature, id, place = {}) {
   const next = (memories || []).filter((row) => signatureDistance(signature, row?.sig) > 14);
-  next.unshift({ id, sig: [...signature] });
+  memorySerial += 1;
+  const token = place.token || `card-${memorySerial}`;
+  next.unshift({
+    id,
+    sig: [...signature],
+    text: place.text || "",
+    side: place.side || "",
+    x: place.x,
+    y: place.y,
+    w: place.w,
+    h: place.h,
+    token,
+  });
   return next.slice(0, 40);
+}
+
+function centerDistance(left, right) {
+  if (![left?.x, left?.y, left?.w, left?.h, right?.x, right?.y, right?.w, right?.h].every((value) => typeof value === "number")) return Infinity;
+  const dx = (left.x + left.w / 2) - (right.x + right.w / 2);
+  const dy = (left.y + left.h / 2) - (right.y + right.h / 2);
+  return Math.hypot(dx, dy);
+}
+
+export function bindRememberedCards(cards, memories) {
+  const pool = (memories || []).map((row) => ({ ...row, used: false }));
+  const bound = (cards || []).map((card) => ({ ...card, remembered: false, memoryToken: "" }));
+  for (const card of bound) {
+    let best = null;
+    let bestDistance = 16;
+    for (const row of pool) {
+      if (row.used) continue;
+      const distance = signatureDistance(card.signature, row.sig);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = row;
+      }
+    }
+    if (!best) continue;
+    best.used = true;
+    card.id = best.id;
+    card.text = card.text || best.text || "";
+    card.remembered = true;
+    card.memoryToken = best.token || "";
+  }
+  for (const card of bound) {
+    if (card.remembered) continue;
+    let best = null;
+    let bestCenter = 0.08;
+    for (const row of pool) {
+      if (row.used || (row.side && row.side !== card.side)) continue;
+      const center = centerDistance(card, row);
+      const distance = signatureDistance(card.signature, row.sig);
+      if (center < bestCenter && distance < 48) {
+        bestCenter = center;
+        best = row;
+      }
+    }
+    if (!best) continue;
+    best.used = true;
+    card.id = best.id;
+    card.text = card.text || best.text || "";
+    card.remembered = true;
+    card.memoryToken = best.token || "";
+  }
+  return bound;
+}
+
+export function refreshCardMemory(memories, cards) {
+  const next = (memories || []).map((row) => ({ ...row, sig: Array.isArray(row.sig) ? [...row.sig] : row.sig }));
+  for (const card of cards || []) {
+    if (!card?.memoryToken || !card.remembered) continue;
+    const row = next.find((item) => item.token === card.memoryToken);
+    if (!row || !Array.isArray(card.signature)) continue;
+    row.sig = [...card.signature];
+    row.text = card.text || row.text || "";
+    row.side = card.side || row.side;
+    row.x = card.x;
+    row.y = card.y;
+    row.w = card.w;
+    row.h = card.h;
+  }
+  return next;
 }
 
 export function namedReading(signature, rows) {
@@ -747,15 +829,14 @@ export function readDraftLead(data, imageWidth, imageHeight) {
 
 export function readDraft(data, imageWidth, imageHeight, memories = [], names = []) {
   const found = findDraftCards(data, imageWidth, imageHeight);
-  const cards = found.map((card) => {
+  const signed = found.map((card) => {
     const signature = cardSignature(data, imageWidth, imageHeight, card);
-    const key = signatureKey(signature);
-    const remembered = matchCardMemory(signature, memories);
-    const reading = namedReading(signature, names);
-    let id = "unknown";
-    if (remembered) id = remembered;
-    else if (reading?.id) id = reading.id;
-    return { ...card, signature, key, id, text: reading?.text || "" };
+    return { ...card, signature, key: signatureKey(signature), id: "unknown", text: "" };
+  });
+  const cards = bindRememberedCards(signed, memories).map((card) => {
+    const reading = namedReading(card.signature, names);
+    if (card.remembered) return { ...card, text: reading?.text || card.text || "" };
+    return { ...card, id: reading?.id || "unknown", text: reading?.text || "" };
   });
   const userCards = cards.filter((card) => card.side === "user");
   const enemyCards = cards.filter((card) => card.side === "enemy");

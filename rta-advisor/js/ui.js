@@ -1,6 +1,6 @@
-import { adviseFromScreen, buildGearReport, clearAccount, counterEdges, loadAccount, parseRoster, readAccountText, saveAccount, sourceBasis } from "./engine.js";
+import { adviceStateKey, adviseFromScreen, buildGearReport, clearAccount, counterEdges, loadAccount, parseRoster, readAccountText, saveAccount, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, recordResult, saveMatches } from "./records.js";
-import { liveStateKey, matchHeroName, matchNamedCard, readDraft, rememberCard } from "./screen.js";
+import { matchHeroName, matchNamedCard, readDraft, refreshCardMemory, rememberCard } from "./screen.js";
 
 const $ = (id) => document.getElementById(id);
 const CARD_KEY = "rta-advisor-cards";
@@ -28,11 +28,12 @@ let workerPromise = null;
 let pendingFace = null;
 
 async function boot() {
-  const [catalogRes, versionRes, portraitRes, seasonRes] = await Promise.all([
+  const [catalogRes, versionRes, portraitRes, seasonRes, compRes] = await Promise.all([
     fetch("./data/catalog.json"),
     fetch("./data/version.json"),
     fetch("./data/portrait-signatures.json"),
     fetch("./data/season-heroes.json"),
+    fetch("./data/season-comps.json"),
   ]);
   catalog = await catalogRes.json();
   if (seasonRes.ok) {
@@ -41,6 +42,7 @@ async function boot() {
   } else {
     catalog.seasonHeroes = [];
   }
+  catalog.seasonComps = compRes.ok ? await compRes.json() : null;
   book = await portraitRes.json();
   const version = versionRes.ok ? await versionRes.json() : sourceBasis(catalog).version;
   renderVersion(version);
@@ -289,11 +291,10 @@ function renderHeard(read) {
     const side = card.side === "enemy" ? "對方" : "我方";
     const raw = String(card.text || "").replace(/\s+/g, " ").trim();
     const hero = card.id && card.id !== "unknown" && card.id !== "empty" ? heroName(card.id) : "";
-    if (raw && hero) return `${side}讀到「${raw}」，對上${hero}`;
-    if (raw) return `${side}讀到「${raw}」，沒對上`;
-    return `${side}還沒讀出字`;
+    const heard = raw ? `「${raw}」` : "（還沒讀出字）";
+    return hero ? `${side}${heard}對上${hero}` : `${side}${heard}留空`;
   });
-  node.textContent = `這一幀讀到：${bits.join("。")}。`;
+  node.textContent = `這一幀：${bits.join("。")}。`;
 }
 
 function paintCards(cards) {
@@ -359,7 +360,14 @@ function chooseFace(heroId) {
   $("picker").close();
   pendingFace = null;
   if (!face || !heroId || !face.signature) return;
-  cardMemory = rememberCard(cardMemory, face.signature, heroId);
+  cardMemory = rememberCard(cardMemory, face.signature, heroId, {
+    text: face.text || "",
+    side: face.side,
+    x: face.x,
+    y: face.y,
+    w: face.w,
+    h: face.h,
+  });
   localStorage.setItem(CARD_KEY, JSON.stringify(cardMemory));
   namedCards = namedCards.filter((row) => matchNamedCard(face.signature, [row]) === undefined);
   if (!lastRead) return;
@@ -542,13 +550,10 @@ function paintVideoFrame() {
 }
 
 function stateKey(read) {
-  return JSON.stringify({
-    board: liveStateKey(read),
-    turn: read.turnSide || "",
-    lead: read.leadSide || "",
-    held: orderLock,
+  return adviceStateKey(read, {
+    heldFirstPick: orderLock,
     rank: $("rank").value,
-    enhance: $("maxEnhance").checked,
+    assumeMaxEnhance: $("maxEnhance").checked,
     cutoff: $("cutoff").value,
   });
 }
@@ -559,6 +564,7 @@ function analyzeFrame() {
   if (!board.width || !board.height) return;
   const frame = board.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, board.width, board.height);
   const read = readDraft(frame.data, board.width, board.height, cardMemory, namedCards);
+  cardMemory = refreshCardMemory(cardMemory, read.cards);
   paintCards(read.faces || []);
   renderHeard(read);
   pendingRead = read;
@@ -580,7 +586,7 @@ function analyzeFrame() {
 }
 
 function scheduleNames(data, width, height, read) {
-  const pending = (read.cards || []).filter((card) => card.id === "unknown" && matchNamedCard(card.signature, namedCards) === undefined);
+  const pending = (read.cards || []).filter((card) => (card.id === "unknown" || card.remembered) && matchNamedCard(card.signature, namedCards) === undefined);
   if (!pending.length || ocrQueued) return;
   ocrQueued = true;
   const jobs = pending.map((card) => ({ signature: card.signature, canvas: cropCard(data, width, height, card) }));
@@ -607,6 +613,7 @@ function scheduleNames(data, width, height, read) {
       if (!board.width) return;
       const latestFrame = board.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, board.width, board.height);
       const latest = readDraft(latestFrame.data, board.width, board.height, cardMemory, namedCards);
+      cardMemory = refreshCardMemory(cardMemory, latest.cards);
       pendingRead = latest;
       paintCards(latest.faces || []);
       renderHeard(latest);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { adviseFromScreen, detectFirstPick, parseRoster, sourceBasis } from "../js/engine.js";
-import { DEFAULT_REGIONS, findDraftCards, inferPhase, liveStateKey, matchCardMemory, matchHeroName, matchPortrait, paintFixture, readDraft, readFrame, rememberCard, rememberCorrection, slotFrame } from "../js/screen.js";
+import { adviceStateKey, adviseFromScreen, detectFirstPick, parseRoster, sourceBasis } from "../js/engine.js";
+import { DEFAULT_REGIONS, bindRememberedCards, findDraftCards, inferPhase, liveStateKey, matchCardMemory, matchHeroName, matchPortrait, paintFixture, readDraft, readFrame, rememberCard, rememberCorrection, slotFrame } from "../js/screen.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
 const book = JSON.parse(readFileSync(new URL("../data/portrait-signatures.json", import.meta.url)));
@@ -280,9 +280,35 @@ const unread = readDraft(draftFrame, draftWidth, draftHeight, [], [{ sig: namedD
 assert.equal(unread.cards[0].text, "柳潔特");
 assert.equal(unread.user[0], "unknown");
 
-const remembered = rememberCard([], namedDraft.cards[0].signature, hero.id);
+const remembered = rememberCard([], namedDraft.cards[0].signature, hero.id, {
+  text: "柳潔特",
+  side: namedDraft.cards[0].side,
+  x: namedDraft.cards[0].x,
+  y: namedDraft.cards[0].y,
+  w: namedDraft.cards[0].w,
+  h: namedDraft.cards[0].h,
+});
 const withMemory = readDraft(draftFrame, draftWidth, draftHeight, remembered);
 assert.equal(withMemory.user[0], hero.id);
+assert.equal(withMemory.cards[0].text, "柳潔特");
 assert.equal(matchCardMemory(namedDraft.cards[1].signature, remembered), null);
+
+const drifted = {
+  ...namedDraft.cards[0],
+  id: "unknown",
+  text: "",
+  signature: namedDraft.cards[0].signature.map((value) => Math.min(255, value + 20)),
+};
+const other = { ...namedDraft.cards[1], id: "unknown", text: "" };
+const bound = bindRememberedCards([drifted, other], remembered);
+assert.equal(bound[0].id, hero.id);
+assert.equal(bound[0].text, "柳潔特");
+assert.notEqual(bound[1].id, hero.id);
+
+const still = { user: ["a"], enemy: ["b"], prebans: [], actorId: "empty", turnSide: "user", leadSide: null };
+const flippedTurn = { ...still, turnSide: "enemy" };
+assert.equal(adviceStateKey(still), adviceStateKey(flippedTurn));
+assert.notEqual(adviceStateKey(still), adviceStateKey({ ...still, user: ["a", "c"] }));
+assert.notEqual(adviceStateKey({ user: [], enemy: [], leadSide: null }), adviceStateKey({ user: [], enemy: [], leadSide: "user" }));
 
 console.log("screen tests passed", { next: advice.action.title, skill: cast.action.title, burn: cast.action.burn.yes });

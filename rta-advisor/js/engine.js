@@ -1357,6 +1357,23 @@ export function detectFirstPick(userCount, enemyCount, turnSide, leadSide) {
   return { firstPick: null, source: "unseen", turnSide: turnSide || null };
 }
 
+export function adviceStateKey(recognition, extras = {}) {
+  const knownCount = (ids) => (ids || []).filter((id) => id && id !== "empty" && id !== "unknown").length;
+  const detected = detectFirstPick(knownCount(recognition?.user), knownCount(recognition?.enemy), null, recognition?.leadSide);
+  let order = detected.firstPick;
+  if (order == null && detected.source === "unseen" && typeof extras.heldFirstPick === "boolean") order = extras.heldFirstPick;
+  return JSON.stringify({
+    user: recognition?.user || [],
+    enemy: recognition?.enemy || [],
+    prebans: recognition?.prebans || [],
+    actor: recognition?.actorId || "",
+    order,
+    rank: extras.rank || "",
+    enhance: Boolean(extras.assumeMaxEnhance),
+    cutoff: extras.cutoff ?? "",
+  });
+}
+
 function presenceOf(catalog, id) {
   const season = (catalog.seasonHeroes || []).find((hero) => hero.id === id);
   if (season?.rtaPresence) return season.rtaPresence;
@@ -1386,6 +1403,74 @@ function onePlan(side, id, label, preSource, pickSource, why) {
   return { id, side, label, prebans, picks, why };
 }
 
+function codeIndex(catalog) {
+  const index = new Map();
+  for (const hero of [...(catalog.seasonHeroes || []), ...(catalog.heroes || [])]) {
+    if (hero?.code && hero.id && !index.has(hero.code)) index.set(hero.code, hero.id);
+  }
+  return index;
+}
+
+function picksFromSlots(slots, ownedIds, codes) {
+  const picks = [];
+  const take = (row) => {
+    const id = codes.get(row?.code);
+    if (!id || !ownedIds.has(id) || picks.includes(id)) return false;
+    picks.push(id);
+    return true;
+  };
+  for (const slot of slots) {
+    for (const row of slot || []) {
+      if (take(row)) break;
+    }
+  }
+  for (const slot of slots) {
+    for (const row of slot || []) {
+      if (picks.length === 5) return picks;
+      take(row);
+    }
+  }
+  return picks;
+}
+
+function prebansFromPairs(pairs, picks, codes) {
+  for (const pair of pairs || []) {
+    const ids = [];
+    for (const code of pair.codes || []) {
+      const id = codes.get(code);
+      if (id && !ids.includes(id)) ids.push(id);
+    }
+    if (ids.length < 2) continue;
+    if (ids.some((id) => picks.includes(id))) continue;
+    return ids.slice(0, 2);
+  }
+  return [];
+}
+
+function commonPlan(catalog, side, ownedIds, byGames) {
+  const comps = catalog.seasonComps;
+  if (!comps?.prebanPairs || !comps.firstPick || !comps.secondPick) return null;
+  const codes = codeIndex(catalog);
+  const slots = side === "first"
+    ? [comps.firstPick["1"], comps.firstPick["2"], comps.firstPick["3"], comps.firstPick["4+5"]]
+    : [comps.secondPick["1+2"], comps.secondPick["3"], comps.secondPick["4"], comps.secondPick["5"]];
+  const picks = picksFromSlots(slots, ownedIds, codes);
+  for (const hero of byGames) {
+    if (picks.length === 5) break;
+    if (!picks.includes(hero.id)) picks.push(hero.id);
+  }
+  let prebans = prebansFromPairs(comps.prebanPairs, picks, codes);
+  if (prebans.length < 2) {
+    const pool = (catalog.seasonHeroes || []).filter((hero) => hero.rtaPresence);
+    prebans = takeIds([...pool].sort((left, right) => (right.rtaPresence.prebans || 0) - (left.rtaPresence.prebans || 0)), 2, new Set(picks));
+  }
+  const label = side === "first" ? "先手常見組合" : "後手常見組合";
+  const why = side === "first"
+    ? "預禁用本季最常一起被預禁、而且不是這套要選的組合。選角按本季先手各手的常見人選，從你帳號裡依序取。"
+    : "預禁用本季最常一起被預禁、而且不是這套要選的組合。選角按本季後手各手的常見人選，從你帳號裡依序取。";
+  return { id: side === "first" ? "first-common" : "second-common", side, label, prebans, picks: picks.slice(0, 5), why };
+}
+
 export function draftPlans(catalog, roster) {
   const season = (catalog.seasonHeroes || []).filter((hero) => hero.rtaPresence);
   const pool = season.length ? season : (catalog.heroes || []);
@@ -1402,14 +1487,17 @@ export function draftPlans(catalog, roster) {
   });
   const byPreban = [...pool].sort((left, right) => (right.rtaPresence.prebans || 0) - (left.rtaPresence.prebans || 0));
   const bySeasonGames = [...pool].sort((left, right) => gamesOf(right.rtaPresence) - gamesOf(left.rtaPresence));
+  const ownedIds = new Set(owned.map((hero) => hero.id));
   const first = [
     onePlan("first", "first-preban", "先手", byPreban, byGames, "預禁用本季預禁數最高、而且不是這套要選的人。選角用你帳號裡本季場次最多的五名。"),
     onePlan("first", "first-win", "先手另一套", byPreban.slice(2), byWin, "預禁改看本季預禁數接著的兩名。選角改用你帳號裡勝率較高的五名。"),
-  ];
+    commonPlan(catalog, "first", ownedIds, byGames),
+  ].filter(Boolean);
   const second = [
     onePlan("second", "second-games", "後手", bySeasonGames, byWin, "預禁用本季場次最高、而且不是這套要選的人。選角用你帳號裡勝率較高的五名。"),
     onePlan("second", "second-preban", "後手另一套", byPreban, byGames, "預禁用本季預禁數最高的兩名。選角用你帳號裡本季場次最多的五名。"),
-  ];
+    commonPlan(catalog, "second", ownedIds, byGames),
+  ].filter(Boolean);
   const ready = (plan) => plan.prebans.length > 0 && plan.picks.length > 0;
   return { first: first.filter(ready), second: second.filter(ready) };
 }
@@ -1624,7 +1712,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
         summary: `${userFirst ? "先手" : "後手"}這套：${plan.why}`,
         lines: [
           plan.why,
-          "數字用 Epic7RTAStats 這一季的預禁數和場次，沒有另編克制。",
+          "數字用 Epic7RTAStats 這一季的預禁數、場次和常見組合，沒有另編克制。",
           rate == null ? "這套裡有英雄沒有沙盤用的技能效果，不估算勝率，也不編倍率。" : "估計勝率來自這套打法的沙盤，不是保證。",
         ],
       },

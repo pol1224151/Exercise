@@ -148,6 +148,20 @@ assert.equal(plans.first[0].picks.length, 5);
 assert.equal(plans.first[0].prebans.length, 2);
 assert.equal(plans.second[0].prebans.length, 2);
 assert.notEqual(plans.first[0].id, plans.second[0].id);
+const comps = JSON.parse(readFileSync(new URL("../data/season-comps.json", import.meta.url)));
+const withComps = { ...withSeason, seasonComps: comps };
+const more = draftPlans(withComps, roster);
+assert.equal(more.first.length, 3);
+assert.equal(more.second.length, 3);
+for (const plan of [...more.first, ...more.second]) {
+  assert.equal(plan.picks.length, 5);
+  assert.equal(plan.prebans.length, 2);
+  assert.ok(plan.picks.every((id) => roster.heroes.some((hero) => hero.id === id)));
+}
+assert.ok(more.first.some((plan) => plan.id === "first-common"));
+assert.ok(more.second.some((plan) => plan.id === "second-common"));
+assert.match(more.first.find((plan) => plan.id === "first-common").why, /常見/);
+assert.match(more.second.find((plan) => plan.id === "second-common").why, /常見/);
 const unlistedCatalog = {
   ...catalog,
   seasonHeroes: [{ id: "ghost", code: "c0000", name: "Ghost", nameZh: "測試未收錄", listed: false, rtaPresence: { wins: 1, losses: 1, prebans: 3, games: 2 } }],
