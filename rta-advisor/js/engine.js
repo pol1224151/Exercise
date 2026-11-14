@@ -2048,7 +2048,9 @@ function rtaDetailLines(catalog, hero) {
   lines.push(named(row.被克制, "被克制"));
   lines.push(named(row.協同, "協同"));
   lines.push(named((row.最相似 || []).map((item) => ({ 代碼: item.代碼, 分數: item.相似度 })), "最相似"));
-  lines.push("配對分析：頁上要另外指定對手才有數字，沒有預設表，不另編。");
+  lines.push(row.配對分析?.有預設表
+    ? "配對分析：頁上有預設表。"
+    : "配對分析：頁上要另外指定對手才有數字，沒有預設表，不另編。");
   return lines;
 }
 
@@ -2386,6 +2388,22 @@ function ourOrder(catalog, roster, userFight, enemyFight) {
   ours.sort((left, right) => right.speed - left.speed || left.hero.nameZh.localeCompare(right.hero.nameZh, "zh"));
   const actor = ours[0];
   if (!actor) return null;
+  const combo = bestCombo(catalog, roster, ours.map((row) => row.hero));
+  const active = combo && combo.gives && combo.castable && !combo.passive ? combo : null;
+  if (active) {
+    const giverSpeed = unitStat(catalog, roster, active.giver.id, "speed");
+    const enemyFast = Math.max(0, ...enemyFight.map((id) => unitStat(catalog, roster, id, "speed")));
+    const verb = active.slot === "S3" ? "開大" : active.slot === "S2" ? "開二技" : "開一技";
+    return {
+      title: `我方${active.giver.nameZh}${verb}給${active.receiver.nameZh}`,
+      who: `我方${active.giver.nameZh}先幫${active.receiver.nameZh}。`,
+      ult: active.slot === "S3" ? "要開大。" : "不開大。",
+      hit: `開給我方${active.receiver.nameZh}。`,
+      kill: "這是增益，先幫我方輸出。",
+      later: enemyFast > giverSpeed,
+      combo: active.text,
+    };
+  }
   let skill = null;
   let slot = "";
   for (const name of ["S3", "S2", "S1"]) {
@@ -2413,6 +2431,7 @@ function ourOrder(catalog, roster, userFight, enemyFight) {
       hit: `開給${onto}。`,
       kill: "這是增益，先幫我方輸出。",
       later,
+      combo: combo && !active ? combo.text : "",
     };
   }
   const foes = enemyFight
@@ -2428,6 +2447,7 @@ function ourOrder(catalog, roster, userFight, enemyFight) {
     hit: many ? `打到對方多名，先看${focus}。` : `打到${focus}。`,
     kill: `先殺${focus}。`,
     later,
+    combo: combo && !active ? combo.text : "",
   };
 }
 
@@ -2479,6 +2499,270 @@ export function unclearSkills(catalog) {
     if (slots.length) rows.push({ name: hero.nameZh || hero.name || hero.id, slots });
   }
   return rows;
+}
+
+const BUFF_ZH = { superhumanization: "超人化" };
+
+function skillTextOf(skill) {
+  return `${skill?.text || ""}`;
+}
+
+function glossaryFor(skill, name) {
+  const before = `${skill?.textBeforeAwaken || ""}`;
+  if (!before || !name) return "";
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const hit = before.match(new RegExp(`(?:^|\\.\\s+)${escaped}\\s+([^.]{0,180})`, "i"));
+  return hit ? hit[1] : "";
+}
+
+function allyGrants(skill) {
+  const found = [];
+  const re = /grants ([a-z][a-z' ]{2,40}?) to (the target|an ally|all allies|all other allies|the ally) for (\d+) turns/gi;
+  for (const match of skillTextOf(skill).matchAll(re)) {
+    const name = match[1].trim().toLowerCase();
+    if (["increased attack", "increased defense", "increased speed", "a barrier", "barrier"].includes(name)) continue;
+    found.push({ name, turns: Number(match[3]) });
+  }
+  return found;
+}
+
+function barrierSource(phrase) {
+  const text = phrase || "";
+  if (/target['’]s max Health/i.test(text)) return "依目標最大生命";
+  if (/caster['’]s max Health/i.test(text)) return "依自己最大生命";
+  if (/caster['’]s Defense/i.test(text)) return "依自己防禦";
+  if (/proportional to level/i.test(text)) return "依等級";
+  return "";
+}
+
+function allyAttackOffer(text) {
+  const patterns = [
+    /increased Attack[\s\S]{0,160}?to all allies for (\d+) turns/i,
+    /increasing Attack of all allies for (\d+) turns/i,
+    /to all allies, increasing Attack for (\d+) turns/i,
+  ];
+  for (const pattern of patterns) {
+    const hit = text.match(pattern);
+    if (!hit) continue;
+    const pct = hit[0].match(/by (\d+(?:\.\d+)?)%/i);
+    return { turns: Number(hit[1]), percent: pct ? Number(pct[1]) : null };
+  }
+  return null;
+}
+
+function allyDefenseOffer(text) {
+  const patterns = [
+    /increased Defense[\s\S]{0,80}?to all allies for (\d+) turns/i,
+    /increasing Defense of all allies for (\d+) turns/i,
+    /from all allies before granting increased Defense[^.]{0,80}?for (\d+) turns/i,
+  ];
+  for (const pattern of patterns) {
+    const hit = text.match(pattern);
+    if (!hit || /to the caster/i.test(hit[0])) continue;
+    const pct = hit[0].match(/by (\d+(?:\.\d+)?)%/i);
+    return { turns: Number(hit[1]), percent: pct ? Number(pct[1]) : null };
+  }
+  return null;
+}
+
+function readAllyOffer(skill) {
+  const text = skillTextOf(skill);
+  if (!text.trim()) return null;
+  const allyContext = /an ally except for the caster|all allies|all other allies|an ally|the ally/i.test(text);
+  const offer = {
+    cr: null,
+    maxHp: null,
+    speedPercent: null,
+    speedTurns: null,
+    buffZh: "",
+    buffTurns: null,
+    attack: allyAttackOffer(text),
+    defense: allyDefenseOffer(text),
+    barrier: null,
+    dual: /dual attack from the ally with the highest Attack/i.test(text),
+    defBreak: null,
+  };
+  for (const match of text.matchAll(/(?:increases|increasing) Combat Readiness(?: of (the caster|all allies|all enemies|the enemy|an ally|the ally|the target|all other allies))? by (\d+(?:\.\d+)?)%/gi)) {
+    const who = (match[1] || "").toLowerCase();
+    if (who === "the caster" || who === "all enemies" || who === "the enemy") continue;
+    if (!who && !allyContext) continue;
+    offer.cr = Number(match[2]);
+  }
+  for (const grant of allyGrants(skill)) {
+    const effect = glossaryFor(skill, grant.name);
+    if (!effect) continue;
+    const hp = effect.match(/max Health(?: and Speed)? by (\d+(?:\.\d+)?)%/i);
+    const spd = effect.match(/Speed by (\d+(?:\.\d+)?)%/i);
+    if (hp) offer.maxHp = Number(hp[1]);
+    if (spd) offer.speedPercent = Number(spd[1]);
+    offer.buffTurns = grant.turns;
+    offer.buffZh = BUFF_ZH[grant.name] || "";
+  }
+  const speedNamed = text.match(/grant(?:s|ing) increased Speed to all allies for (\d+) turns/i);
+  const speedPlain = text.match(/grants increased Speed for (\d+) turns/i);
+  if (offer.speedPercent == null && (speedNamed || (speedPlain && allyContext))) {
+    offer.speedTurns = Number((speedNamed || speedPlain)[1]);
+  }
+  if (/an ally|all allies/i.test(text)) {
+    const barrier = text.match(/barrier \(([^)]+)\)[^.]{0,100}?for (\d+) turns/i);
+    if (barrier && !/to the caster/i.test(barrier[0])) {
+      offer.barrier = { turns: Number(barrier[2]), source: barrierSource(barrier[1]) };
+    }
+  }
+  const chanced = text.match(/(\d+(?:\.\d+)?)%\s*chance(?: each)? to (?:inflict )?(?:decreased|decrease) Defense for (\d+) turns?/i);
+  const sure = text.match(/(?:inflicts|inflicting) decreased Defense for (\d+) turns/i);
+  if (chanced || sure) {
+    const amount = text.match(/Decreases Defense by (\d+(?:\.\d+)?)%/i);
+    offer.defBreak = {
+      chance: chanced ? Number(chanced[1]) : null,
+      turns: Number(chanced ? chanced[2] : sure[1]),
+      amount: amount ? Number(amount[1]) : null,
+    };
+  }
+  const useful = offer.cr != null || offer.maxHp != null || offer.speedPercent != null || offer.speedTurns
+    || offer.attack || offer.defense || offer.barrier || offer.dual || offer.defBreak;
+  return useful ? offer : null;
+}
+
+function readNeed(hero) {
+  const slots = ["S1", "S2", "S3"].map((slot) => hero?.skills?.[slot]).filter(Boolean);
+  const text = slots.map((skill) => skill.text || "").join(" ");
+  return {
+    maxHp: slots.some((skill) => skill.selfHpScaling > 0) || /proportional to the caster['’]s max Health/i.test(text),
+    defense: slots.some((skill) => skill.selfDefScaling > 0) || /proportional to the caster['’]s Defense/i.test(text),
+    speed: slots.some((skill) => skill.selfSpdScaling > 0) || /proportional to the caster['’]s Speed/i.test(text),
+    attack: slots.some((skill) => skill.rate > 0 || skill.selfAtkScaling > 0),
+    hpCoef: Math.max(0, ...slots.map((skill) => skill.selfHpScaling || 0)),
+  };
+}
+
+function linkOffer(offer, need) {
+  let score = 0;
+  const linked = [];
+  if (offer.maxHp != null && need.maxHp) {
+    score = Math.max(score, 36);
+    linked.push("maxHp");
+  }
+  if (offer.defense && need.defense) {
+    score = Math.max(score, 20);
+    linked.push("def");
+  }
+  if ((offer.speedPercent != null || offer.speedTurns) && need.speed) {
+    score = Math.max(score, 20);
+    linked.push("spd");
+  }
+  if (offer.attack && need.attack) {
+    score = Math.max(score, 16);
+    linked.push("atk");
+  }
+  if (offer.dual && need.attack) {
+    score = Math.max(score, 16);
+    linked.push("dual");
+  }
+  if (offer.defBreak && need.attack) {
+    score = Math.max(score, 12);
+    linked.push("break");
+  }
+  if (score === 0 && offer.cr != null && (need.attack || need.maxHp || need.defense || need.speed)) {
+    score = 8;
+    linked.push("cr");
+  }
+  if (!score) return null;
+  return { score, linked };
+}
+
+function comboSentence(giver, receiver, slot, skill, offer, linked) {
+  const slotZh = { S3: "大招", S2: "二技", S1: "一技" }[slot] || slot;
+  const head = skill.passive ? `${giver.nameZh}${slotZh}是被動，不叫開大` : `${giver.nameZh}${slotZh}`;
+  const effects = [];
+  if (offer.cr != null) effects.push(`戰鬥準備度 +${offer.cr}%`);
+  if (offer.buffTurns && (offer.maxHp != null || offer.speedPercent != null)) {
+    const name = offer.buffZh ? `${offer.buffZh} ` : "";
+    const stats = [];
+    if (offer.maxHp != null) stats.push(`最大生命增加 ${offer.maxHp}%`);
+    if (offer.speedPercent != null) stats.push(`速度增加 ${offer.speedPercent}%`);
+    effects.push(`${name}${offer.buffTurns} 回合，${stats.join("，")}`);
+  }
+  if (offer.speedTurns && offer.speedPercent == null) effects.push(`增加速度 ${offer.speedTurns} 回合，頁上沒寫比例`);
+  if (offer.attack) {
+    const pct = offer.attack.percent != null ? `${offer.attack.percent}%` : "頁上沒寫比例";
+    effects.push(`增加攻擊 ${offer.attack.turns} 回合，${pct}`);
+  }
+  if (offer.defense) {
+    const pct = offer.defense.percent != null ? `${offer.defense.percent}%` : "頁上沒寫比例";
+    effects.push(`增加防禦 ${offer.defense.turns} 回合，${pct}`);
+  }
+  if (offer.barrier && linked.some((kind) => kind !== "break")) {
+    const src = offer.barrier.source ? `，${offer.barrier.source}` : "";
+    effects.push(`防護罩 ${offer.barrier.turns} 回合${src}，沒有印吸收比例，不另編`);
+  }
+  if (offer.dual && linked.includes("dual")) effects.push("叫攻擊最高的隊友協攻");
+  if (offer.defBreak && linked.includes("break")) {
+    const chance = offer.defBreak.chance != null ? `${offer.defBreak.chance}% ` : "";
+    const amount = offer.defBreak.amount != null ? `，頁上寫防禦減少 ${offer.defBreak.amount}%` : "";
+    effects.push(`${chance}降低防禦 ${offer.defBreak.turns} 回合${amount}`);
+  }
+  const give = linked.length === 1 && linked[0] === "break" ? "先打對方" : "給隊友";
+  const benefit = [];
+  if (linked.includes("maxHp")) benefit.push(`${receiver.nameZh}的傷害依自己最大生命增加`);
+  if (linked.includes("def")) benefit.push(`${receiver.nameZh}的傷害依自己防禦增加`);
+  if (linked.includes("spd")) benefit.push(`${receiver.nameZh}的傷害依自己速度增加`);
+  if (linked.includes("atk")) benefit.push(`${receiver.nameZh}有公開攻擊倍率`);
+  if (linked.includes("dual")) benefit.push(`協攻的是${receiver.nameZh}`);
+  if (linked.includes("break")) benefit.push(`${receiver.nameZh}有公開攻擊倍率，吃到降防`);
+  if (linked.includes("cr") && !benefit.length) benefit.push(`${receiver.nameZh}被拉條後才能打`);
+  return `技能組合：${head}${give}，${effects.join("，")}。${benefit.join("，")}。`;
+}
+
+function comboCastable(skill) {
+  if (!skill || skill.passive) return false;
+  if (typeof skill.cooldownShown === "number") return true;
+  return canCast(skill);
+}
+
+function comboBetween(catalog, roster, giver, receiver, group) {
+  if (!giver || !receiver || giver.id === receiver.id) return null;
+  let best = null;
+  for (const slot of ["S3", "S2", "S1"]) {
+    const skill = giver.skills?.[slot];
+    const offer = readAllyOffer(skill);
+    if (!offer) continue;
+    if (offer.dual) {
+      const others = (group || [receiver]).filter((hero) => hero && hero.id !== giver.id);
+      const top = others.slice().sort((left, right) => unitStat(catalog, roster, right.id, "attack") - unitStat(catalog, roster, left.id, "attack") || left.nameZh.localeCompare(right.nameZh, "zh"))[0];
+      if (!top || top.id !== receiver.id) offer.dual = false;
+    }
+    const need = readNeed(receiver);
+    const linked = linkOffer(offer, need);
+    if (!linked) continue;
+    const row = {
+      score: linked.score,
+      text: comboSentence(giver, receiver, slot, skill, offer, linked.linked),
+      slot,
+      skill,
+      passive: !!skill.passive,
+      castable: comboCastable(skill),
+      giver,
+      receiver,
+      hpCoef: need.hpCoef || 0,
+      gives: linked.linked.some((kind) => kind !== "break"),
+    };
+    if (!best || row.score > best.score || (row.score === best.score && row.hpCoef > best.hpCoef)) best = row;
+  }
+  return best;
+}
+
+function bestCombo(catalog, roster, heroes) {
+  let best = null;
+  const group = (heroes || []).filter(Boolean);
+  for (const giver of group) {
+    for (const receiver of group) {
+      const link = comboBetween(catalog, roster, giver, receiver, group);
+      if (!link) continue;
+      if (!best || link.score > best.score || (link.score === best.score && link.hpCoef > best.hpCoef)) best = link;
+    }
+  }
+  return best;
 }
 
 function pairScore(list, code) {
@@ -2556,18 +2840,30 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
         notes.push({ weight: 0.1, text: `建造：${name}常見${sets.join("、")}。` });
       }
     }
+    let combo = null;
+    const group = [mine, ...allies];
     for (const ally of allies) {
       const allyRow = e7Record(ally.code);
       const syn = Math.max(pairScore(row?.協同, ally.code), pairScore(allyRow?.協同, mine?.code));
-      if (!syn) continue;
-      score += syn * 8;
-      notes.push({ weight: syn * 8, text: `協同：和已選的${ally.nameZh}。` });
+      if (syn) {
+        score += syn * 8;
+        notes.push({ weight: syn * 8, text: `協同：和已選的${ally.nameZh}。` });
+      }
+      const similar = (row?.最相似 || []).some((item) => item.代碼 === ally.code)
+        || (allyRow?.最相似 || []).some((item) => item.代碼 === mine?.code);
+      if (similar) notes.push({ weight: 1, text: `最相似：和已選的${ally.nameZh}定位接近，頁上沒有另寫搭配分數。` });
+      for (const link of [comboBetween(catalog, roster, mine, ally, group), comboBetween(catalog, roster, ally, mine, group)]) {
+        if (!link) continue;
+        if (!combo || link.score > combo.score || (link.score === combo.score && link.hpCoef > combo.hpCoef)) combo = link;
+      }
     }
+    if (combo) score += combo.score;
     notes.sort((left, right) => right.weight - left.weight);
     const seen = new Set();
     const reason = [];
+    if (combo) reason.push(combo.text);
     for (const note of notes) {
-      if (seen.has(note.text)) continue;
+      if (seen.has(note.text) || reason.includes(note.text)) continue;
       seen.add(note.text);
       reason.push(note.text);
       if (reason.length === 2) break;
@@ -2576,7 +2872,7 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
     scored.push({
       id: hero.id,
       score,
-      reason: reason.length ? reason.join("") : `配對：頁上沒有和${enemyNames}的計數器、反制或協同，不另編。`,
+      reason: reason.length ? reason.join("") : `配對分析：頁上沒有和${enemyNames}的預設表，不另編。計數器、反制、協同也沒有。`,
       chance: null,
       hp: null,
       impact: null,
@@ -2909,6 +3205,7 @@ export function battleBrief(catalog, roster, draft) {
     `打到誰：${hit}`,
     `先殺誰：${kill}`,
   );
+  if (order?.combo) lines.push(order.combo);
   const book = (fight.log || []).find((row) => row.includes("魂書")) || "";
   const wave = survivalChance(catalog, roster, userFight, enemyFight, draft.userFirst !== false);
   const survive = wave == null ? "" : `照這樣打，對方大招打下來後，我方還活著的機會是 ${chancePct(wave.chance)}，整組剩下的生命是 ${chancePct(wave.hp)}。`;

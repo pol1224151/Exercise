@@ -377,5 +377,37 @@ assert.match(knights.reasons, /計數器|反制|速度|建造|協同|配對/);
 assert.match(buffers.reasons, /計數器|反制|速度|建造|協同|配對/);
 const fixed = ["rhianna-and-luciella", "eye-of-the-abyss-fumyr", "school-nurse-yulha", "aubade-ludwig", "lady-of-the-scales"];
 assert.notDeepEqual(knights.picks, fixed);
+assert.equal(knights.picks[0], "arbiter-vildred");
+assert.equal(buffers.picks[0], "arbiter-vildred");
 
-console.log("screen tests passed", { next: firstMove.action.title, brief: brief.action.title });
+const yulhaCombo = battleBrief(catalog, roster, {
+  userFirst: true,
+  userFight: ["school-nurse-yulha", "estelle", "arbiter-vildred", "notos"],
+  enemyFight: ["brieg", "charles", "hasol", "charlotte"],
+});
+assert.equal(yulhaCombo.ok, true, yulhaCombo.reason?.summary);
+assert.equal(yulhaCombo.action.title, "我方保健室老師律荷開大給艾絲黛");
+assert.match(yulhaCombo.reason.summary, /技能組合：保健室老師律荷大招給隊友/);
+assert.match(yulhaCombo.reason.summary, /戰鬥準備度 \+50%/);
+assert.match(yulhaCombo.reason.summary, /超人化 3 回合，最大生命增加 100%，速度增加 100%/);
+assert.match(yulhaCombo.reason.summary, /艾絲黛的傷害依自己最大生命增加/);
+assert.equal(yulhaCombo.reason.summary.includes("吸收"), false);
+
+const dieneCombo = battleBrief(catalog, roster, {
+  userFirst: true,
+  userFight: ["diene", "arbiter-vildred", "belian", "aubade-ludwig"],
+  enemyFight: ["brieg", "charles", "hasol", "charlotte"],
+});
+assert.equal(dieneCombo.ok, true, dieneCombo.reason?.summary);
+assert.match(dieneCombo.action.title, /^我方迪埃妮開二技給/);
+assert.match(dieneCombo.reason.summary, /增加攻擊 2 回合，頁上沒寫比例/);
+assert.match(dieneCombo.reason.summary, /防護罩 2 回合，依目標最大生命，沒有印吸收比例，不另編/);
+assert.match(dieneCombo.reason.summary, /戰鬥準備度 \+15%/);
+
+const e7 = JSON.parse(readFileSync(new URL("../data/e7rtabot-rta.json", import.meta.url)));
+const overForty = Object.values(e7.英雄).filter((row) => row.選擇率 > 0.4);
+assert.equal(overForty.length, 0);
+assert.deepEqual(e7.出場率門檻["超過40%"], []);
+assert.deepEqual(e7.出場率門檻.缺頁, []);
+
+console.log("screen tests passed", { next: firstMove.action.title, brief: brief.action.title, knights: knights.picks, buffers: buffers.picks });
