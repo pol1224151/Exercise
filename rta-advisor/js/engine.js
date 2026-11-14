@@ -5,6 +5,7 @@
  */
 
 import { chooseComposition } from "./records.js";
+import heroLinks from "../data/hero-links.json" with { type: "json" };
 
 const ADVANTAGE = { fire: "wind", wind: "ice", ice: "fire", light: "dark", dark: "light" };
 
@@ -114,13 +115,66 @@ export function heroListed(hero) {
   });
 }
 
-function heroByName(catalog, name) {
-  const key = String(name || "").trim().toLowerCase();
-  if (!key) return null;
+function personOf(id) {
+  for (const person of heroLinks.people) {
+    if (person.id === id || (person.also || []).includes(id)) return person;
+  }
+  return null;
+}
+
+function canonicalId(id) {
+  return personOf(id)?.id || id;
+}
+
+function findDef(catalog, id) {
   const pools = [catalog.heroes || [], catalog.seasonHeroes || [], catalog.database || []];
   for (const pool of pools) {
-    const found = pool.find((hero) => hero.name?.toLowerCase() === key || hero.nameZh === name || hero.id === key);
-    if (found) return normalizeHeroDef(found);
+    const found = pool.find((hero) => hero.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+export function selectableHeroes(catalog) {
+  const hidden = new Set();
+  const names = new Map();
+  for (const person of heroLinks.people) {
+    for (const id of person.also || []) hidden.add(id);
+    names.set(person.id, person.names || []);
+  }
+  const byId = new Map();
+  for (const hero of catalog.database || []) {
+    if (!hero?.id || hidden.has(hero.id)) continue;
+    byId.set(hero.id, { ...hero });
+  }
+  for (const hero of [...(catalog.seasonHeroes || []), ...(catalog.heroes || [])]) {
+    if (!hero?.id || hidden.has(hero.id)) continue;
+    byId.set(hero.id, { ...(byId.get(hero.id) || {}), ...hero });
+  }
+  return [...byId.values()].map((hero) => ({
+    ...hero,
+    aliases: names.get(hero.id) || [],
+    listed: heroListed(hero),
+  }));
+}
+
+function heroByName(catalog, name) {
+  const key = String(name || "").trim().toLowerCase();
+  const raw = String(name || "").trim();
+  if (!key) return null;
+  for (const person of heroLinks.people) {
+    const labels = [person.id, ...(person.names || [])];
+    if (labels.some((label) => String(label).trim() === raw || String(label).trim().toLowerCase() === key)) {
+      const found = findDef(catalog, person.id);
+      if (found) return normalizeHeroDef(found);
+    }
+  }
+  const pools = [catalog.heroes || [], catalog.seasonHeroes || [], catalog.database || []];
+  for (const pool of pools) {
+    const found = pool.find((hero) => hero.name?.toLowerCase() === key || hero.nameZh === raw || hero.id === key);
+    if (!found) continue;
+    const canonical = findDef(catalog, canonicalId(found.id)) || found;
+    return normalizeHeroDef(canonical);
   }
   return null;
 }
@@ -1345,40 +1399,45 @@ function invalid(catalog, title, reason) {
   };
 }
 
-function orderFromTurn(userCount, enemyCount, turnSide) {
-  if (turnSide !== "user" && turnSide !== "enemy") return null;
-  const userTurn = nextSide(userCount, enemyCount, true);
-  const enemyTurn = nextSide(userCount, enemyCount, false);
-  if (userTurn === turnSide && enemyTurn !== turnSide) return { firstPick: true, source: "turn" };
-  if (enemyTurn === turnSide && userTurn !== turnSide) return { firstPick: false, source: "turn" };
-  return null;
+function pickScreenStarted(userCount, enemyCount, turnSide, leadSide) {
+  return userCount + enemyCount > 0 || turnSide === "user" || turnSide === "enemy" || leadSide === "user" || leadSide === "enemy";
 }
 
-export function detectFirstPick(userCount, enemyCount, turnSide, leadSide) {
-  const asUser = countsArePrefix(userCount, enemyCount, true);
-  const asEnemy = countsArePrefix(userCount, enemyCount, false);
-  if (asUser && !asEnemy) return { firstPick: true, source: "counts" };
-  if (asEnemy && !asUser) return { firstPick: false, source: "counts" };
-  if (!asUser && !asEnemy) return { firstPick: null, source: "mismatch" };
-  if (userCount === 5 && enemyCount === 5) return { firstPick: true, source: "locked" };
-  const fromTurn = orderFromTurn(userCount, enemyCount, turnSide);
-  if (fromTurn) return fromTurn;
-  if (leadSide === "user") return { firstPick: true, source: "lead" };
-  if (leadSide === "enemy") return { firstPick: false, source: "lead" };
-  return { firstPick: null, source: "unseen", turnSide: turnSide || null };
+export function detectFirstPick(userCount, enemyCount, turnSide, leadSide, pickMark) {
+  if (pickMark === "FIRST PICK") return { firstPick: true, source: "mark" };
+  if (pickScreenStarted(userCount, enemyCount, turnSide, leadSide)) return { firstPick: false, source: "no-mark" };
+  return { firstPick: null, source: "unseen" };
+}
+
+function turnClause(turnSide) {
+  if (turnSide === "user") return "這一幀回合原文「你的回合」。";
+  if (turnSide === "enemy") return "這一幀回合原文「對手回合」。";
+  return "沒讀到回合。";
+}
+
+export function orderBasisText(recognition, held) {
+  const count = (ids) => (ids || []).filter((id) => id && id !== "empty").length;
+  const detected = detectFirstPick(count(recognition?.user), count(recognition?.enemy), recognition?.turnSide, recognition?.leadSide, recognition?.pickMark);
+  const turn = turnClause(recognition?.turnSide);
+  if (detected.source === "mark") return `這一幀讀到「FIRST PICK」，我方先手。${turn}`;
+  if (detected.source !== "mark" && held === true) return `先前讀到「FIRST PICK」，沿用我方先手。${turn}`;
+  if (detected.source === "no-mark") return `選角畫面已開始，沒有讀到 FIRST PICK，我方後手。${turn}`;
+  return `選角畫面還沒開始，沒有讀到 FIRST PICK。${turn}`;
 }
 
 export function adviceStateKey(recognition, extras = {}) {
   const knownCount = (ids) => (ids || []).filter((id) => id && id !== "empty").length;
-  const detected = detectFirstPick(knownCount(recognition?.user), knownCount(recognition?.enemy), recognition?.turnSide, recognition?.leadSide);
+  const detected = detectFirstPick(knownCount(recognition?.user), knownCount(recognition?.enemy), recognition?.turnSide, recognition?.leadSide, recognition?.pickMark);
   let order = detected.firstPick;
-  if (order == null && detected.source === "unseen" && typeof extras.heldFirstPick === "boolean") order = extras.heldFirstPick;
+  if (detected.source !== "mark" && extras.heldFirstPick === true) order = true;
   return JSON.stringify({
     user: recognition?.user || [],
     enemy: recognition?.enemy || [],
     prebans: recognition?.prebans || [],
     actor: recognition?.actorId || "",
     order,
+    turn: recognition?.turnSide || "",
+    mark: recognition?.pickMark || "",
     rank: extras.rank || "",
     enhance: Boolean(extras.assumeMaxEnhance),
     cutoff: extras.cutoff ?? "",
@@ -1482,35 +1541,128 @@ function commonPlan(catalog, side, ownedIds, byGames) {
   return { id: side === "first" ? "first-common" : "second-common", side, label, prebans, picks: picks.slice(0, 5), why };
 }
 
-export function draftPlans(catalog, roster) {
-  const season = (catalog.seasonHeroes || []).filter((hero) => hero.rtaPresence);
-  const pool = season.length ? season : (catalog.heroes || []);
-  const owned = (roster?.heroes || []).filter((hero) => presenceOf(catalog, hero.id) && heroListed(
-    pool.find((row) => row.id === hero.id) || (catalog.heroes || []).find((row) => row.id === hero.id) || hero,
-  ));
-  const byGames = [...owned].sort((left, right) => gamesOf(presenceOf(catalog, right.id)) - gamesOf(presenceOf(catalog, left.id)));
-  const byWin = [...owned].sort((left, right) => {
-    const leftPresence = presenceOf(catalog, left.id);
-    const rightPresence = presenceOf(catalog, right.id);
-    const leftRate = leftPresence.wins / Math.max(1, leftPresence.wins + leftPresence.losses);
-    const rightRate = rightPresence.wins / Math.max(1, rightPresence.wins + rightPresence.losses);
-    return rightRate - leftRate || gamesOf(rightPresence) - gamesOf(leftPresence);
+function ownedIdsOf(roster) {
+  const ids = new Set();
+  for (const hero of roster?.heroes || []) {
+    ids.add(hero.id);
+    ids.add(canonicalId(hero.id));
+    const person = personOf(hero.id);
+    if (!person) continue;
+    ids.add(person.id);
+    for (const also of person.also || []) ids.add(also);
+  }
+  return ids;
+}
+
+function fightRoster(roster, catalog) {
+  const modelIds = new Set((catalog.heroes || []).map((hero) => hero.id));
+  const heroes = (roster?.heroes || []).map((hero) => ({ ...hero }));
+  const byId = new Map(heroes.map((hero) => [hero.id, hero]));
+  for (const person of heroLinks.people) {
+    if (!modelIds.has(person.id) || byId.has(person.id)) continue;
+    const twin = (person.also || []).map((id) => byId.get(id)).find(Boolean);
+    if (!twin) continue;
+    const copy = { ...twin, id: person.id };
+    heroes.push(copy);
+    byId.set(person.id, copy);
+  }
+  return { ...roster, heroes };
+}
+
+const SANDBOX_WHY = "選角用沙盤，你的面板對上推估的對手。不用場次當推薦名單。預禁用本季預禁數最高、而且不是這套要選的人。";
+
+function prebanIds(catalog, avoid, count) {
+  const pool = (catalog.seasonHeroes || []).filter((hero) => hero.rtaPresence);
+  const source = pool.length ? pool : (catalog.heroes || []);
+  const ids = [];
+  const ranked = [...source].sort((left, right) => (right.rtaPresence?.prebans || 0) - (left.rtaPresence?.prebans || 0));
+  for (const hero of ranked) {
+    const id = canonicalId(hero.id);
+    if (avoid.has(id) || ids.includes(id)) continue;
+    ids.push(id);
+    if (ids.length === count) break;
+  }
+  return ids;
+}
+
+function sandboxRank(catalog, roster, lockedUser, lockedEnemy, userFirst, trials) {
+  const model = catalog.heroes || [];
+  const modelIds = new Set(model.map((hero) => hero.id));
+  const owned = ownedIdsOf(roster);
+  const taken = new Set([...(lockedUser || []), ...(lockedEnemy || [])].filter((id) => id && id !== "unknown" && id !== "empty"));
+  const locked = [];
+  for (const id of lockedUser || []) {
+    const canonical = modelIds.has(id) ? id : canonicalId(id);
+    if (!modelIds.has(canonical) || taken.has(id) && !owned.has(canonical)) continue;
+    if (!owned.has(canonical) || locked.includes(canonical)) continue;
+    locked.push(canonical);
+  }
+  const candidates = model.filter((hero) => owned.has(hero.id) && !taken.has(hero.id) && !locked.includes(hero.id));
+  const enemyLocked = (lockedEnemy || []).map((id) => (modelIds.has(id) ? id : canonicalId(id))).filter((id) => modelIds.has(id));
+  const skill = { id: "s3", order: ["S3", "S2", "S1"], burn: false };
+  const view = fightRoster(roster, catalog);
+  const n = Math.max(1, Math.min(trials || 1, 2));
+  const scored = [];
+  for (const hero of candidates) {
+    const user = [...locked, hero.id];
+    for (const other of candidates) {
+      if (user.length === 4) break;
+      if (!user.includes(other.id)) user.push(other.id);
+    }
+    const skip = new Set(user);
+    const enemy = [];
+    const pools = [
+      enemyLocked.filter((id) => !skip.has(id)),
+      model.filter((row) => !owned.has(row.id) && !skip.has(row.id)).map((row) => row.id),
+      model.filter((row) => !skip.has(row.id)).map((row) => row.id),
+    ];
+    for (const pool of pools) {
+      for (const id of pool) {
+        if (enemy.length === 4) break;
+        if (!enemy.includes(id)) enemy.push(id);
+      }
+      if (enemy.length === 4) break;
+    }
+    if (user.length < 4 || enemy.length < 4) {
+      scored.push({ id: hero.id, rate: null, user: user.slice(0, 4), enemy: enemy.slice(0, 4) });
+      continue;
+    }
+    let wins = 0;
+    for (let trial = 0; trial < n; trial += 1) {
+      const fight = fightFromRoster(
+        { userFight: user.slice(0, 4), enemyFight: enemy.slice(0, 4), userFirst },
+        view,
+        catalog,
+        skill,
+        "base",
+        mulberry32(trial + 1),
+      );
+      if (fight.winner === "user") wins += 1;
+    }
+    scored.push({ id: hero.id, rate: wins / n, user: user.slice(0, 4), enemy: enemy.slice(0, 4) });
+  }
+  scored.sort((left, right) => (right.rate ?? -1) - (left.rate ?? -1) || left.id.localeCompare(right.id));
+  return scored;
+}
+
+export function draftPlans(catalog, roster, options = {}) {
+  const scored = sandboxRank(catalog, roster, [], [], true, options.trials || 1);
+  const ids = scored.map((row) => row.id);
+  const picks = ids.slice(0, 5);
+  const alt = ids.length > 5 ? ids.slice(1, 6) : picks;
+  const make = (side, id, label, pickIds) => ({
+    id,
+    side,
+    label,
+    picks: pickIds,
+    prebans: prebanIds(catalog, new Set(pickIds), 2),
+    why: SANDBOX_WHY,
   });
-  const byPreban = [...pool].sort((left, right) => (right.rtaPresence.prebans || 0) - (left.rtaPresence.prebans || 0));
-  const bySeasonGames = [...pool].sort((left, right) => gamesOf(right.rtaPresence) - gamesOf(left.rtaPresence));
-  const ownedIds = new Set(owned.map((hero) => hero.id));
-  const first = [
-    onePlan("first", "first-preban", "先手", byPreban, byGames, "預禁用本季預禁數最高、而且不是這套要選的人。選角用你帳號裡本季場次最多的五名。"),
-    onePlan("first", "first-win", "先手另一套", byPreban.slice(2), byWin, "預禁改看本季預禁數接著的兩名。選角改用你帳號裡勝率較高的五名。"),
-    commonPlan(catalog, "first", ownedIds, byGames),
-  ].filter(Boolean);
-  const second = [
-    onePlan("second", "second-games", "後手", bySeasonGames, byWin, "預禁用本季場次最高、而且不是這套要選的人。選角用你帳號裡勝率較高的五名。"),
-    onePlan("second", "second-preban", "後手另一套", byPreban, byGames, "預禁用本季預禁數最高的兩名。選角用你帳號裡本季場次最多的五名。"),
-    commonPlan(catalog, "second", ownedIds, byGames),
-  ].filter(Boolean);
   const ready = (plan) => plan.prebans.length > 0 && plan.picks.length > 0;
-  return { first: first.filter(ready), second: second.filter(ready) };
+  return {
+    first: [make("first", "first-sandbox", "先手", picks), make("first", "first-sandbox-next", "先手另一套", alt)].filter(ready),
+    second: [make("second", "second-sandbox", "後手", picks), make("second", "second-sandbox-next", "後手另一套", alt)].filter(ready),
+  };
 }
 
 function planDraft(catalog, plan, userFirst, prebansEach) {
@@ -1593,7 +1745,7 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
   if (!roster?.heroes?.length) {
     return invalid(catalog, "先讀入帳號", "還沒有讀入帳號。");
   }
-  const ownedIds = new Set(roster.heroes.map((hero) => hero.id));
+  const ownedIds = ownedIdsOf(roster);
   const missingOwn = (recognition.user || []).filter((id) => named(id) && screenRecord(catalog, id) && !ownedIds.has(id));
   if (missingOwn.length) {
     const names = missingOwn.map((id) => screenName(catalog, id) || byId[id]?.nameZh).join("、");
@@ -1695,47 +1847,53 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
   const userCount = (recognition.user || []).filter(filled).length;
   const enemyCount = (recognition.enemy || []).filter(filled).length;
   const nothingOnBoard = userCount === 0 && enemyCount === 0 && lockedPre.length === 0;
-  if (nothingOnBoard && phase !== "preban" && !recognition.turnSide && !recognition.leadSide) {
+  if (nothingOnBoard && phase !== "preban" && !recognition.turnSide && !recognition.leadSide && recognition.pickMark !== "FIRST PICK") {
     return invalid(catalog, "畫面上還沒有選角", "左右大卡出現英雄後，下一步會出現。");
   }
-  const detected = detectFirstPick(userCount, enemyCount, recognition.turnSide, recognition.leadSide);
+  const detected = detectFirstPick(userCount, enemyCount, recognition.turnSide, recognition.leadSide, recognition.pickMark);
   let userFirst = detected.firstPick;
   let orderSource = detected.source;
-  if (userFirst == null && detected.source === "unseen" && typeof options.heldFirstPick === "boolean") {
-    userFirst = options.heldFirstPick;
+  if (detected.source !== "mark" && options.heldFirstPick === true) {
+    userFirst = true;
     orderSource = "held";
   }
+  const basisText = orderBasisText(recognition, options.heldFirstPick);
   if (userFirst == null) {
-    if (detected.source === "mismatch") {
-      return invalid(catalog, "人數對不上選角順序", "兩邊已選的人數對不上選角順序，先不給禁選。");
-    }
-    if (userCount === 0 && enemyCount === 0) {
-      return invalid(catalog, "還看不出先後手", "兩邊都還沒選，也沒有你的回合或對手回合，先不給禁選。");
-    }
-    return invalid(catalog, "這一幀分不出先後手", "已選人數對得上兩種順序，這一幀又沒有回合字樣，先不給禁選。");
+    return invalid(catalog, "還看不出先後手", basisText);
   }
-  const plans = draftPlans(catalog, roster);
-  const sidePlans = userFirst ? plans.first : plans.second;
-  if (!sidePlans.length) return invalid(catalog, "這一手排不出來", "帳號裡沒有足夠的本季英雄可排一套打法。");
+  const modelIds = new Set((catalog.heroes || []).map((hero) => hero.id));
+  const asModel = (id) => (modelIds.has(id) ? id : canonicalId(id));
+  const lockedUser = userPicks.map(asModel).filter((id) => modelIds.has(id));
+  const lockedEnemy = enemyPicks.map(asModel).filter((id) => modelIds.has(id));
+  const scored = sandboxRank(catalog, roster, lockedUser, lockedEnemy, userFirst, options.trials || 1);
+  if (!scored.length) return invalid(catalog, "這一手排不出來", "帳號裡沒有沙盤能算的英雄。不編倍率。");
+  const ordered = scored.map((row) => row.id);
   const prebansEach = options.rank === "below" ? 1 : 2;
-  const lines = sidePlans.map((plan) => {
-    const draft = planDraft(catalog, plan, userFirst, prebansEach);
-    const rate = ratePlan(catalog, roster, draft, options);
+  const makeLine = (start, id, label) => {
+    const picks = ordered.slice(start);
+    const row = scored[start] || scored[0];
+    const draft = row?.user?.length === 4 && row?.enemy?.length === 4
+      ? { userFight: row.user, enemyFight: row.enemy, userFirst }
+      : null;
     return {
-      ...plan,
+      id,
+      label,
+      picks,
+      prebans: prebanIds(catalog, new Set(picks.slice(0, 5)), prebansEach),
+      why: SANDBOX_WHY,
       draft,
-      rate,
-      userPre: plan.prebans,
+      rate: row?.rate ?? null,
       reason: {
-        summary: `${userFirst ? "先手" : "後手"}這套：${plan.why}`,
+        summary: `${userFirst ? "先手" : "後手"}。${SANDBOX_WHY}`,
         lines: [
-          plan.why,
-          "數字用 Epic7RTAStats 這一季的預禁數、場次和常見組合，沒有另編克制。",
-          rate == null ? "這套裡有英雄沒有沙盤用的技能效果，不估算勝率，也不編倍率。" : "估計勝率來自這套打法的沙盤，不是保證。",
+          SANDBOX_WHY,
+          row?.rate == null ? "這套排不滿可計算的四名，不估算勝率，也不編倍率。" : "估計勝率來自短沙盤，你的面板對上推估對手，不是保證。這一手先給出下一手。",
         ],
       },
     };
-  });
+  };
+  const lines = [makeLine(0, "sandbox", userFirst ? "先手" : "後手")];
+  if (scored.length > 1) lines.push(makeLine(1, "sandbox-next", userFirst ? "先手另一套" : "後手另一套"));
   const cutoff = typeof options.cutoff === "number" ? options.cutoff : null;
   const choice = cutoff == null
     ? null
@@ -1759,14 +1917,16 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
   } : null;
   const taken = new Set([...userPicks, ...enemyPicks, ...lockedPre]);
   const side = nextSide(userCount, enemyCount, userFirst);
+  const ours = recognition.turnSide === "user" || (recognition.turnSide !== "enemy" && side !== "enemy");
   const unread = slots.includes("unknown") ? "有卡上的名字還沒對上，那張留空，不猜。" : "";
-  const orderLine = orderSource === "held" ? "沿用剛才分出的先後手。" : (userFirst ? "這一幀是先手。" : "這一幀是後手。");
+  const orderLine = basisText;
   let action;
   if (userCount === 0 && enemyCount === 0) {
     const next = best.prebans.find((id) => !taken.has(id));
     const presence = next ? presenceOf(catalog, next) : null;
+    const title = `${ours ? "" : "下一手"}預禁 ${screenName(catalog, next)}`;
     action = next
-      ? { kind: "preban", title: `預禁 ${screenName(catalog, next)}`, detail: `${best.label}。本季預禁數 ${presence?.prebans ?? "沒有"}。`, burn: null, id: next }
+      ? { kind: "preban", title, detail: `${best.label}。本季預禁數 ${presence?.prebans ?? "沒有"}。`, burn: null, id: next }
       : { kind: "wait", title: "預禁已經選完", detail: "等選角開始。", burn: null };
   } else if (!side && userCount >= 5 && enemyCount >= 5) {
     const protectedId = enemyPicks[2];
@@ -1775,12 +1935,9 @@ export function adviseFromScreen(catalog, recognition, options = {}) {
     action = { kind: "ban", title: `最後禁 ${screenName(catalog, ban)}`, detail: "不能禁對方的第 3 選。在其餘的人裡用本季預禁數較高的那位。", burn: null, id: ban };
   } else {
     const next = best.picks.find((id) => !taken.has(id));
-    if (!next) return invalid(catalog, "這一手沒有可選的人", "這套打法裡還沒被選走的人已經沒有。");
-    if (side === "enemy") {
-      action = { kind: "pick", title: `下一手選 ${screenName(catalog, next)}`, detail: "現在是對手在選。", burn: null, id: next };
-    } else {
-      action = { kind: "pick", title: `選 ${screenName(catalog, next)}`, detail: best.why, burn: null, id: next };
-    }
+    if (!next) return invalid(catalog, "這一手沒有可選的人", "沙盤裡還沒被選走的人已經沒有。");
+    const title = `${ours ? "" : "下一手"}選 ${screenName(catalog, next)}`;
+    action = { kind: "pick", title, detail: ours ? best.why : "現在是對手在選。輪到我方時就是這一名。", burn: null, id: next };
   }
   if (!action?.title) return invalid(catalog, "這一手沒有建議", "這套打法沒有排出下一步。");
   best.reason.lines = [orderLine, ...best.reason.lines];

@@ -1,4 +1,4 @@
-import { adviceStateKey, adviseFromScreen, buildGearReport, clearAccount, counterEdges, loadAccount, parseRoster, readAccountText, saveAccount, sourceBasis } from "./engine.js";
+import { adviceStateKey, adviseFromScreen, buildGearReport, clearAccount, counterEdges, loadAccount, orderBasisText, parseRoster, readAccountText, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, recordResult, saveMatches } from "./records.js";
 import { matchHeroName, matchNamedCard, readDraft, refreshCardMemory, rememberCard } from "./screen.js";
 
@@ -282,11 +282,12 @@ function heroName(id) {
 function renderHeard(read) {
   const node = $("heard");
   if (!node) return;
-  const cards = read?.faces || [];
-  if (!cards.length) {
+  if (!read) {
     node.textContent = "";
     return;
   }
+  const basis = orderBasisText(read, orderLock);
+  const cards = read.faces || [];
   const bits = cards.map((card) => {
     const side = card.side === "enemy" ? "對方" : "我方";
     const raw = String(card.text || "").replace(/\s+/g, " ").trim();
@@ -294,7 +295,8 @@ function renderHeard(read) {
     const heard = raw ? `「${raw}」` : "（還沒讀出字）";
     return hero ? `${side}${heard}對上${hero}` : `${side}${heard}留空`;
   });
-  node.textContent = `這一幀：${bits.join("。")}。`;
+  const cardsLine = bits.length ? `這一幀：${bits.join("。")}。` : "";
+  node.textContent = [basis, cardsLine].filter(Boolean).join(" ");
 }
 
 function paintCards(cards) {
@@ -335,11 +337,10 @@ function fillPicker(query = "") {
   const needle = query.trim();
   const list = $("pickerList");
   list.replaceChildren();
-  const source = (catalog.seasonHeroes || []).length ? catalog.seasonHeroes : catalog.heroes;
-  const heroes = [...source].sort((left, right) => left.nameZh.localeCompare(right.nameZh, "zh-Hant"));
+  const heroes = selectableHeroes(catalog).sort((left, right) => left.nameZh.localeCompare(right.nameZh, "zh-Hant"));
   for (const hero of heroes) {
-    const english = hero.name || "";
-    if (needle && !hero.nameZh.includes(needle) && !english.toLowerCase().includes(needle.toLowerCase()) && !hero.id.includes(needle)) continue;
+    const labels = [hero.nameZh, hero.name, hero.id, ...(hero.aliases || [])].map((label) => String(label || ""));
+    if (needle && !labels.some((label) => label.toLowerCase().includes(needle.toLowerCase()))) continue;
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = hero.listed === false ? `${hero.nameZh}（未收錄）` : hero.nameZh;
@@ -597,7 +598,7 @@ function scheduleNames(data, width, height, read) {
         if (matchNamedCard(job.signature, namedCards) !== undefined) continue;
         const result = await worker.recognize(job.canvas);
         const text = String(result?.data?.text || "").replace(/\s+/g, " ").trim();
-        const pool = (catalog?.database || []).length ? catalog.database : (catalog?.seasonHeroes || catalog?.heroes || []);
+        const pool = selectableHeroes(catalog || {});
         const id = matchHeroName(text, pool);
         namedCards.unshift({ sig: job.signature, id: id || "", text });
         namedCards = namedCards.slice(0, 40);

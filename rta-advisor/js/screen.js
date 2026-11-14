@@ -769,16 +769,140 @@ export function matchHeroName(text, heroes) {
   const compact = String(text || "").replace(/[\s.。·・,，:：|/\\]/g, "");
   if (compact.length < 2) return null;
   const lower = compact.toLowerCase();
-  const hits = [];
+  let bestId = null;
+  let bestLen = 0;
+  let ambiguous = false;
+  const consider = (id, label) => {
+    const name = String(label || "").replace(/\s/g, "");
+    if (name.length < 2) return;
+    const zhHit = compact.includes(name);
+    const enHit = name.length >= 4 && lower.includes(name.toLowerCase());
+    if (!zhHit && !enHit) return;
+    if (name.length > bestLen) {
+      bestLen = name.length;
+      bestId = id;
+      ambiguous = false;
+    } else if (name.length === bestLen && id !== bestId) {
+      ambiguous = true;
+    }
+  };
   for (const hero of heroes || []) {
-    const zh = String(hero.nameZh || "").replace(/\s/g, "");
-    const en = String(hero.name || "").replace(/\s/g, "");
-    const zhHit = zh.length >= 2 && compact.includes(zh);
-    const enHit = en.length >= 4 && lower.includes(en.toLowerCase());
-    if (zhHit || enHit) hits.push(hero.id);
+    consider(hero.id, hero.nameZh);
+    consider(hero.id, hero.name);
+    for (const alias of hero.aliases || []) consider(hero.id, alias);
   }
-  const unique = [...new Set(hits)];
-  return unique.length === 1 ? unique[0] : null;
+  return ambiguous ? null : bestId;
+}
+
+function badgeBlue(red, green, blue) {
+  return blue > 150 && blue > red + 50 && red < 180 && green > 50 && blue > green + 10;
+}
+
+function pillWhite(red, green, blue) {
+  return red > 215 && green > 215 && blue > 215;
+}
+
+export function readPickMark(data, imageWidth, imageHeight) {
+  if (!data || imageWidth < 8 || imageHeight < 8) return null;
+  const step = Math.max(1, Math.round(imageHeight / 280));
+  const cols = Math.ceil(imageWidth / step);
+  const rows = Math.ceil(imageHeight / step);
+  const seen = new Uint8Array(cols * rows);
+  const at = (px, py) => {
+    const offset = (py * imageWidth + px) * 4;
+    return [data[offset], data[offset + 1], data[offset + 2]];
+  };
+  const parts = [];
+  const limitY = Math.floor(rows * 0.42);
+  for (let gy = 0; gy < limitY; gy += 1) {
+    for (let gx = 0; gx < cols; gx += 1) {
+      const seenAt = gy * cols + gx;
+      if (seen[seenAt]) continue;
+      const px = gx * step;
+      const py = gy * step;
+      if (px >= imageWidth || py >= imageHeight) continue;
+      const [red, green, blue] = at(px, py);
+      if (!badgeBlue(red, green, blue)) continue;
+      let minX = px;
+      let maxX = px;
+      let minY = py;
+      let maxY = py;
+      let count = 0;
+      const stack = [[gx, gy]];
+      seen[seenAt] = 1;
+      while (stack.length) {
+        const [cx, cy] = stack.pop();
+        count += 1;
+        const x = cx * step;
+        const y = cy * step;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= cols || ny >= limitY) continue;
+          const mark = ny * cols + nx;
+          if (seen[mark]) continue;
+          const qx = nx * step;
+          const qy = ny * step;
+          if (qx >= imageWidth || qy >= imageHeight) continue;
+          const [nr, ng, nb] = at(qx, qy);
+          if (!badgeBlue(nr, ng, nb)) continue;
+          seen[mark] = 1;
+          stack.push([nx, ny]);
+        }
+      }
+      if (count >= 4) parts.push({ minX, maxX, minY, maxY, count });
+    }
+  }
+  const used = new Array(parts.length).fill(false);
+  for (let index = 0; index < parts.length; index += 1) {
+    if (used[index]) continue;
+    let minX = parts[index].minX;
+    let maxX = parts[index].maxX;
+    let minY = parts[index].minY;
+    let maxY = parts[index].maxY;
+    let count = parts[index].count;
+    used[index] = true;
+    let grew = true;
+    while (grew) {
+      grew = false;
+      const height = Math.max(step, maxY - minY);
+      for (let other = 0; other < parts.length; other += 1) {
+        if (used[other]) continue;
+        const part = parts[other];
+        const gap = part.minX > maxX ? part.minX - maxX : minX > part.maxX ? minX - part.maxX : 0;
+        const yOverlap = Math.min(maxY, part.maxY) - Math.max(minY, part.minY);
+        if (gap > height * 2.4 || yOverlap < height * 0.2) continue;
+        used[other] = true;
+        grew = true;
+        count += part.count;
+        minX = Math.min(minX, part.minX);
+        maxX = Math.max(maxX, part.maxX);
+        minY = Math.min(minY, part.minY);
+        maxY = Math.max(maxY, part.maxY);
+      }
+    }
+    const width = maxX - minX + step;
+    const height = maxY - minY + step;
+    if (width < imageWidth * 0.06 || height < imageHeight * 0.012 || height > imageHeight * 0.12) continue;
+    const aspect = width / height;
+    if (aspect < 2.4 || aspect > 8 || count < 12) continue;
+    if ((minY + maxY) / 2 > imageHeight * 0.38) continue;
+    let white = 0;
+    let total = 0;
+    for (let y = minY; y <= maxY; y += step) {
+      for (let x = minX; x <= maxX; x += step) {
+        const [wr, wg, wb] = at(x, y);
+        total += 1;
+        if (pillWhite(wr, wg, wb)) white += 1;
+      }
+    }
+    if (total && white / total >= 0.22) return "FIRST PICK";
+  }
+  return null;
 }
 
 function bandFraction(data, imageWidth, imageHeight, rect, pred) {
@@ -861,6 +985,7 @@ export function readDraft(data, imageWidth, imageHeight, memories = [], names = 
     yourTurn: false,
     turnSide: readDraftTurn(data, imageWidth, imageHeight),
     leadSide: readDraftLead(data, imageWidth, imageHeight),
+    pickMark: readPickMark(data, imageWidth, imageHeight),
     cards,
     faces: [
       ...userCards.map((card, index) => face(card, index)),

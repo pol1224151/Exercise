@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { advise, adviseFromScreen, buildGearReport, clearAccount, draftPlans, elementRelation, fightFromRoster, heroListed, loadAccount, parseRoster, readAccountText, saveAccount, skillDamage } from "../js/engine.js";
+import { advise, adviseFromScreen, buildGearReport, clearAccount, draftPlans, elementRelation, fightFromRoster, heroListed, loadAccount, parseRoster, readAccountText, saveAccount, selectableHeroes, skillDamage } from "../js/engine.js";
 import { chooseComposition, draftType } from "../js/records.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
@@ -143,25 +143,31 @@ assert.equal(season.heroes.length > 16, true);
 assert.ok(season.heroes.every((hero) => hero.nameZh && hero.rtaPresence && typeof hero.listed === "boolean"));
 assert.equal(season.heroes.filter((hero) => !hero.listed).length, 0);
 const plans = draftPlans(withSeason, roster);
-assert.ok(plans.first.length >= 1 && plans.second.length >= 1);
+assert.ok(plans.first.length >= 2 && plans.second.length >= 2);
 assert.equal(plans.first[0].picks.length, 5);
 assert.equal(plans.first[0].prebans.length, 2);
 assert.equal(plans.second[0].prebans.length, 2);
 assert.notEqual(plans.first[0].id, plans.second[0].id);
+assert.match(plans.first[0].why, /沙盤/);
+assert.doesNotMatch(plans.first[0].why, /場次最多/);
+assert.doesNotMatch(plans.second[0].why, /場次最多/);
 const comps = JSON.parse(readFileSync(new URL("../data/season-comps.json", import.meta.url)));
 const withComps = { ...withSeason, seasonComps: comps };
 const more = draftPlans(withComps, roster);
-assert.equal(more.first.length, 3);
-assert.equal(more.second.length, 3);
+assert.equal(more.first.length, 2);
+assert.equal(more.second.length, 2);
 for (const plan of [...more.first, ...more.second]) {
   assert.equal(plan.picks.length, 5);
   assert.equal(plan.prebans.length, 2);
   assert.ok(plan.picks.every((id) => roster.heroes.some((hero) => hero.id === id)));
+  assert.match(plan.why, /沙盤/);
+  assert.doesNotMatch(plan.why, /場次最多/);
 }
-assert.ok(more.first.some((plan) => plan.id === "first-common"));
-assert.ok(more.second.some((plan) => plan.id === "second-common"));
-assert.match(more.first.find((plan) => plan.id === "first-common").why, /常見/);
-assert.match(more.second.find((plan) => plan.id === "second-common").why, /常見/);
+const names = selectableHeroes(catalog);
+assert.ok(names.some((hero) => hero.nameZh === "天秤之主"));
+assert.ok(names.some((hero) => hero.nameZh === "一輪孤月維爾蘿娜"));
+assert.equal(names.find((hero) => hero.id === "aubade-ludwig").aliases.includes("黎明序曲魯特比"), true);
+assert.equal(names.some((hero) => hero.id === "ludwig"), false);
 const unlistedCatalog = {
   ...catalog,
   seasonHeroes: [{ id: "ghost", code: "c0000", name: "Ghost", nameZh: "測試未收錄", listed: false, rtaPresence: { wins: 1, losses: 1, prebans: 3, games: 2 } }],

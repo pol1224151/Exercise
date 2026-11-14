@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { adviceStateKey, adviseFromScreen, detectFirstPick, parseRoster, sourceBasis } from "../js/engine.js";
-import { DEFAULT_REGIONS, bindRememberedCards, findDraftCards, inferPhase, liveStateKey, matchCardMemory, matchHeroName, matchPortrait, paintFixture, readDraft, readFrame, rememberCard, rememberCorrection, slotFrame } from "../js/screen.js";
+import { adviceStateKey, adviseFromScreen, detectFirstPick, parseRoster, selectableHeroes, sourceBasis } from "../js/engine.js";
+import { DEFAULT_REGIONS, bindRememberedCards, findDraftCards, inferPhase, liveStateKey, matchCardMemory, matchHeroName, matchPortrait, paintFixture, readDraft, readFrame, readPickMark, rememberCard, rememberCorrection, slotFrame } from "../js/screen.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
 const book = JSON.parse(readFileSync(new URL("../data/portrait-signatures.json", import.meta.url)));
@@ -56,7 +56,10 @@ assert.match(needsAccount.reason.summary, /還沒有讀入帳號/);
 
 const advice = adviseFromScreen(catalog, draftRead, { trials: 2, rank: "champion", roster });
 assert.equal(advice.ok, true, advice.reason?.summary || advice.reason);
-assert.equal(advice.firstPick, true);
+assert.equal(advice.firstPick, false);
+assert.equal(advice.orderSource, "no-mark");
+assert.match(advice.reason.summary, /FIRST PICK/);
+assert.doesNotMatch(advice.reason.summary, /場次最多/);
 assert.ok(["pick", "wait", "preban", "ban"].includes(advice.action.kind));
 assert.match(advice.action.title, /選|預禁|禁/);
 assert.ok(advice.action.title.length > 0);
@@ -99,9 +102,11 @@ const turnOnly = adviseFromScreen(catalog, {
   skillsReady: [],
 }, { trials: 1, rank: "champion", roster });
 assert.equal(turnOnly.ok, true, turnOnly.reason?.summary);
-assert.equal(turnOnly.firstPick, true);
-assert.equal(turnOnly.orderSource, "turn");
+assert.equal(turnOnly.firstPick, false);
+assert.equal(turnOnly.orderSource, "no-mark");
 assert.match(turnOnly.action.title, /預禁/);
+assert.match(turnOnly.reason.summary, /沒有讀到 FIRST PICK/);
+assert.match(turnOnly.reason.summary, /你的回合/);
 
 const opponentTurn = adviseFromScreen(catalog, {
   user: ["unknown"],
@@ -111,7 +116,8 @@ const opponentTurn = adviseFromScreen(catalog, {
   turnSide: "enemy",
 }, { trials: 1, rank: "champion", roster });
 assert.equal(opponentTurn.ok, true, opponentTurn.reason?.summary);
-assert.equal(opponentTurn.firstPick, true);
+assert.equal(opponentTurn.firstPick, false);
+assert.equal(opponentTurn.orderSource, "no-mark");
 assert.match(opponentTurn.action.title, /選|預禁|禁/);
 assert.match(opponentTurn.reason.summary, /留空/);
 
@@ -125,18 +131,38 @@ const opening = adviseFromScreen(catalog, {
   skillsReady: [],
 }, { trials: 1, rank: "champion", roster });
 assert.equal(opening.ok, true, opening.reason?.summary);
-assert.equal(opening.firstPick, true);
+assert.equal(opening.firstPick, false);
+assert.equal(opening.orderSource, "no-mark");
 assert.match(opening.action.title, /預禁/);
 
-assert.deepEqual(detectFirstPick(1, 2, null, null), { firstPick: true, source: "counts" });
-assert.deepEqual(detectFirstPick(0, 1, null, null), { firstPick: false, source: "counts" });
-assert.equal(detectFirstPick(0, 0, null, "enemy").firstPick, false);
-assert.equal(detectFirstPick(0, 0, "user", null).firstPick, true);
-assert.equal(detectFirstPick(0, 0, "enemy", null).firstPick, false);
-assert.equal(detectFirstPick(1, 0, "enemy", null).firstPick, true);
-assert.equal(detectFirstPick(1, 1, null, null).firstPick, null);
-assert.equal(detectFirstPick(1, 1, "enemy", null).firstPick, true);
-assert.equal(detectFirstPick(1, 1, "user", null).firstPick, false);
+const marked = adviseFromScreen(catalog, {
+  user: ["empty"],
+  enemy: ["empty"],
+  prebans: [],
+  actorId: "empty",
+  phase: "preban",
+  turnSide: "enemy",
+  pickMark: "FIRST PICK",
+  skillsReady: [],
+}, { trials: 1, rank: "champion", roster });
+assert.equal(marked.ok, true, marked.reason?.summary);
+assert.equal(marked.firstPick, true);
+assert.equal(marked.orderSource, "mark");
+assert.match(marked.reason.summary, /讀到「FIRST PICK」/);
+assert.doesNotMatch(marked.reason.summary, /場次最多/);
+
+assert.equal(detectFirstPick(0, 0, null, null, "FIRST PICK").firstPick, true);
+assert.equal(detectFirstPick(0, 0, null, null, "FIRST PICK").source, "mark");
+assert.equal(detectFirstPick(1, 0, "enemy", null, "FIRST PICK").firstPick, true);
+assert.equal(detectFirstPick(1, 2, null, null).firstPick, false);
+assert.equal(detectFirstPick(1, 2, null, null).source, "no-mark");
+assert.equal(detectFirstPick(0, 1, null, null).source, "no-mark");
+assert.equal(detectFirstPick(0, 0, null, "enemy").source, "no-mark");
+assert.equal(detectFirstPick(0, 0, "user", null).source, "no-mark");
+assert.equal(detectFirstPick(0, 0, "enemy", null).source, "no-mark");
+assert.equal(detectFirstPick(1, 1, null, null).source, "no-mark");
+assert.equal(detectFirstPick(0, 0, null, null).firstPick, null);
+assert.equal(detectFirstPick(0, 0, null, null).source, "unseen");
 
 const lead = paintFixture(960, 540, DEFAULT_REGIONS, book, { lead: "user" });
 assert.equal(readFrame(lead, 960, 540, DEFAULT_REGIONS, book).leadSide, "user");
@@ -326,9 +352,45 @@ const still = { user: ["a"], enemy: ["b"], prebans: [], actorId: "empty", turnSi
 const flippedTurn = { ...still, turnSide: "enemy" };
 assert.notEqual(adviceStateKey(still), adviceStateKey(flippedTurn));
 const decided = { user: ["a"], enemy: [], prebans: [], actorId: "empty", turnSide: "user", leadSide: null };
-assert.equal(adviceStateKey(decided), adviceStateKey({ ...decided, turnSide: "enemy" }));
+assert.notEqual(adviceStateKey(decided), adviceStateKey({ ...decided, turnSide: "enemy" }));
+assert.notEqual(adviceStateKey(still), adviceStateKey({ ...still, pickMark: "FIRST PICK" }));
 assert.notEqual(adviceStateKey(still), adviceStateKey({ ...still, user: ["a", "c"] }));
 assert.notEqual(adviceStateKey({ user: [], enemy: [], leadSide: null }), adviceStateKey({ user: [], enemy: [], leadSide: "user" }));
 assert.notEqual(adviceStateKey({ user: [], enemy: [], turnSide: null }), adviceStateKey({ user: [], enemy: [], turnSide: "enemy" }));
+
+const list = selectableHeroes(catalog);
+assert.ok(list.some((hero) => hero.nameZh === "天秤之主"));
+assert.ok(list.some((hero) => hero.nameZh === "一輪孤月維爾蘿娜"));
+assert.ok(list.some((hero) => hero.nameZh === "黎明的序曲魯特比" && hero.aliases.includes("黎明序曲魯特比")));
+assert.equal(list.some((hero) => hero.id === "ludwig"), false);
+assert.equal(list.some((hero) => hero.id === "swift-flagbearer-sigret"), false);
+assert.equal(matchHeroName("黎明序曲魯特比", list), "aubade-ludwig");
+assert.equal(matchHeroName("天秤", list), "lady-of-the-scales");
+assert.equal(matchHeroName("一輪孤月維爾蘿娜", list), "lone-crescent-bellona");
+assert.equal(matchHeroName("疾速賽車手賽珂蘭特", list), "sigret");
+assert.ok(list.length > 300);
+assert.ok(list.some((hero) => hero.listed === false));
+
+const badgeW = 960;
+const badgeH = 540;
+const badge = new Uint8ClampedArray(badgeW * badgeH * 4);
+for (let i = 0; i < badge.length; i += 4) {
+  badge[i] = 20;
+  badge[i + 1] = 24;
+  badge[i + 2] = 32;
+  badge[i + 3] = 255;
+}
+for (let y = 36; y < 92; y += 1) {
+  for (let x = 340; x < 620; x += 1) {
+    const offset = (y * badgeW + x) * 4;
+    const ink = y > 48 && y < 78 && x > 370 && x < 590 && ((x + y) % 3 !== 0);
+    badge[offset] = ink ? 48 : 245;
+    badge[offset + 1] = ink ? 120 : 245;
+    badge[offset + 2] = ink ? 214 : 248;
+    badge[offset + 3] = 255;
+  }
+}
+assert.equal(readPickMark(badge, badgeW, badgeH), "FIRST PICK");
+assert.equal(readPickMark(new Uint8ClampedArray(badgeW * badgeH * 4), badgeW, badgeH), null);
 
 console.log("screen tests passed", { next: advice.action.title, skill: cast.action.title, burn: cast.action.burn.yes });
