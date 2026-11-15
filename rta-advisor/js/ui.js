@@ -1,4 +1,4 @@
-import { battleBrief, buildGearReport, clearAccount, counterEdges, guidedDraft, loadAccount, matchesPicker, parseRoster, readAccountText, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
+import { GEAR_ASK, battleBrief, buildGearReport, clearAccount, counterEdges, guidedDraft, loadAccount, matchesPicker, parseRoster, readAccountText, rosterReadLine, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, rateForType, recordResult, saveMatches } from "./records.js";
 
 const $ = (id) => document.getElementById(id);
@@ -180,7 +180,7 @@ function showCard({ action, rate, reason, lines, click }) {
   button.textContent = action || "這一手沒有建議";
   button.disabled = !click;
   button.dataset.click = click || "";
-  $("liveRate").textContent = rate || "尚無勝率";
+  $("liveRate").textContent = rate == null ? "尚無勝率" : rate;
   const node = $("liveReason");
   node.replaceChildren();
   if (Array.isArray(lines) && lines.length) {
@@ -200,8 +200,9 @@ function showCard({ action, rate, reason, lines, click }) {
 
 function showReadyCard() {
   if (!roster?.heroes.length) {
-    showCard({ action: "先讀入帳號", rate: "尚無勝率", reason: "按「匯入帳號」，選 gear.txt 或 Fribbels 的 Save all JSON。", click: "import" });
+    showCard({ action: GEAR_ASK, rate: "", reason: "", click: "import" });
     paintBoard();
+    if ($("draftStatus")) $("draftStatus").textContent = "";
     return;
   }
   renderGuide();
@@ -227,17 +228,17 @@ function draftKey() {
 
 function paintRule() {
   const text = {
-    attack: "進攻：靈魂燃燒技能造成的傷害提升 15%。",
-    defense: "防守：可提升回收量與防護強度 30%。",
-    resist: "抵抗：效果抗性提升 50%。",
-    special: "特別節目：閃避減少 30%。",
-    none: "無規則：不加這些。",
+    attack: "攻擊：靈魂燃燒技能的傷害量增加 15%。燒魂傷害提高，燃燒技能強的角色與魂量充足的配置更有價值。",
+    defense: "防禦：恢復量和防護罩效果量增加 30%。治療與護盾角色更強，持續回復的隊伍更難被消耗。",
+    resist: "抵抗：效果抗性增加 50%。控場與減益的成功率下降，依賴暈眩、封印、減益的角色價值降低。",
+    special: "特殊：迴避減少 30%。迴避變低，依賴迴避的角色與機制價值降低。",
+    none: "無規則：沒有額外效果。",
   };
   for (const button of document.querySelectorAll("#ruleRow button")) {
     button.classList.toggle("primary", button.dataset.rule === manual.rule);
   }
   const node = $("ruleText");
-  if (node) node.textContent = manual.rule ? text[manual.rule] : "先選戰爭規則，再算戰況。";
+  if (node) node.textContent = manual.rule ? text[manual.rule] : "先選戰爭規則，再點先後手。";
 }
 
 function renderGuide() {
@@ -246,20 +247,12 @@ function renderGuide() {
     paintBoard();
     return;
   }
-  if (manual.userFirst == null) {
+  if (!manual.rule || manual.userFirst == null) {
     guideKey = "";
     paintBoard();
-    $("draftStatus").textContent = manual.rule
-      ? "規則已選。點「我先手」或「對方先手」。接著先問對方預禁了哪 2 名。"
-      : "先選戰爭規則，再點「我先手」或「對方先手」。";
-    $("weFirst")?.classList.toggle("primary", false);
-    $("theyFirst")?.classList.toggle("primary", false);
-    return;
-  }
-  if (!manual.rule && !manual.prebansDone) {
-    guideKey = "";
-    paintBoard();
-    $("draftStatus").textContent = "先選戰爭規則。選完才問對方預禁。";
+    const line = rosterReadLine(roster);
+    showCard({ action: line, rate: "", reason: "", click: "" });
+    $("draftStatus").textContent = line;
     $("weFirst")?.classList.toggle("primary", manual.userFirst === true);
     $("theyFirst")?.classList.toggle("primary", manual.userFirst === false);
     return;
@@ -272,16 +265,6 @@ function renderGuide() {
     return;
   }
   let result = guidedDraft(catalog, roster, manual, { rank: $("rank").value, trials: 1 });
-  let guard = 0;
-  while (manual.prebansDone && result?.action?.kind === "pick" && guard < 3) {
-    const ids = (result.action.ids || []).filter((id) => !manual.userPicks.includes(id));
-    if (!ids.length) break;
-    manual.userPicks.push(...ids);
-    manual.steps.push({ side: "user", ids: [...ids] });
-    manual.filledNote = result.action.detail || result.action.title || "";
-    result = guidedDraft(catalog, roster, manual, { rank: $("rank").value, trials: 1 });
-    guard += 1;
-  }
   const fight = draftedFight();
   if (fight && !manual.rule) {
     guideKey = draftKey();
@@ -310,28 +293,23 @@ function slotWords(index) {
 
 function draftStatusText(result) {
   const side = manual.userFirst ? "我方先手。" : "對方先手。";
-  const rule = "先手規則：先手 1-2-2，後手 2-2-1。雙方第 1、2 選和第 4、5 選都是關鍵。";
-  if (!manual.enemyPrebansDone) {
-    const title = result?.action?.title || "對方預禁了哪 2 名";
-    return `${side}${title}。點下面選對方預禁的人。選完才給我方預禁。`;
-  }
-  if (!manual.prebansDone) {
-    const title = result?.action?.title || "先給預禁";
-    return `${side}${title}。點下面的預禁，再開始填格子。`;
-  }
-  const note = manual.filledNote ? `${manual.filledNote}。` : "";
+  const rule = "選角是先手 1、後手 2、先手 2、後手 2、先手 2、後手 1。第 3 選是保護位核心。";
   if (manual.userPicks.length >= 5 && manual.enemyPicks.length >= 5) {
     if (!manual.userBanId || !manual.enemyBanId) {
       const suggest = result?.action?.kind === "ban" ? `${result.action.title}。` : "";
-      return `${side}${rule}選滿 5 名。${suggest}點對方格子或「我禁對方」打叉，再點我方格子或「對方禁我」。雙方第 3 選是保護位，不能打叉。`;
+      return `${side}${rule}五選完成。${suggest}點對方格子或「我禁對方」，再點我方格子或「對方禁我」。第 3 選不能打叉。`;
     }
-    return `${side}禁完了。下面寫這一場誰先打誰。`;
+    return `${side}禁完了。下面是戰鬥建議。`;
   }
   if (result?.action?.kind === "report") {
     const index = manual.enemyPicks.length;
-    return `${side}${rule}${note}點對方第 ${index + 1} 格，這是對方${slotWords(index)}。`;
+    return `${side}${rule}點對方第 ${index + 1} 格，這是對方${slotWords(index)}。`;
   }
-  return `${side}${rule}${note}`;
+  if (result?.action?.kind === "pick") {
+    const index = manual.userPicks.length;
+    return `${side}${rule}點我方第 ${index + 1} 格，只從有配裝的角色選。這是我方${slotWords(index)}。`;
+  }
+  return `${side}${rule}`;
 }
 
 function setOrder(userFirst) {
@@ -365,7 +343,10 @@ function paintSide(rootId, side, picks, banId) {
     const button = document.createElement("button");
     button.type = "button";
     const id = picks[index] || "";
-    const active = side === "enemy" && !full && lastAdvice?.action?.kind === "report" && index === picks.length;
+    const active = !full && index === picks.length && (
+      (side === "enemy" && lastAdvice?.action?.kind === "report")
+      || (side === "user" && lastAdvice?.action?.kind === "pick")
+    );
     button.className = ["cell", index === 2 ? "protect" : "key", id ? "filled" : "", id && id === banId ? "banned" : "", active ? "active" : ""].filter(Boolean).join(" ");
     const small = document.createElement("small");
     small.textContent = `第 ${index + 1} 選・${slotTag(index)}`;
@@ -394,26 +375,31 @@ function paintBan(button, label, id) {
 }
 
 function onCell(side, index) {
-  if (manual.userFirst == null) {
-    $("draftStatus").textContent = "先點「我先手」或「對方先手」。";
-    return;
-  }
-  if (!manual.enemyPrebansDone || !manual.prebansDone) {
-    $("draftStatus").textContent = "先選完對方預禁和我方預禁。";
+  if (!manual.rule || manual.userFirst == null) {
+    $("draftStatus").textContent = roster?.heroes?.length ? rosterReadLine(roster) : GEAR_ASK;
     return;
   }
   const full = manual.userPicks.length >= 5 && manual.enemyPicks.length >= 5;
   if (!full) {
-    if (side !== "enemy") return;
-    if (lastAdvice?.action?.kind !== "report" || index !== manual.enemyPicks.length) {
-      $("draftStatus").textContent = index === manual.enemyPicks.length
-        ? "這一手是我方，格子會自己填上。"
-        : `先點對方第 ${manual.enemyPicks.length + 1} 格。`;
+    if (side === "enemy") {
+      if (lastAdvice?.action?.kind !== "report" || index !== manual.enemyPicks.length) {
+        $("draftStatus").textContent = lastAdvice?.action?.kind === "pick"
+          ? "這一手是我方。點我方下一格，從有配裝的角色選。"
+          : `先點對方第 ${manual.enemyPicks.length + 1} 格。`;
+        return;
+      }
+      pendingSlot = { kind: "enemy", index };
+      pickerIds = null;
+      openDraftPicker(`對方第 ${index + 1} 格`);
       return;
     }
-    pendingSlot = { kind: "enemy", index };
+    if (lastAdvice?.action?.kind !== "pick" || index !== manual.userPicks.length) {
+      $("draftStatus").textContent = `先點對方第 ${manual.enemyPicks.length + 1} 格。`;
+      return;
+    }
+    pendingSlot = { kind: "user", index };
     pickerIds = null;
-    openDraftPicker(`對方第 ${index + 1} 格`);
+    openDraftPicker(`我方第 ${index + 1} 格`);
     return;
   }
   if (index === 2) {
@@ -517,6 +503,10 @@ function fillPicker(query = "") {
     const taken = draftTaken();
     heroes = heroes.filter((hero) => !taken.has(hero.id));
   }
+  if (pendingSlot?.kind === "user") {
+    const geared = new Set((roster?.heroes || []).filter((hero) => hero.geared).map((hero) => hero.id));
+    heroes = heroes.filter((hero) => geared.has(hero.id));
+  }
   heroes = heroes.filter((hero) => matchesPicker(hero, filters));
   for (const hero of heroes) {
     const labels = [hero.nameZh, hero.name, hero.id, ...(hero.aliases || [])].map((label) => String(label || ""));
@@ -560,6 +550,16 @@ function applyDraftChoice(slot, heroId) {
     if (manual.enemyPrebans.length >= each) manual.enemyPrebansDone = true;
     renderGuide();
     return;
+  }
+  if (slot.kind === "user") {
+    const geared = new Set((roster?.heroes || []).filter((hero) => hero.geared).map((hero) => hero.id));
+    if (!geared.has(heroId)) {
+      $("draftStatus").textContent = `${heroName(heroId)}沒有配裝，預設不推薦。`;
+      return;
+    }
+    if (manual.userPicks.length !== slot.index) return;
+    manual.userPicks.push(heroId);
+    manual.steps.push({ side: "user", ids: [heroId] });
   }
   if (slot.kind === "enemy") {
     const taken = draftTaken();
@@ -619,6 +619,10 @@ function withRecord(result) {
 
 function renderLive(result) {
   result = withRecord(result);
+  if (result?.phase === "ask" || result?.action?.kind === "ask") {
+    showCard({ action: result.action?.title || GEAR_ASK, rate: "", reason: "", click: result.action?.title === GEAR_ASK ? "import" : "" });
+    return;
+  }
   if (!result?.ok) {
     const title = result?.action?.title || "這一手沒有建議";
     showCard({
@@ -632,7 +636,7 @@ function renderLive(result) {
       action: oneAction(result),
       rate: rateLine(result),
       reason: oneReason(result),
-      lines: battleLines(result),
+      lines: result.phase === "battle" ? battleLines(result) : result.reason?.lines,
       click: result.action?.kind === "preban" ? "preban" : result.action?.kind === "enemy-preban" ? "enemy-preban" : "",
     });
   }

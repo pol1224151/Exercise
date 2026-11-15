@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { battleBrief, fightFromRoster, guidedDraft, hasPublicDamage, parseRoster, selectableHeroes, sourceBasis } from "../js/engine.js";
+import { GEAR_ASK, battleBrief, fightFromRoster, guidedDraft, hasPublicDamage, heroCode, parseRoster, rosterReadLine, selectableHeroes, sourceBasis } from "../js/engine.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
 const version = JSON.parse(readFileSync(new URL("../data/version.json", import.meta.url)));
@@ -19,79 +19,60 @@ delete stripped.provenance.rtaSeason;
 assert.equal(sourceBasis(stripped).ok, false);
 const asked = guidedDraft(catalog, roster, {}, { trials: 1, rank: "champion" });
 assert.equal(asked.action.kind, "ask");
-
-const askEnemyBan = guidedDraft(catalog, roster, {
-  userFirst: true,
-  prebansDone: false,
-  enemyPrebansDone: false,
-  userPicks: [],
-  enemyPicks: [],
-  prebans: [],
-  enemyPrebans: [],
-}, { trials: 1, rank: "champion" });
-assert.equal(askEnemyBan.ok, true, askEnemyBan.reason?.summary);
-assert.equal(askEnemyBan.action.kind, "enemy-preban");
-assert.match(askEnemyBan.action.title, /對方預禁了哪 2 名/);
-const openingBan = guidedDraft(catalog, roster, {
-  userFirst: true,
-  prebansDone: false,
-  enemyPrebansDone: true,
-  enemyPrebans: ["brieg", "charlotte"],
-  userPicks: [],
-  enemyPicks: [],
-  prebans: [],
-}, { trials: 1, rank: "champion" });
-assert.equal(openingBan.ok, true, openingBan.reason?.summary);
-assert.equal(openingBan.action.kind, "preban");
-assert.equal(openingBan.action.ids.length, 2);
-assert.equal(openingBan.action.ids.includes("brieg"), false);
-assert.equal(openingBan.action.ids.includes("charlotte"), false);
-assert.match(openingBan.action.title, /先禁/);
+assert.equal(asked.action.title, rosterReadLine(roster));
+assert.deepEqual(asked.reason.lines, [rosterReadLine(roster)]);
+const noGear = guidedDraft(catalog, { heroes: [], unknown: [] }, {});
+assert.equal(noGear.ok, false);
+assert.equal(noGear.action.title, GEAR_ASK);
+assert.equal(noGear.reason.summary.includes("選"), false);
 
 const firstMove = guidedDraft(catalog, roster, {
   userFirst: true,
-  prebansDone: true,
-  prebans: openingBan.action.ids,
+  rule: "attack",
   userPicks: [],
   enemyPicks: [],
 }, { trials: 1, rank: "champion" });
 assert.equal(firstMove.action.kind, "pick");
-assert.equal(firstMove.action.ids.length, 1);
-assert.match(firstMove.reason.summary, /先手規則/);
-assert.match(firstMove.reason.summary, /先手 1-2-2/);
-assert.match(firstMove.reason.summary, /我方第 1 選，關鍵/);
+assert.equal(firstMove.action.ids.length, 3);
+assert.equal(firstMove.action.need, 1);
+assert.match(firstMove.reason.summary, /【局面確認】/);
+assert.match(firstMove.reason.summary, /【我方推薦 Top 3】/);
+assert.match(firstMove.reason.summary, /燒魂傷害提高/);
+assert.equal(firstMove.reason.summary.includes("【BAN 建議】"), false);
+assert.equal(firstMove.reason.summary.includes("【戰鬥建議】"), false);
+assert.equal(firstMove.reason.summary.includes("【對手新角色檔案】"), false);
 
 const theirFirst = guidedDraft(catalog, roster, {
   userFirst: false,
-  prebansDone: true,
-  prebans: [],
+  rule: "defense",
   userPicks: [],
   enemyPicks: [],
 }, { trials: 1, rank: "champion" });
 assert.equal(theirFirst.action.kind, "report");
-assert.match(theirFirst.reason.summary, /後手 2-2-1/);
-assert.match(theirFirst.reason.summary, /對方第 1 選，關鍵/);
+assert.match(theirFirst.reason.summary, /對方第 1 選/);
+assert.equal(theirFirst.reason.summary.includes("【我方推薦 Top 3】"), false);
 
 const scales = selectableHeroes(catalog).find((hero) => hero.nameZh === "天秤之主");
 assert.ok(scales);
 const answerTwo = guidedDraft(catalog, roster, {
   userFirst: false,
-  prebansDone: true,
-  prebans: openingBan.action.ids,
+  rule: "resist",
   userPicks: [],
   enemyPicks: [scales.id],
 }, { trials: 1, rank: "champion" });
 assert.equal(answerTwo.ok, true, answerTwo.reason?.summary);
-assert.equal(answerTwo.action.kind, "pick");
-assert.equal(answerTwo.action.ids.length, 2);
+assert.match(answerTwo.reason.summary, /【對手新角色檔案】/);
+assert.match(answerTwo.reason.summary, /天秤之主/);
+assert.match(answerTwo.reason.summary, /【我方推薦 Top 3】/);
+assert.match(answerTwo.reason.summary, /控場與減益的成功率下降/);
 assert.equal(answerTwo.action.ids.includes(scales.id), false);
-assert.match(answerTwo.reason.summary, /關鍵/);
+assert.equal(answerTwo.reason.summary.includes("【BAN 建議】"), false);
+assert.equal(answerTwo.reason.summary.includes("【戰鬥建議】"), false);
 
 const heroIds = catalog.heroes.map((hero) => hero.id);
 const lastBan = guidedDraft(catalog, roster, {
   userFirst: true,
-  prebansDone: true,
-  prebans: [],
+  rule: "none",
   userPicks: heroIds.slice(0, 5),
   enemyPicks: heroIds.slice(5, 10),
 }, { trials: 1, rank: "champion" });
@@ -114,7 +95,14 @@ assert.equal(brief.reason.summary.includes("擦傷"), false);
 assert.equal(brief.reason.summary.includes("cannotCrit"), false);
 assert.match(brief.reason.summary, /還活著的機會/);
 assert.match(brief.action.title, /^我方/);
-assert.equal(brief.reason.summary.includes("使用率"), false);
+const beforeArtifacts = (summary) => {
+  const at = summary.indexOf("【神器分支】");
+  return at < 0 ? summary : summary.slice(0, at);
+};
+assert.equal(beforeArtifacts(brief.reason.summary).includes("使用率"), false);
+assert.match(brief.reason.summary, /【神器分支】/);
+assert.match(brief.reason.summary, /【戰鬥建議】/);
+assert.equal(brief.reason.summary.includes("【BAN 建議】"), false);
 assert.equal(brief.reason.summary.includes("速度分位"), false);
 assert.equal(brief.reason.summary, brief.reason.lines.join("\n"));
 for (const label of ["誰先打誰：", "要不要開大：", "打到誰：", "先殺誰："]) {
@@ -190,18 +178,18 @@ assert.equal(filled.reason.summary.includes("不指定先殺"), false);
 
 const notosPick = guidedDraft(catalog, roster, {
   userFirst: true,
-  prebansDone: true,
-  prebans: [],
+  rule: "attack",
   userPicks: ["estelle"],
   enemyPicks: ["notos", "mercedes"],
 }, { trials: 1, rank: "champion" });
 assert.equal(notosPick.ok, true, notosPick.reason?.summary);
 assert.equal(notosPick.action.kind, "pick");
-assert.equal(notosPick.action.ids.length, 2);
+assert.equal(notosPick.action.need, 2);
+assert.equal(notosPick.action.ids.length, 3);
 assert.match(notosPick.reason.summary, /諾托斯/);
 assert.match(notosPick.reason.summary, /計數器|反制|協同|速度|建造|配對/);
-assert.match(notosPick.reason.summary, /我方已選/);
-assert.match(notosPick.reason.summary, /對方已選/);
+assert.match(notosPick.reason.summary, /已選/);
+assert.match(notosPick.reason.summary, /目前對手/);
 assert.match(notosPick.reason.summary, /保護位|關鍵位/);
 assert.equal(notosPick.action.ids.includes("estelle"), false);
 assert.equal(notosPick.action.ids.includes("notos"), false);
@@ -209,15 +197,13 @@ assert.equal(notosPick.reason.summary.includes("無視所有"), false);
 
 const damagePick = guidedDraft(catalog, roster, {
   userFirst: true,
-  prebansDone: true,
-  prebans: [],
+  rule: "attack",
   userPicks: ["estelle"],
   enemyPicks: ["mercedes", "ras"],
 }, { trials: 1, rank: "champion" });
 const buffPick = guidedDraft(catalog, roster, {
   userFirst: true,
-  prebansDone: true,
-  prebans: [],
+  rule: "attack",
   userPicks: ["estelle"],
   enemyPicks: ["diene", "elena"],
 }, { trials: 1, rank: "champion" });
@@ -269,7 +255,7 @@ const rangerAt = ranger.reason.summary.indexOf("黎明的序曲魯特比");
 const rangerSlice = ranger.reason.summary.slice(rangerAt, rangerAt + 180);
 assert.match(rangerSlice, /黎明的序曲魯特比/);
 assert.equal(rangerSlice.includes("16.41%"), false);
-assert.equal(ranger.reason.summary.includes("使用率"), false);
+assert.equal(beforeArtifacts(ranger.reason.summary).includes("使用率"), false);
 const worn = fightFromRoster({
   userFight: ["arbiter-vildred", "belian", "estelle", "harsetti"],
   enemyFight: ["aubade-ludwig", "mercedes", "ras", "diene"],
@@ -296,14 +282,17 @@ const ruled = battleBrief(catalog, roster, {
   userFight: heroIds.slice(0, 4),
   enemyFight: heroIds.slice(4, 8),
 });
-assert.equal(ruled.reason.lines[0], "戰爭規則：進攻。靈魂燃燒技能造成的傷害提升 15%。");
+assert.equal(ruled.reason.lines[0], "【局面確認】");
+assert.match(ruled.reason.summary, /靈魂燃燒技能的傷害量增加 15%/);
+assert.match(ruled.reason.summary, /燒魂傷害提高/);
 const plain = battleBrief(catalog, roster, {
   userFirst: true,
   rule: "none",
   userFight: heroIds.slice(0, 4),
   enemyFight: heroIds.slice(4, 8),
 });
-assert.equal(plain.reason.lines[0], "戰爭規則：無規則。");
+assert.equal(plain.reason.lines[0], "【局面確認】");
+assert.match(plain.reason.summary, /無規則：沒有額外效果/);
 assert.equal(plain.reason.summary.includes("靈魂燃燒技能造成的傷害提升 15%"), false);
 const aubeFight = battleBrief(catalog, roster, {
   userFirst: true,
@@ -315,7 +304,7 @@ assert.equal(aubeFight.ok, true, aubeFight.reason?.summary);
 assert.match(aubeFight.reason.summary, /可提升回收量與防護強度 30%/);
 assert.match(aubeFight.reason.summary, /奧芙/);
 assert.equal(aubeFight.reason.summary.includes("速度分位"), false);
-assert.equal(aubeFight.reason.summary.includes("使用率"), false);
+assert.equal(beforeArtifacts(aubeFight.reason.summary).includes("使用率"), false);
 assert.equal(aubeFight.reason.summary.includes("梯隊"), false);
 assert.equal(aubeFight.reason.summary.includes("Aubade"), false);
 assert.equal(aubeFight.reason.summary.includes("Postban"), false);
@@ -328,8 +317,8 @@ const booked = fightFromRoster({
   userFight: [mage.id, rest[0].id, rest[1].id, rest[2].id],
   enemyFight: [rest[3].id, rest[4].id, rest[5].id, rest[6].id],
 }, roster, catalog, { order: ["S1"], burn: false }, "base", () => 0.5);
-assert.match(booked.log.join("\n"), /魂書/);
-assert.match(booked.log.join("\n"), /20 魂/);
+assert.equal(booked.log.join("\n").includes("預設魂書"), false);
+assert.equal(booked.log.join("\n").includes("開場 20 魂"), false);
 const list = selectableHeroes(catalog);
 assert.ok(list.some((hero) => hero.nameZh === "天秤之主"));
 assert.ok(list.some((hero) => hero.nameZh === "一輪孤月維爾蘿娜"));
@@ -342,10 +331,7 @@ assert.ok(list.some((hero) => hero.listed === false));
 function sideDraft(enemyIds) {
   const state = {
     userFirst: true,
-    prebansDone: true,
-    enemyPrebansDone: true,
-    enemyPrebans: [],
-    prebans: [],
+    rule: "attack",
     userPicks: [],
     enemyPicks: [],
   };
@@ -353,7 +339,8 @@ function sideDraft(enemyIds) {
   for (let guard = 0; state.userPicks.length < 5 && guard < 20; guard += 1) {
     const result = guidedDraft(catalog, roster, state, { rank: "champion", trials: 1 });
     if (result.action.kind === "pick") {
-      for (const id of result.action.ids) {
+      const take = result.action.need || 1;
+      for (const id of result.action.ids.slice(0, take)) {
         assert.equal(state.userPicks.includes(id) || state.enemyPicks.includes(id), false, id);
         state.userPicks.push(id);
       }
@@ -427,6 +414,51 @@ assert.match(darkHit, /開場自己有不死 1 回合，叫攻擊最高的森之
 assert.match(darkClaws.reason.summary, /技能組合：黑暗牧者迪埃妮一技打對方/);
 assert.equal(darkClaws.reason.summary.includes("一技給隊友"), false);
 assert.equal(darkClaws.reason.summary.includes("這是增益，先幫我方輸出"), false);
+
+assert.equal(heroCode("Rhianna and Luciella"), "rhianna-and-luciella");
+const thin = parseRoster({
+  heroes: [
+    { name: "Arbiter Vildred", atk: 4000, hp: 12000, def: 1000, cr: 100, cd: 280, eff: 20, res: 0, dac: 5, spd: 250 },
+    { name: "Estelle", atk: 0, hp: 0, def: 0, cr: 0, cd: 0, eff: 0, res: 0, dac: 0, spd: 0 },
+    { name: "Not A Real Person" },
+  ],
+}, catalog);
+assert.equal(thin.unknown.join("、"), "Not A Real Person");
+assert.equal(thin.heroes.find((hero) => hero.id === "estelle").geared, false);
+assert.equal(rosterReadLine(thin), "已讀取 3 隻角色，其中 1 隻有配裝。請告訴我規則與先後手。");
+const thinPick = guidedDraft(catalog, thin, {
+  userFirst: true,
+  rule: "special",
+  userPicks: ["arbiter-vildred"],
+  enemyPicks: ["school-nurse-yulha"],
+});
+assert.equal(thinPick.action.ids.includes("estelle"), false);
+assert.match(thinPick.reason.summary, /迴避變低/);
+assert.match(thinPick.reason.summary, /Not A Real Person/);
+assert.match(thinPick.reason.summary, /不假設我方帶魂書/);
+
+const sampleTurn = guidedDraft(catalog, roster, {
+  userFirst: true,
+  rule: "attack",
+  userPicks: ["arbiter-vildred"],
+  enemyPicks: ["school-nurse-yulha"],
+});
+assert.equal(sampleTurn.ok, true, sampleTurn.reason.summary);
+assert.match(sampleTurn.reason.summary, /【局面確認】/);
+assert.match(sampleTurn.reason.summary, /【對手新角色檔案】/);
+assert.match(sampleTurn.reason.summary, /【對手陣容判讀】/);
+assert.match(sampleTurn.reason.summary, /【我方推薦 Top 3】/);
+assert.match(sampleTurn.reason.summary, /【神器分支】/);
+assert.match(sampleTurn.reason.summary, /【信心度】/);
+assert.match(sampleTurn.reason.summary, /【需要我補充】/);
+assert.equal(sampleTurn.reason.summary.includes("【BAN 建議】"), false);
+assert.equal(sampleTurn.reason.summary.includes("【戰鬥建議】"), false);
+assert.match(sampleTurn.reason.summary, /保健室老師律荷/);
+assert.match(sampleTurn.reason.summary, /使用率/);
+for (const id of sampleTurn.action.ids) {
+  const own = roster.heroes.find((hero) => hero.id === id);
+  assert.equal(own?.geared, true, id);
+}
 
 const e7 = JSON.parse(readFileSync(new URL("../data/e7rtabot-rta.json", import.meta.url)));
 const overForty = Object.values(e7.英雄).filter((row) => row.選擇率 > 0.4);

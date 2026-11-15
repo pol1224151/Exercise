@@ -26,19 +26,19 @@
     <section id="draft" class="draft">
       <p class="lane-label">戰爭規則</p>
       <div class="rule-row" id="ruleRow">
-        <button type="button" data-rule="attack">進攻</button>
-        <button type="button" data-rule="defense">防守</button>
+        <button type="button" data-rule="attack">攻擊</button>
+        <button type="button" data-rule="defense">防禦</button>
         <button type="button" data-rule="resist">抵抗</button>
-        <button type="button" data-rule="special">特別節目</button>
+        <button type="button" data-rule="special">特殊</button>
         <button type="button" data-rule="none">無規則</button>
       </div>
-      <p id="ruleText" class="note">先選戰爭規則，再算戰況。</p>
+      <p id="ruleText" class="note">先選戰爭規則，再點先後手。</p>
       <div class="row">
         <button id="weFirst" type="button">我先手</button>
         <button id="theyFirst" type="button">對方先手</button>
         <button id="resetDraft" type="button">這場重來</button>
       </div>
-      <p id="draftStatus" class="note">點「我先手」或「對方先手」。我方格子會自己填上英雄。</p>
+      <p id="draftStatus" class="note"></p>
       <div class="board">
         <div class="lane">
           <p class="lane-label">對方</p>
@@ -57,9 +57,9 @@
       </div>
     </section>
     <section id="now">
-      <button id="liveAction" type="button" class="action" disabled>先讀入帳號</button>
-      <p id="liveRate" class="rate">尚無勝率</p>
-      <div id="liveReason">按「匯入帳號」，選 gear.txt 或 Fribbels 的 Save all JSON。</div>
+      <button id="liveAction" type="button" class="action" disabled>請先提供你的角色練度（Fribbels E7 Optimizer 匯出的 JSON 或摘要）。</button>
+      <p id="liveRate" class="rate"></p>
+      <div id="liveReason"></div>
       <div class="row" id="resultRow">
         <button id="liveWin" type="button" disabled>贏了</button>
         <button id="liveLoss" type="button" disabled>輸了</button>
@@ -115,7 +115,7 @@
             <input id="cutoff" type="number" min="0" max="100" step="1" value="40"> %
           </label>
         </div>
-        <p class="note">打成 4 對 4 後可以記贏或輸。同類型實戰會附在後面。門檻預設 40。選角依你點的對方英雄重算，不另換一套固定名單。先手規則：先手 1-2-2，後手 2-2-1，每邊 5 名。雙方第 1、2 選和第 4、5 選都是關鍵，第 3 選是保護。戰況只用資料庫裡有數字的效果。法師位預設帶給 20 魂的魂書。沒有倍率的不另編。</p>
+        <p class="note">沒有練度檔時不給選角。讀完後先等規則和先後手。我方只從有配裝的角色推薦，屬性全 0 不推薦。對手每多一人，先出檔案、陣容和我方前 3 名。五選完成才出 BAN。禁完才出戰鬥建議。不假設我方帶魂書。沒有寫進資料的數字寫不確定。第 3 選是保護位核心。</p>
       </section>
 
       <section>
@@ -158,8 +158,8 @@
         <button type="button" data-star="4" aria-pressed="false">4星</button>
         <button type="button" data-star="5" aria-pressed="false">5星</button>
         <button type="button" data-element="fire" aria-pressed="false">火</button>
-        <button type="button" data-element="ice" aria-pressed="false">水</button>
-        <button type="button" data-element="wind" aria-pressed="false">木</button>
+        <button type="button" data-element="ice" aria-pressed="false">寒氣</button>
+        <button type="button" data-element="wind" aria-pressed="false">自然</button>
         <button type="button" data-element="light" aria-pressed="false">光</button>
         <button type="button" data-element="dark" aria-pressed="false">暗</button>
         <button type="button" data-role="warrior" aria-pressed="false">戰士</button>
@@ -167,7 +167,7 @@
         <button type="button" data-role="assassin" aria-pressed="false">盜賊</button>
         <button type="button" data-role="ranger" aria-pressed="false">射手</button>
         <button type="button" data-role="mage" aria-pressed="false">魔導士</button>
-        <button type="button" data-role="manauser" aria-pressed="false">精靈師</button>
+        <button type="button" data-role="manauser" aria-pressed="false">靈魂術士</button>
       </div>
       <p class="note">星級、屬性、職業可以一起勾。沒勾的那一類不拿來藏人。</p>
       <div id="pickerList" class="picker-list"></div>
