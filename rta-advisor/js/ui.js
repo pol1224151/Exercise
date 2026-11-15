@@ -25,6 +25,7 @@ function blankDraft(userFirst = null) {
     enemyBanId: null,
     steps: [],
     filledNote: "",
+    exclusiveNote: "",
   };
 }
 
@@ -223,7 +224,7 @@ function draftTaken() {
 }
 
 function draftKey() {
-  return [manual.rule || "", manual.userFirst, manual.enemyPrebansDone, (manual.enemyPrebans || []).join(","), manual.prebansDone, (manual.prebans || []).join(","), manual.userPicks.join(","), manual.enemyPicks.join(","), manual.userBanId || "", manual.enemyBanId || "", $("rank")?.value || ""].join("|");
+  return [manual.rule || "", manual.userFirst, manual.exclusiveNote || "", manual.enemyPrebansDone, (manual.enemyPrebans || []).join(","), manual.prebansDone, (manual.prebans || []).join(","), manual.userPicks.join(","), manual.enemyPicks.join(","), manual.userBanId || "", manual.enemyBanId || "", $("rank")?.value || ""].join("|");
 }
 
 function paintRule() {
@@ -314,8 +315,10 @@ function draftStatusText(result) {
 
 function setOrder(userFirst) {
   const rule = manual.rule || "";
+  const exclusiveNote = manual.exclusiveNote || "";
   manual = blankDraft(userFirst);
   manual.rule = rule;
+  manual.exclusiveNote = exclusiveNote;
   guideKey = "";
   openRecord = null;
   const record = $("liveRecord");
@@ -750,6 +753,11 @@ for (const button of document.querySelectorAll("#ruleRow button")) {
 $("weFirst").addEventListener("click", () => setOrder(true));
 $("theyFirst").addEventListener("click", () => setOrder(false));
 $("resetDraft").addEventListener("click", () => setOrder(null));
+$("exclusiveNote").addEventListener("input", (event) => {
+  manual.exclusiveNote = event.target.value;
+  guideKey = "";
+  if (roster?.heroes?.length) renderGuide();
+});
 $("ourBan").addEventListener("click", () => onBan("enemy"));
 $("theirBan").addEventListener("click", () => onBan("user"));
 $("liveAction").addEventListener("click", () => {

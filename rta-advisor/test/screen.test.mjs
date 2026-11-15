@@ -96,11 +96,11 @@ assert.equal(brief.reason.summary.includes("cannotCrit"), false);
 assert.match(brief.reason.summary, /還活著的機會/);
 assert.match(brief.action.title, /^我方/);
 const beforeArtifacts = (summary) => {
-  const at = summary.indexOf("【神器分支】");
+  const at = summary.indexOf("【配裝與專武分支】");
   return at < 0 ? summary : summary.slice(0, at);
 };
 assert.equal(beforeArtifacts(brief.reason.summary).includes("使用率"), false);
-assert.match(brief.reason.summary, /【神器分支】/);
+assert.match(brief.reason.summary, /【配裝與專武分支】/);
 assert.match(brief.reason.summary, /【戰鬥建議】/);
 assert.equal(brief.reason.summary.includes("【BAN 建議】"), false);
 assert.equal(brief.reason.summary.includes("速度分位"), false);
@@ -448,13 +448,57 @@ assert.match(sampleTurn.reason.summary, /【局面確認】/);
 assert.match(sampleTurn.reason.summary, /【對手新角色檔案】/);
 assert.match(sampleTurn.reason.summary, /【對手陣容判讀】/);
 assert.match(sampleTurn.reason.summary, /【我方推薦 Top 3】/);
-assert.match(sampleTurn.reason.summary, /【神器分支】/);
+assert.match(sampleTurn.reason.summary, /【配裝與專武分支】/);
 assert.match(sampleTurn.reason.summary, /【信心度】/);
 assert.match(sampleTurn.reason.summary, /【需要我補充】/);
 assert.equal(sampleTurn.reason.summary.includes("【BAN 建議】"), false);
 assert.equal(sampleTurn.reason.summary.includes("【戰鬥建議】"), false);
 assert.match(sampleTurn.reason.summary, /保健室老師律荷/);
-assert.match(sampleTurn.reason.summary, /使用率/);
+assert.match(sampleTurn.reason.summary, /開場效果：/);
+const profileAt = sampleTurn.reason.summary.indexOf("【對手新角色檔案】");
+const skillAt = sampleTurn.reason.summary.indexOf("一技：");
+const openingAt = sampleTurn.reason.summary.indexOf("開場效果：");
+assert.ok(profileAt >= 0 && openingAt > profileAt && (skillAt < 0 || openingAt < skillAt));
+assert.match(sampleTurn.reason.summary, /組合使用率/);
+assert.match(sampleTurn.reason.summary, /這是套裝組合的比例，不是神器使用率/);
+assert.equal(/常見神器/.test(sampleTurn.reason.summary), false);
+const gearAt = sampleTurn.reason.summary.indexOf("【配裝與專武分支】");
+const gearBody = sampleTurn.reason.summary.slice(gearAt, sampleTurn.reason.summary.indexOf("【信心度】"));
+const comboLine = gearBody.split("\n").find((row) => row.includes("預設用使用率最高的配裝"));
+assert.match(comboLine, /套裝 .+，神器 .+。組合使用率 \d/);
+assert.equal(/神器使用率 \d/.test(comboLine), false);
+assert.match(gearBody, /神器使用率是資料庫已經加總的數字，統計範圍是 Epic7RTAStats/);
+
+const noBuild = guidedDraft(catalog, roster, {
+  userFirst: true,
+  rule: "attack",
+  userPicks: ["arbiter-vildred"],
+  enemyPicks: ["coli"],
+});
+assert.equal(noBuild.ok, true, noBuild.reason?.summary);
+assert.equal(noBuild.reason.summary.includes("【配裝與專武分支】"), false);
+assert.match(noBuild.reason.summary, /缺少可麗的配裝表/);
+
+const scoutTurn = guidedDraft(catalog, roster, {
+  userFirst: true,
+  rule: "attack",
+  userPicks: ["arbiter-vildred"],
+  enemyPicks: ["mighty-scout"],
+});
+assert.match(scoutTurn.reason.summary, /缺少偵查兵瑪伊堤的角色資料卡/);
+assert.match(scoutTurn.reason.summary, /【信心度】\n低/);
+assert.equal(scoutTurn.reason.summary.includes("一技："), false);
+assert.match(scoutTurn.reason.summary, /資料可能過時，請確認/);
+
+const told = guidedDraft(catalog, roster, {
+  userFirst: true,
+  rule: "attack",
+  userPicks: ["arbiter-vildred"],
+  enemyPicks: ["school-nurse-yulha"],
+  exclusiveNote: "我的維德瑞有專武",
+});
+assert.match(told.reason.summary, /你說執行官維德瑞有專武/);
+assert.equal(told.reason.summary.includes("專武效果全部"), false);
 for (const id of sampleTurn.action.ids) {
   const own = roster.heroes.find((hero) => hero.id === id);
   assert.equal(own?.geared, true, id);

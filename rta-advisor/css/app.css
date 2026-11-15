@@ -201,8 +201,18 @@ main section {
 
 label { display: grid; gap: 4px; font-size: 0.92rem; }
 
-select, button, .file {
+select, button, .file, .exclusive input {
   font: inherit;
+}
+
+.exclusive { margin: 8px 0 0; max-width: 28rem; }
+.exclusive input {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 8px 12px;
 }
 
 select, button {

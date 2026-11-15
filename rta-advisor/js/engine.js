@@ -9,6 +9,7 @@ import screenSkills from "../data/screen-skills.json" with { type: "json" };
 import rarityByCode from "../data/rarity.json" with { type: "json" };
 import e7Rta from "../data/e7rtabot-rta.json" with { type: "json" };
 import skillEnhanceMax from "../data/skill-enhance-max.json" with { type: "json" };
+import versionFile from "../data/version.json" with { type: "json" };
 
 const ADVANTAGE = { fire: "wind", wind: "ice", ice: "fire", light: "dark", dark: "light" };
 
@@ -2044,9 +2045,9 @@ function e7BuildBits(hero) {
   if (!row?.有頁 || !row.建造?.length) return [];
   return row.建造.map((build) => {
     const sets = (build.套裝 || []).filter(Boolean).join("、") || "頁上沒有套裝";
-    const used = typeof build.使用率 === "number" ? `${Math.round(build.使用率 * 100)}%` : "頁上沒有使用率";
+    const used = typeof build.使用率 === "number" ? `組合使用率 ${Math.round(build.使用率 * 100)}%，這是套裝組合的比例，不是神器使用率` : "頁上沒有使用率";
     const win = typeof build.勝率 === "number" ? `，勝率 ${pagePercent(build.勝率)}` : "，頁上沒有勝率";
-    return `套裝 ${sets}，神器 ${shownZh(build.神器 || "無神器", "無神器")}，使用率 ${used}${win}`;
+    return `套裝 ${sets}，神器 ${shownZh(build.神器 || "無神器", "無神器")}，${used}${win}`;
   });
 }
 
@@ -3089,7 +3090,7 @@ function sectionLines(parts) {
     ["我方推薦 Top 3", parts.top],
     ["BAN 建議", parts.ban],
     ["戰鬥建議", parts.battle],
-    ["神器分支", parts.artifact],
+    ["配裝與專武分支", parts.gear],
     ["信心度", parts.confidence],
     ["需要我補充", parts.need],
   ];
@@ -3105,6 +3106,37 @@ function sectionLines(parts) {
 
 function ownHero(roster, id) {
   return (roster?.heroes || []).find((hero) => hero.id === id || canonicalId(hero.id) === canonicalId(id)) || null;
+}
+
+function catalogHero(catalog, id) {
+  if (!id) return null;
+  const key = canonicalId(id);
+  for (const pool of [catalog?.heroes || [], catalog?.database || []]) {
+    const hero = pool.find((row) => row.id === id || canonicalId(row.id) === key);
+    if (hero?.nameZh) return hero;
+  }
+  return null;
+}
+
+function appliedPatchDate() {
+  const text = String(versionFile.patchZh || versionFile.patch || "");
+  const applied = [];
+  for (const sentence of text.split(/。|\. /)) {
+    if (/預告|沒有算|preview|not applied/i.test(sentence)) continue;
+    for (const match of sentence.matchAll(/(\d{4}-\d{2}-\d{2})/g)) applied.push(match[1]);
+  }
+  return applied.sort().at(-1) || "";
+}
+
+function dataWindowEnd() {
+  const dates = [...String(e7Rta.勝率區間 || "").matchAll(/(\d{4}-\d{2}-\d{2})/g)].map((match) => match[1]);
+  return dates.sort().at(-1) || "";
+}
+
+function dateStale() {
+  const end = dataWindowEnd();
+  const patch = appliedPatchDate();
+  return Boolean(end && patch && end < patch);
 }
 
 function roleAttr(hero) {
@@ -3131,26 +3163,116 @@ function usageText(rate) {
   return `${pct}%`;
 }
 
-function topArtifacts(catalog, hero) {
-  return artifactPool(catalog, hero).filter((art) => art.zh && typeof art.rate === "number").slice(0, 3);
+function battleStartSentences(skill) {
+  const text = `${skill?.text || ""}`.replace(/[’‘]/g, "'");
+  const sentences = text.split(/(?<=\.)\s+/).map((row) => row.trim()).filter(Boolean);
+  const picked = [];
+  for (let index = 0; index < sentences.length; index += 1) {
+    if (!/at the start of (?:the first )?battle/i.test(sentences[index])) continue;
+    let sentence = sentences[index];
+    const next = sentences[index + 1] || "";
+    if (/when granted immortality/i.test(next)) sentence = `${sentence} ${next}`;
+    picked.push(sentence);
+  }
+  return picked;
 }
 
-function artifactBranchLines(catalog, hero) {
-  const name = hero?.nameZh || "這名";
-  const arts = topArtifacts(catalog, hero);
-  if (!arts.length) return [`${name}的神器使用率：不確定。`];
-  return arts.map((art) => {
-    const used = usageText(art.rate);
-    const note = ARTIFACT_NOTES[art.name];
-    if (art.name === "Guiding Light") {
-      return `${name}常見神器 ${art.zh}，使用率 ${used}。若看到開場打不到這名，代表他帶引導，立刻改用範圍技，或先打其他人。沒有引導就可以直接集火。`;
+function openingFact(sentence) {
+  const bits = [];
+  if (/increases Attack proportional to (?:the caster's )?max Health/i.test(sentence)) bits.push("依自己最大生命增加攻擊，頁上沒寫比例");
+  if (/immortality/i.test(sentence)) {
+    const turns = sentence.match(/immortality for (\d+) turns?/i);
+    bits.push(turns ? `不死 ${turns[1]} 回合` : "不死");
+  }
+  const resist = sentence.match(/increases Effect Resistance by (\d+)%/i);
+  if (resist && /immortality/i.test(sentence)) bits.push(`效果抗性增加 ${resist[1]}%`);
+  const stealth = sentence.match(/(\d+(?:\.\d+)?)%\s*chance to grant stealth for (\d+) turns?/i);
+  if (stealth) bits.push(`${stealth[1]}% 機率隱身 ${stealth[2]} 回合`);
+  else {
+    const quiet = sentence.match(/grant stealth for (\d+) turns?/i);
+    if (quiet) bits.push(`隱身 ${quiet[1]} 回合`);
+  }
+  const granting = sentence.match(/grants? ([a-z][a-z ]+?) to ([a-z][a-z ]+?) for (\d+) turns/i);
+  if (granting) {
+    const buffs = {
+      rampage: "狂暴", stealth: "隱身", barrier: "防護罩", vigor: "氣勢", immunity: "免疫",
+      shield: "防護罩", counterattack: "反擊", "skill nullifier": "技能傷害無效", superhumanization: "超人化",
+    };
+    const name = buffs[granting[1].trim().toLowerCase()];
+    if (name && name !== "隱身") bits.push(`${whoZh(granting[2])} ${name} ${granting[3]} 回合`);
+  }
+  const evasion = sentence.match(/Increases Evasion by (\d+(?:\.\d+)?)%/i);
+  if (evasion) bits.push(`閃避增加 ${evasion[1]}%`);
+  const attack = sentence.match(/increases Attack by (\d+(?:\.\d+)?)%/i);
+  if (attack) bits.push(`攻擊增加 ${attack[1]}%`);
+  return bits.filter((bit, index) => bits.indexOf(bit) === index).join("，");
+}
+
+function openingEffectLines(hero) {
+  if (skillUnverified(hero)) return [];
+  const lines = [];
+  for (const slot of ["S1", "S2", "S3"]) {
+    const skill = hero?.skills?.[slot];
+    if (!skill) continue;
+    const source = skill.passive ? "被動" : "技能";
+    for (const sentence of battleStartSentences(skill)) {
+      const fact = openingFact(sentence) || "技能文字有寫開場，沒有寫出可引用的數字";
+      const turns = sentence.match(/for (\d+) turns?/i);
+      const duration = turns ? `持續 ${turns[1]} 回合` : "持續回合：不確定";
+      let dispel = "可否驅散：不確定";
+      if (/cannot be dispelled/i.test(sentence)) dispel = "不可驅散";
+      else if (/\bcan be dispelled\b/i.test(sentence)) dispel = "可驅散";
+      lines.push(`開場效果：${fact}。來源：${source}。${duration}。${dispel}。`);
     }
-    if (/book|tome|tagehel/i.test(art.name) || /魂書/.test(art.zh)) {
-      return `${name}常見神器 ${art.zh}，使用率 ${used}。若看到開場就能燒魂或很快放大，代表他帶魂書，立刻搶節奏或先壓這名。沒有就放慢，不要假設我方帶魂書。`;
-    }
-    if (note) return `${name}常見神器 ${art.zh}，使用率 ${used}。${note.effect}${note.answer}`;
-    return `${name}常見神器 ${art.zh}，使用率 ${used}。這件的對應打法不確定。`;
+  }
+  return lines;
+}
+
+function hasListedOpening(hero) {
+  return openingEffectLines(hero).length > 0;
+}
+
+function gearSwitch(catalog, artifactZhName) {
+  const english = artifactEnglish(catalog, artifactZhName);
+  if (english === "Guiding Light") return "若看到開場打不到這名，代表他帶引導之光，立刻改成範圍技或先打其他人。";
+  if (english === "Aubade Orb") return "若看到開場魂比平常多，代表他帶黎明寶珠，立刻改成先壓這名的魂。";
+  if (english === "Unseen Observer") return "若看到他放非攻擊技後拉條，代表他帶隱形的觀察者，立刻改成先壓這名。";
+  if (english === "Wall of Order") return "若看到回合結束才隱身，代表他帶秩序護牆，立刻改成開場先打這名。";
+  if (/book|tome|tagehel/i.test(english) || /魂書|古書/.test(artifactZhName || "")) return "若看到開場就能燒魂，代表他帶魂書，立刻改成搶節奏。沒有就放慢。";
+  return "";
+}
+
+function gearBranchLines(catalog, hero) {
+  const builds = (e7Record(hero?.code)?.建造 || [])
+    .filter((build) => (build.套裝 || []).some(Boolean) || build.神器)
+    .slice()
+    .sort((left, right) => (right.使用率 || 0) - (left.使用率 || 0));
+  const top = [];
+  const seen = new Set();
+  for (const build of builds) {
+    const key = `${(build.套裝 || []).join("/")}|${build.神器 || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    top.push(build);
+    if (top.length === 2) break;
+  }
+  if (!top.length) return [];
+  const lines = top.map((build, index) => {
+    const sets = (build.套裝 || []).filter(Boolean).join("、") || "套裝不在這列";
+    const art = shownZh(build.神器 || "無神器", "無神器");
+    const used = typeof build.使用率 === "number" ? `組合使用率 ${usageText(build.使用率)}。這是套裝組合的比例，不是神器使用率。` : "";
+    const win = typeof build.勝率 === "number" ? `勝率 ${usageText(build.勝率)}。` : "";
+    const head = index === 0 ? "預設用使用率最高的配裝" : "次高當備案";
+    const seenTell = gearSwitch(catalog, build.神器);
+    return `${hero.nameZh}${head}：套裝 ${sets}，神器 ${art}。${used}${win}${seenTell}`.replace(/。{2,}/g, "。");
   });
+  const aggregated = (hero?.rtaGear?.artifacts || []).filter((art) => art?.names?.[0] && typeof art.pickRate === "number").slice(0, 2);
+  if (aggregated.length) {
+    const bits = aggregated.map((art) => `${artifactZh(catalog, art.names[0])} ${Math.round(art.pickRate * 10) / 10}%`).join("、");
+    const updated = hero.rtaGear?.updated || "沒有日期";
+    lines.push(`神器使用率是資料庫已經加總的數字，統計範圍是 Epic7RTAStats 冠軍以上，更新日期 ${updated}：${bits}。這組數字不是上面的套裝組合使用率。`);
+  }
+  return lines;
 }
 
 function compareSpeed(fileSpeed, hero) {
@@ -3164,19 +3286,31 @@ function compareSpeed(fileSpeed, hero) {
 }
 
 function heroProfileLines(catalog, hero) {
-  if (!hero) return ["技能資料未查證，以下為一般認知，可能有誤。"];
-  const lines = [`${hero.nameZh}，${roleAttr(hero)}。`];
-  if (skillUnverified(hero)) {
-    lines.push("技能資料未查證，以下為一般認知，可能有誤。");
-    lines.push(speedBandText(hero));
-    return lines;
+  if (!hero) return [];
+  const name = hero.nameZh || "這名";
+  const row = e7Record(hero.code);
+  if (!row?.有頁) {
+    const win = typeof row?.勝率 === "number" ? `勝率 ${pagePercent(row.勝率)}。` : "勝率：不確定。";
+    return [
+      `缺少${name}的角色資料卡。`,
+      `${name}，${roleAttr(hero)}。`,
+      speedBandText(hero),
+      win,
+      "只依速度、勝率、職業、屬性粗略判斷。",
+    ];
   }
-  lines.push(skillBrief(hero, "S1", "一技"), skillBrief(hero, "S2", "二技"), skillBrief(hero, "S3", "大招"), passiveNote(hero), speedBandText(hero));
+  const lines = [`${name}，${roleAttr(hero)}。`];
+  const openings = openingEffectLines(hero);
+  if (openings.length) lines.push(...openings);
+  else lines.push(skillUnverified(hero) ? "開場效果：沒有技能文字，不憑記憶補。" : "開場效果：公開技能文字沒有寫開場。");
+  if (skillUnverified(hero)) lines.push("缺少技能文字，不憑記憶補。");
+  else lines.push(skillBrief(hero, "S1", "一技"), skillBrief(hero, "S2", "二技"), skillBrief(hero, "S3", "大招"), passiveNote(hero));
+  lines.push(speedBandText(hero));
   return lines.filter(Boolean);
 }
 
 function lineupLines(catalog, enemyPicks, rule) {
-  const heroes = (enemyPicks || []).map((id) => draftHero(catalog, id)).filter(Boolean);
+  const heroes = (enemyPicks || []).map((id) => catalogHero(catalog, id)).filter(Boolean);
   if (!heroes.length) return [];
   const names = heroes.map((hero) => hero.nameZh).join("、");
   const text = heroes.map((hero) => ["S1", "S2", "S3"].map((slot) => hero.skills?.[slot]?.text || "").join(" ")).join(" ");
@@ -3209,9 +3343,9 @@ function topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirs
       own?.artifact ? "" : "檔案沒有神器，不假設魂書",
       own?.fileLevel == null && own?.stars == null ? "沒有等級" : "",
       own?.imprint ? "" : "沒有突破",
-      "沒有專武",
     ].filter(Boolean);
-    return `${index + 1}. ${name}。理由：${row.reason}我的練度：${gear}${speeds}${seat}風險：可能被反制；除了第 3 選，其他位置可能被 BAN。${allies.length ? `和已選的${allies.join("、")}一起。` : "我方還沒選。"}要問：${ask.join("、")}。`;
+    const askText = ask.length ? `要問：${ask.join("、")}。` : "";
+    return `${index + 1}. ${name}。理由：${row.reason}我的練度：${gear}${speeds}${seat}風險：可能被反制；除了第 3 選，其他位置可能被 BAN。${allies.length ? `和已選的${allies.join("、")}一起。` : "我方還沒選。"}${askText}`;
   });
 }
 
@@ -3230,18 +3364,54 @@ function banLines(catalog, roster, userPicks, enemyPicks) {
   return [core, ...bans, predict];
 }
 
-function supplementLines(roster, unverified) {
+function namedExclusive(catalog, roster, note) {
+  const text = String(note || "").replace(/\s+/g, "");
+  if (!text) return [];
+  const names = [];
+  for (const own of roster?.heroes || []) {
+    const zh = screenName(catalog, own.id);
+    if (!zh) continue;
+    if (text.includes(zh)) {
+      names.push(zh);
+      continue;
+    }
+    for (let size = Math.min(zh.length, 4); size >= 3; size -= 1) {
+      if (text.includes(zh.slice(-size))) {
+        names.push(zh);
+        break;
+      }
+    }
+  }
+  return [...new Set(names)];
+}
+
+function supplementLines(catalog, roster, state, unverified, heroes) {
   const lines = [];
   if (roster?.unknown?.length) lines.push(`這些英文名對不上，請告訴我是誰：${roster.unknown.join("、")}。`);
-  lines.push("檔案沒有專武。沒寫神器、等級或突破的角色，我不假設，也不假設我方帶魂書。");
-  if (unverified) lines.push("有角色的技能資料未查證。");
+  const told = namedExclusive(catalog, roster, state?.exclusiveNote);
+  if (told.length) lines.push(`你說${told.join("、")}有專武。資料庫沒有專武效果，不另編效果。`);
+  lines.push("我方專武不從檔案猜。你要另外講，例如「我的維德瑞有專武」。沒講就不算有。沒寫神器、等級或突破的會問，不假設我方帶魂書。");
+  lines.push("資料庫沒有專武效果，不把對手專武編進去。");
+  for (const hero of heroes || []) {
+    if (!hero) continue;
+    if (!e7Record(hero.code)?.有頁) lines.push(`缺少${hero.nameZh}的角色資料卡。`);
+    else if (!(e7Record(hero.code)?.建造 || []).length) lines.push(`缺少${hero.nameZh}的配裝表。`);
+  }
+  if (unverified) lines.push("有角色缺少技能文字，不憑記憶補。");
   return lines;
 }
 
-function confidenceLine(unverified, uncertain) {
-  if (unverified) return "低。技能資料未查證，以下為一般認知，可能有誤。";
-  if (uncertain) return "中。速度或神器有不確定，沒有寫進資料的數字不另編。";
+function confidenceLine(unverified, uncertain, missingCard) {
+  if (missingCard || unverified) return "低。缺少角色資料卡或技能文字，只依速度、勝率、職業、屬性粗略判斷，不憑記憶補技能。";
+  if (uncertain) return "中。速度、勝率或開場有不確定，沒有寫進資料的數字不另編。";
   return "高。技能文字和速度區間都在資料裡，我的速度用檔案裡的數字。";
+}
+
+function staleNotice(heroes) {
+  const list = (heroes || []).filter(Boolean);
+  const missingOpen = list.some((hero) => !hasListedOpening(hero));
+  if (dateStale() || missingOpen) return "資料可能過時，請確認。";
+  return "";
 }
 
 function progressText(userFirst, userPicks, enemyPicks) {
@@ -3294,10 +3464,12 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const seat = draftSeat(userPicks.length, enemyPicks.length, userFirst);
   const blocked = [...userPicks, ...enemyPicks, ...prebans, ...enemyPre];
   const newest = enemyPicks.length && (!seat || seat.side === "user" || seat.left < seat.count)
-    ? draftHero(catalog, enemyPicks[enemyPicks.length - 1])
+    ? catalogHero(catalog, enemyPicks[enemyPicks.length - 1])
     : null;
   const unverified = Boolean(newest && skillUnverified(newest));
+  const missingCard = Boolean(newest && !e7Record(newest.code)?.有頁);
   const board = [
+    staleNotice(newest ? [newest] : []),
     progressText(userFirst, userPicks, enemyPicks),
     RULE_IMPACT[state.rule] || "規則數值不確定，請告訴我這一場的規則。",
     "第 3 選是保護位核心，雙方都不能 BAN。",
@@ -3305,18 +3477,19 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
     FIRST_RULE,
   ];
   if (!seat && userPicks.length >= 5 && enemyPicks.length >= 5) {
+    const foes = enemyPicks.map((id) => catalogHero(catalog, id)).filter(Boolean);
     const suggested = banLines(catalog, roster, userPicks, enemyPicks);
     const firstBan = enemyPicks.map((id, index) => ({ id, index, hero: draftHero(catalog, id) }))
       .filter((row) => row.index !== 2 && row.hero)
       .sort((left, right) => threatScore(catalog, right.hero) - threatScore(catalog, left.hero))[0];
     return advicePacket(catalog, basis, state, {
-      board,
+      board: [staleNotice(foes), ...board.slice(1)],
       profile: newest ? heroProfileLines(catalog, newest) : [],
       read: lineupLines(catalog, enemyPicks, state.rule),
       ban: suggested,
-      artifact: enemyPicks.map((id) => draftHero(catalog, id)).filter(Boolean).flatMap((hero) => artifactBranchLines(catalog, hero)),
-      confidence: confidenceLine(unverified, !newest || skillUnverified(newest)),
-      need: supplementLines(roster, unverified),
+      gear: foes.flatMap((hero) => gearBranchLines(catalog, hero)),
+      confidence: confidenceLine(unverified, !newest || skillUnverified(newest), missingCard || foes.some((hero) => !e7Record(hero.code)?.有頁)),
+      need: supplementLines(catalog, roster, state, unverified, foes),
     }, {
       phase: "postban",
       kind: "ban",
@@ -3331,18 +3504,19 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const ranked = waiting ? [] : compositionRank(catalog, roster, userPicks, enemyPicks, blocked);
   const ids = ranked.slice(0, 3).map((row) => row.id);
   const top = userPicks.length >= 5 || waiting ? [] : topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirst);
-  const artifacts = waiting || !newest ? [] : artifactBranchLines(catalog, newest);
-  const uncertain = !newest || unverified || top.some((line) => line.includes("不確定")) || artifacts.some((line) => line.includes("不確定"));
+  const profile = waiting || !newest ? [] : heroProfileLines(catalog, newest);
+  const gear = waiting || !newest ? [] : gearBranchLines(catalog, newest);
+  const uncertain = profile.some((line) => line.includes("不確定")) || top.some((line) => line.includes("不確定"));
   return advicePacket(catalog, basis, state, {
     board,
-    profile: waiting || !newest ? [] : heroProfileLines(catalog, newest),
+    profile,
     read: waiting ? [] : lineupLines(catalog, enemyPicks, state.rule),
     top,
-    artifact: artifacts,
-    confidence: waiting ? "" : confidenceLine(unverified, uncertain),
+    gear,
+    confidence: waiting ? "" : confidenceLine(unverified, uncertain, missingCard),
     need: waiting
       ? [`請點對方第 ${enemyPicks.length + 1} 格，告訴我這一選。`]
-      : supplementLines(roster, unverified),
+      : supplementLines(catalog, roster, state, unverified, newest ? [newest] : []),
   }, {
     phase: "pick",
     kind: seat.side === "enemy" ? "report" : "pick",
@@ -3416,22 +3590,24 @@ export function battleBrief(catalog, roster, draft) {
   battle.push(`我方實際速度：${speeds.join("、")}。不拿對手的中位數當成我的速度。`);
   const burnRule = draft.rule === "attack" ? "攻擊規則下燒魂傷害 +15%。" : "";
   battle.push(`${burnRule}檔案沒有寫我方神器時，不假設我方帶魂書，開場魂量不確定。有魂才燒，沒有就不燒。`);
-  battle.push("避免單點開場就隱身的人，也避免替對手觸發反擊或開場被動。打法變了就改看神器分支。");
+  battle.push("避免單點開場就隱身的人，也避免替對手觸發反擊或開場被動。打法變了就改看配裝與專武分支。");
   const wave = survivalChance(catalog, roster, userFight, enemyFight, draft.userFirst !== false);
   const survive = wave == null ? "" : `照這樣打，對方大招打下來後，我方還活著的機會是 ${chancePct(wave.chance)}，整組剩下的生命是 ${chancePct(wave.hp)}。`;
   if (survive) battle.push(survive);
   for (const id of enemyFight) battle.push(playAdvice(catalog, byId[id], draft.rule));
   const unverified = enemyFight.some((id) => skillUnverified(byId[id]));
+  const foes = enemyFight.map((id) => byId[id]).filter(Boolean);
   const lines = sectionLines({
     board: [
+      staleNotice(foes),
       `${draft.userFirst === false ? "對方先手" : "我方先手"}。戰鬥中，雙方各留下 4 名。`,
       RULE_IMPACT[draft.rule] || RULE_IMPACT.none,
       "第 3 選是保護位核心，這一場已經不能 BAN。",
     ],
     battle,
-    artifact: enemyFight.map((id) => byId[id]).filter(Boolean).flatMap((hero) => artifactBranchLines(catalog, hero)),
-    confidence: confidenceLine(unverified, speeds.some((line) => line.includes("不確定"))),
-    need: supplementLines(roster, unverified),
+    gear: foes.flatMap((hero) => gearBranchLines(catalog, hero)),
+    confidence: confidenceLine(unverified, speeds.some((line) => line.includes("不確定")), foes.some((hero) => !e7Record(hero.code)?.有頁)),
+    need: supplementLines(catalog, roster, draft, unverified, foes),
   });
   const summary = lines.join("\n");
   return {
