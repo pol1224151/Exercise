@@ -404,6 +404,30 @@ assert.match(dieneCombo.reason.summary, /增加攻擊 2 回合，頁上沒寫比
 assert.match(dieneCombo.reason.summary, /防護罩 2 回合，依目標最大生命，沒有印吸收比例，不另編/);
 assert.match(dieneCombo.reason.summary, /戰鬥準備度 \+15%/);
 
+const darkClaws = battleBrief(catalog, roster, {
+  userFirst: true,
+  rule: "none",
+  userFight: ["shepherd-of-the-dark-diene", "sylvan-sage-vivian", "eye-of-the-abyss-fumyr", "lisette"],
+  enemyFight: ["school-nurse-yulha", "estelle", "briar-witch-iseria", "ivana"],
+});
+assert.equal(darkClaws.ok, true, darkClaws.reason?.summary);
+assert.match(darkClaws.action.title, /^我方黑暗牧者迪埃妮先打/);
+assert.equal(darkClaws.action.title.includes("開一技給"), false);
+assert.equal(darkClaws.action.title.includes("給森之賢者薇薇安"), false);
+const darkKill = darkClaws.reason.lines.find((row) => row.startsWith("先殺誰："));
+const darkHit = darkClaws.reason.lines.find((row) => row.startsWith("打到誰："));
+assert.match(darkKill, /^先殺誰：先殺/);
+assert.equal(darkKill.includes("增益"), false);
+assert.equal(darkHit.includes("開給"), false);
+assert.match(darkHit, /公開傷害倍率 0\.5/);
+assert.match(darkHit, /公開係數 生命 0\.12/);
+assert.match(darkHit, /必暴/);
+assert.match(darkHit, /強化到最大的傷害增加 30%/);
+assert.match(darkHit, /開場自己有不死 1 回合，叫攻擊最高的森之賢者薇薇安夾攻/);
+assert.match(darkClaws.reason.summary, /技能組合：黑暗牧者迪埃妮一技打對方/);
+assert.equal(darkClaws.reason.summary.includes("一技給隊友"), false);
+assert.equal(darkClaws.reason.summary.includes("這是增益，先幫我方輸出"), false);
+
 const e7 = JSON.parse(readFileSync(new URL("../data/e7rtabot-rta.json", import.meta.url)));
 const overForty = Object.values(e7.英雄).filter((row) => row.選擇率 > 0.4);
 assert.equal(overForty.length, 0);

@@ -2389,6 +2389,26 @@ function ourOrder(catalog, roster, userFight, enemyFight) {
   const actor = ours[0];
   if (!actor) return null;
   const combo = bestCombo(catalog, roster, ours.map((row) => row.hero));
+  const attack = combo && combo.attacks && combo.castable && !combo.passive ? combo : null;
+  if (attack) {
+    const foes = enemyFight
+      .map((id) => ({ id, hero: fightRecord(catalog, id) }))
+      .filter((row) => row.hero)
+      .sort((left, right) => threatScore(catalog, right.hero) - threatScore(catalog, left.hero) || left.hero.nameZh.localeCompare(right.hero.nameZh, "zh"));
+    const focus = foes[0]?.hero?.nameZh || "對手";
+    const many = (attack.skill?.targets || 1) > 1 || /all enemies/i.test(attack.skill?.text || "");
+    const giverSpeed = unitStat(catalog, roster, attack.giver.id, "speed");
+    const enemyFast = Math.max(0, ...enemyFight.map((id) => unitStat(catalog, roster, id, "speed")));
+    return {
+      title: `我方${attack.giver.nameZh}先打${focus}`,
+      who: `我方${attack.giver.nameZh}先打${focus}。`,
+      ult: attack.slot === "S3" ? "要開大。" : "不開大。",
+      hit: `${many ? `打到對方多名，先看${focus}` : `打到${focus}`}。${attack.text.replace(/^技能組合：/, "")}`,
+      kill: `先殺${focus}。`,
+      later: enemyFast > giverSpeed,
+      combo: attack.text,
+    };
+  }
   const active = combo && combo.gives && combo.castable && !combo.passive ? combo : null;
   if (active) {
     const giverSpeed = unitStat(catalog, roster, active.giver.id, "speed");
@@ -2696,11 +2716,14 @@ function comboSentence(giver, receiver, slot, skill, offer, linked) {
     const src = offer.barrier.source ? `，${offer.barrier.source}` : "";
     effects.push(`防護罩 ${offer.barrier.turns} 回合${src}，沒有印吸收比例，不另編`);
   }
-  if (offer.dual && linked.includes("dual")) effects.push("叫攻擊最高的隊友協攻");
+  if (offer.dual && linked.includes("dual") && !/\battacks\b/i.test(skill?.text || "")) effects.push("叫攻擊最高的隊友夾攻");
   if (offer.defBreak && linked.includes("break")) {
     const chance = offer.defBreak.chance != null ? `${offer.defBreak.chance}% ` : "";
     const amount = offer.defBreak.amount != null ? `，頁上寫防禦減少 ${offer.defBreak.amount}%` : "";
     effects.push(`${chance}降低防禦 ${offer.defBreak.turns} 回合${amount}`);
+  }
+  if (/\battacks\b/i.test(skill?.text || "") && linked.includes("dual")) {
+    return attackFollowSentence(giver, receiver, slot, skill);
   }
   const give = linked.length === 1 && linked[0] === "break" ? "先打對方" : "給隊友";
   const benefit = [];
@@ -2712,6 +2735,38 @@ function comboSentence(giver, receiver, slot, skill, offer, linked) {
   if (linked.includes("break")) benefit.push(`${receiver.nameZh}有公開攻擊倍率，吃到降防`);
   if (linked.includes("cr") && !benefit.length) benefit.push(`${receiver.nameZh}被拉條後才能打`);
   return `技能組合：${head}${give}，${effects.join("，")}。${benefit.join("，")}。`;
+}
+
+function publishedDamage(skill) {
+  const text = skill?.text || "";
+  const bits = [];
+  if ((skill?.rate || 0) > 0 && (skill?.pow || 0) > 0) bits.push(`公開傷害倍率 ${skill.rate}`);
+  if (skill?.selfHpScaling > 0) bits.push(`傷害依自己最大生命，公開係數 生命 ${skill.selfHpScaling}`);
+  else if (/proportional to the caster['’]s max Health/i.test(text)) bits.push("傷害依自己最大生命");
+  if (skill?.selfDefScaling > 0) bits.push(`傷害依自己防禦，公開係數 防禦 ${skill.selfDefScaling}`);
+  if (skill?.selfAtkScaling > 0) bits.push(`傷害依自己攻擊，公開係數 攻擊 ${skill.selfAtkScaling}`);
+  if (skill?.selfSpdScaling > 0) bits.push(`傷害依自己速度，公開係數 速度 ${skill.selfSpdScaling}`);
+  if (/always results in a critical hit/i.test(text)) bits.push("必暴");
+  if (skill?.enhanceDamagePct > 0) bits.push(`強化到最大的傷害增加 ${Math.round(skill.enhanceDamagePct * 100)}%`);
+  const rupture = text.match(/inflicting rupture on the enemy for (\d+) turns?/i);
+  if (rupture) bits.push(`破裂 ${rupture[1]} 回合，頁上沒寫破裂傷害，不另編`);
+  return bits;
+}
+
+function attackFollowSentence(giver, receiver, slot, skill) {
+  const slotZh = { S3: "大招", S2: "二技", S1: "一技" }[slot] || slot;
+  const many = (skill?.targets || 1) > 1 || /all enemies/i.test(skill?.text || "");
+  const hit = many ? "打對方多名" : "打對方";
+  const bits = publishedDamage(skill);
+  const immortal = /when the caster is granted immortality,\s*triggers a Dual Attack/i.test(skill?.text || "");
+  const opening = /at the start of (?:the first )?battle,\s*grants immortality for (\d+) turns?/i.test(
+    ["S1", "S2", "S3"].map((name) => giver?.skills?.[name]?.text || "").join(" "),
+  );
+  const turns = (giver?.skills?.S2?.text || "").match(/at the start of (?:the first )?battle,\s*grants immortality for (\d+) turns?/i);
+  if (immortal && opening && turns) bits.push(`開場自己有不死 ${turns[1]} 回合，叫攻擊最高的${receiver.nameZh}夾攻`);
+  else if (immortal) bits.push(`自己有不死時，叫攻擊最高的${receiver.nameZh}夾攻`);
+  else bits.push(`叫攻擊最高的${receiver.nameZh}夾攻`);
+  return `技能組合：${giver.nameZh}${slotZh}${hit}，${bits.join("，")}。`;
 }
 
 function comboCastable(skill) {
@@ -2735,6 +2790,7 @@ function comboBetween(catalog, roster, giver, receiver, group) {
     const need = readNeed(receiver);
     const linked = linkOffer(offer, need);
     if (!linked) continue;
+    const attacks = /\battacks\b/i.test(skill?.text || "") && linked.linked.includes("dual");
     const row = {
       score: linked.score,
       text: comboSentence(giver, receiver, slot, skill, offer, linked.linked),
@@ -2745,7 +2801,8 @@ function comboBetween(catalog, roster, giver, receiver, group) {
       giver,
       receiver,
       hpCoef: need.hpCoef || 0,
-      gives: linked.linked.some((kind) => kind !== "break"),
+      attacks,
+      gives: !attacks && linked.linked.some((kind) => kind !== "break"),
     };
     if (!best || row.score > best.score || (row.score === best.score && row.hpCoef > best.hpCoef)) best = row;
   }
