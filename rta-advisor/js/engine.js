@@ -295,10 +295,7 @@ export function parseRoster(input, catalog) {
       nameZh: def.nameZh,
       sample: Boolean(raw.sample || data.label),
       attack, hp, defense, speed, crit, critDamage, effectiveness, effectResistance,
-      artifact: raw.artifact || raw.artifactName || null,
-      artifactLevel: raw.artifactLevel ?? null,
-      artifactLimitBreak: raw.artifactLimitBreak ?? limitBreakFromLevel(raw.artifactLevel),
-      imprint: raw.imprint || raw.imprintNumber || null,
+      ...readBuildFields(raw),
       awakening: raw.awakening ?? raw.awaken ?? (raw.stars >= 6 ? null : null),
       stars: raw.stars ?? null,
       skillEnhance: raw.skillEnhance || { s1: null, s2: null, s3: null },
@@ -338,6 +335,33 @@ function rawStat(raw, keys) {
     if (Number.isFinite(n)) return n;
   }
   return null;
+}
+
+function finiteNumber(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function readBuildFields(raw) {
+  const artifactName = String(raw.artifactName || raw.artifact || "").trim();
+  const imprintNumber = finiteNumber(raw.imprintNumber ?? raw.imprint);
+  const eeNumber = finiteNumber(raw.eeNumber);
+  const gearKnown = Boolean(artifactName);
+  const gearStatus = !gearKnown && imprintNumber == null && eeNumber == null ? "unconfirmed" : "confirmed";
+  return {
+    artifact: artifactName || null,
+    artifactLevel: finiteNumber(raw.artifactLevel),
+    artifactLimitBreak: raw.artifactLimitBreak ?? limitBreakFromLevel(raw.artifactLevel),
+    imprint: imprintNumber,
+    imprintNumber,
+    eeNumber,
+    artifactAttack: finiteNumber(raw.artifactAttack),
+    artifactHealth: finiteNumber(raw.artifactHealth),
+    artifactDefense: finiteNumber(raw.artifactDefense),
+    gearKnown,
+    gearStatus,
+  };
 }
 
 function limitBreakFromLevel(level) {
@@ -3070,7 +3094,8 @@ export function rosterReadLine(roster) {
   const matched = roster?.heroes?.length || 0;
   const unmatched = roster?.unknown?.length || 0;
   const geared = (roster?.heroes || []).filter((hero) => hero.geared).length;
-  return `已讀取 ${matched + unmatched} 隻角色，其中 ${geared} 隻有配裝。請告訴我規則與先後手。`;
+  const complete = (roster?.heroes || []).filter((hero) => hero.gearKnown).length;
+  return `已讀取 ${matched + unmatched} 隻角色，其中 ${geared} 隻有配裝，${complete} 隻有完整神器與專武資料。請告訴我規則與先後手。`;
 }
 
 const FIRST_RULE = "先手規則：先手 1、後手 2、先手 2、後手 2、先手 2、後手 1。雙方各 5 人。第 3 選是保護位核心，雙方都不能 BAN。";
@@ -3323,7 +3348,114 @@ function lineupLines(catalog, enemyPicks, rule) {
   return [`目前對手：${names}。${style}`, core, RULE_IMPACT[rule] || ""];
 }
 
-function topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirst) {
+const OPENING_ARTIFACTS = new Set(["Guiding Light", "Tagehel's Ancient Book", "Aubade Orb", "Unseen Observer", "Wall of Order"]);
+
+function mentionedHeroIds(catalog, roster, note) {
+  const text = String(note || "").replace(/\s+/g, "");
+  if (!text) return [];
+  const found = [];
+  for (const own of roster?.heroes || []) {
+    const zh = own.nameZh || screenName(catalog, own.id);
+    if (!zh) continue;
+    if (text.includes(zh)) {
+      found.push(own.id);
+      continue;
+    }
+    for (let size = Math.min(zh.length, 4); size >= 3; size -= 1) {
+      if (text.includes(zh.slice(-size))) {
+        found.push(own.id);
+        break;
+      }
+    }
+  }
+  return [...new Set(found)];
+}
+
+function spokenGear(catalog, roster, id, note) {
+  const text = String(note || "").replace(/\s+/g, "");
+  if (!text || !mentionedHeroIds(catalog, roster, note).includes(id)) return {};
+  const spoken = {};
+  if (text.includes("沒有專武") || text.includes("無專武")) spoken.ee = false;
+  else if (text.includes("有專武")) spoken.ee = true;
+  const arts = Object.values(catalog?.artifactNames || {});
+  const folded = text.toLowerCase();
+  const hit = arts.find((art) => (art.nameZh && text.includes(art.nameZh)) || (art.name && folded.includes(String(art.name).toLowerCase().replace(/\s+/g, ""))));
+  if (hit?.name) spoken.artifactName = hit.name;
+  return spoken;
+}
+
+function highestArtifact(heroDef) {
+  const listed = (heroDef?.rtaGear?.artifacts || [])
+    .filter((art) => art?.names?.[0] && typeof art.pickRate === "number")
+    .slice()
+    .sort((left, right) => right.pickRate - left.pickRate);
+  return listed.length ? { name: listed[0].names[0], pickRate: listed[0].pickRate, updated: heroDef.rtaGear?.updated || "沒有日期" } : null;
+}
+
+function gearView(catalog, roster, own, state) {
+  if (!own) return null;
+  const spoken = spokenGear(catalog, roster, own.id, state?.exclusiveNote);
+  const known = Boolean(own.gearKnown);
+  let usesDefault = false;
+  let artifactEnglish = "";
+  let artifactLabel = "";
+  let artifactNote = "";
+  if (spoken.artifactName) {
+    artifactEnglish = spoken.artifactName;
+    artifactLabel = "已確認，你另外講的";
+  } else if (known && own.artifact) {
+    artifactEnglish = own.artifact;
+    artifactLabel = "已確認";
+  } else {
+    const top = highestArtifact(catalogHero(catalog, own.id));
+    usesDefault = true;
+    if (top) {
+      artifactEnglish = top.name;
+      artifactLabel = "預設，未確認";
+      artifactNote = `神器使用率 ${Math.round(top.pickRate * 10) / 10}% 是資料庫已加總的數字，統計範圍是 Epic7RTAStats 冠軍以上，更新日期 ${top.updated}。這不是套裝組合使用率。`;
+    } else {
+      artifactLabel = "預設，未確認";
+      artifactNote = "沒有可引用的最高神器，不編名稱。";
+    }
+  }
+  const artifactZhName = artifactEnglish ? (artifactZh(catalog, artifactEnglish) || "沒有中文名") : "";
+  let eeLabel = "";
+  if (spoken.ee === true) eeLabel = "已裝備（已確認，你另外講的）";
+  else if (spoken.ee === false) eeLabel = "沒有（已確認，你另外講的）";
+  else if (own.eeNumber > 0) eeLabel = `已裝備（已確認），數值 ${own.eeNumber}`;
+  else if (known || own.eeNumber === 0) eeLabel = "沒有（已確認）";
+  else {
+    eeLabel = "已裝備（預設，未確認）";
+    usesDefault = true;
+  }
+  const imprintLabel = own.imprintNumber > 0
+    ? `${own.imprintNumber}（已確認）`
+    : (known || own.imprintNumber === 0 ? "沒有（已確認）" : "未確認");
+  const level = own.artifactLevel == null ? "" : `，等級 ${own.artifactLevel}`;
+  const artifactText = artifactEnglish
+    ? `神器 ${artifactZhName}${level}（${artifactLabel}）。${artifactNote}`
+    : `神器（${artifactLabel}）。${artifactNote}`;
+  return {
+    usesDefault,
+    artifactEnglish,
+    text: `${artifactText}烙印 ${imprintLabel}。專武 ${eeLabel}。`,
+  };
+}
+
+function gearQuestion(catalog, roster, ids, state) {
+  const names = [];
+  for (const id of ids || []) {
+    const own = ownHero(roster, id);
+    const view = gearView(catalog, roster, own, state);
+    if (!view?.usesDefault || !OPENING_ARTIFACTS.has(view.artifactEnglish)) continue;
+    const zh = own?.nameZh || screenName(catalog, id);
+    if (zh && !names.includes(zh)) names.push(zh);
+  }
+  if (!names.length) return "";
+  return `${names.join("、")}的神器未確認，預設會改開場的隱身或魂量。若和這個預設不同，請告訴我。`;
+}
+
+function topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirst, state) {
   const ranked = compositionRank(catalog, roster, userPicks, enemyPicks, blocked).slice(0, 3);
   if (!ranked.length) return ["帳號裡沒有還能選、而且有配裝的角色。"];
   const next = userPicks.length;
@@ -3335,17 +3467,12 @@ function topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirs
   return ranked.map((row, index) => {
     const own = ownHero(roster, row.id);
     const name = screenName(catalog, row.id);
+    const view = gearView(catalog, roster, own, state);
     const gear = own?.geared
-      ? `速度 ${own.fileSpeed ?? "不確定"}、暴擊 ${own.fileCrit ?? "不確定"}、生命 ${own.fileHp ?? "不確定"}，有配裝。`
+      ? `速度 ${own.fileSpeed ?? "不確定"}、暴擊 ${own.fileCrit ?? "不確定"}、生命 ${own.fileHp ?? "不確定"}，有配裝。${view?.text || ""}`
       : "屬性全為 0，練度未知，不推薦。";
     const speeds = enemies.map((enemy) => compareSpeed(own?.fileSpeed, enemy)).join("");
-    const ask = [
-      own?.artifact ? "" : "檔案沒有神器，不假設魂書",
-      own?.fileLevel == null && own?.stars == null ? "沒有等級" : "",
-      own?.imprint ? "" : "沒有突破",
-    ].filter(Boolean);
-    const askText = ask.length ? `要問：${ask.join("、")}。` : "";
-    return `${index + 1}. ${name}。理由：${row.reason}我的練度：${gear}${speeds}${seat}風險：可能被反制；除了第 3 選，其他位置可能被 BAN。${allies.length ? `和已選的${allies.join("、")}一起。` : "我方還沒選。"}${askText}`;
+    return `${index + 1}. ${name}。理由：${row.reason}我的練度：${gear}${speeds}${seat}風險：可能被反制；除了第 3 選，其他位置可能被 BAN。${allies.length ? `和已選的${allies.join("、")}一起。` : "我方還沒選。"}`;
   });
 }
 
@@ -3364,34 +3491,14 @@ function banLines(catalog, roster, userPicks, enemyPicks) {
   return [core, ...bans, predict];
 }
 
-function namedExclusive(catalog, roster, note) {
-  const text = String(note || "").replace(/\s+/g, "");
-  if (!text) return [];
-  const names = [];
-  for (const own of roster?.heroes || []) {
-    const zh = screenName(catalog, own.id);
-    if (!zh) continue;
-    if (text.includes(zh)) {
-      names.push(zh);
-      continue;
-    }
-    for (let size = Math.min(zh.length, 4); size >= 3; size -= 1) {
-      if (text.includes(zh.slice(-size))) {
-        names.push(zh);
-        break;
-      }
-    }
-  }
-  return [...new Set(names)];
-}
-
-function supplementLines(catalog, roster, state, unverified, heroes) {
+function supplementLines(catalog, roster, state, unverified, heroes, askIds) {
   const lines = [];
   if (roster?.unknown?.length) lines.push(`這些英文名對不上，請告訴我是誰：${roster.unknown.join("、")}。`);
-  const told = namedExclusive(catalog, roster, state?.exclusiveNote);
-  if (told.length) lines.push(`你說${told.join("、")}有專武。資料庫沒有專武效果，不另編效果。`);
-  lines.push("我方專武不從檔案猜。你要另外講，例如「我的維德瑞有專武」。沒講就不算有。沒寫神器、等級或突破的會問，不假設我方帶魂書。");
+  const told = mentionedHeroIds(catalog, roster, state?.exclusiveNote).filter((id) => spokenGear(catalog, roster, id, state?.exclusiveNote).ee === true);
+  if (told.length) lines.push(`你說${told.map((id) => screenName(catalog, id)).filter(Boolean).join("、")}有專武，以你說的為準。資料庫沒有專武效果，不另編效果。`);
   lines.push("資料庫沒有專武效果，不把對手專武編進去。");
+  const question = gearQuestion(catalog, roster, askIds, state);
+  if (question) lines.push(question);
   for (const hero of heroes || []) {
     if (!hero) continue;
     if (!e7Record(hero.code)?.有頁) lines.push(`缺少${hero.nameZh}的角色資料卡。`);
@@ -3401,10 +3508,19 @@ function supplementLines(catalog, roster, state, unverified, heroes) {
   return lines;
 }
 
-function confidenceLine(unverified, uncertain, missingCard) {
-  if (missingCard || unverified) return "低。缺少角色資料卡或技能文字，只依速度、勝率、職業、屬性粗略判斷，不憑記憶補技能。";
-  if (uncertain) return "中。速度、勝率或開場有不確定，沒有寫進資料的數字不另編。";
-  return "高。技能文字和速度區間都在資料裡，我的速度用檔案裡的數字。";
+function confidenceLine(unverified, uncertain, missingCard, usedDefault) {
+  let line = "高。技能文字和速度區間都在資料裡，我的速度用檔案裡的數字。";
+  if (missingCard || unverified) line = "低。缺少角色資料卡或技能文字，只依速度、勝率、職業、屬性粗略判斷，不憑記憶補技能。";
+  else if (uncertain) line = "中。速度、勝率或開場有不確定，沒有寫進資料的數字不另編。";
+  if (!usedDefault) return line;
+  const reason = "建議靠未確認的神器或專武，信心度降一級。";
+  if (line.startsWith("高")) return `中。${reason}${line.slice(2)}`;
+  if (line.startsWith("中")) return `低。${reason}${line.slice(2)}`;
+  return `低。${reason}${line.slice(2)}`;
+}
+
+function usedDefaultGear(catalog, roster, ids, state) {
+  return (ids || []).some((id) => gearView(catalog, roster, ownHero(roster, id), state)?.usesDefault);
 }
 
 function staleNotice(heroes) {
@@ -3488,8 +3604,8 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
       read: lineupLines(catalog, enemyPicks, state.rule),
       ban: suggested,
       gear: foes.flatMap((hero) => gearBranchLines(catalog, hero)),
-      confidence: confidenceLine(unverified, !newest || skillUnverified(newest), missingCard || foes.some((hero) => !e7Record(hero.code)?.有頁)),
-      need: supplementLines(catalog, roster, state, unverified, foes),
+      confidence: confidenceLine(unverified, !newest || skillUnverified(newest), missingCard || foes.some((hero) => !e7Record(hero.code)?.有頁), usedDefaultGear(catalog, roster, userPicks, state)),
+      need: supplementLines(catalog, roster, state, unverified, foes, userPicks),
     }, {
       phase: "postban",
       kind: "ban",
@@ -3503,7 +3619,7 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const waiting = seat.side === "enemy" && seat.left === seat.count;
   const ranked = waiting ? [] : compositionRank(catalog, roster, userPicks, enemyPicks, blocked);
   const ids = ranked.slice(0, 3).map((row) => row.id);
-  const top = userPicks.length >= 5 || waiting ? [] : topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirst);
+  const top = userPicks.length >= 5 || waiting ? [] : topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirst, state);
   const profile = waiting || !newest ? [] : heroProfileLines(catalog, newest);
   const gear = waiting || !newest ? [] : gearBranchLines(catalog, newest);
   const uncertain = profile.some((line) => line.includes("不確定")) || top.some((line) => line.includes("不確定"));
@@ -3513,10 +3629,10 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
     read: waiting ? [] : lineupLines(catalog, enemyPicks, state.rule),
     top,
     gear,
-    confidence: waiting ? "" : confidenceLine(unverified, uncertain, missingCard),
+    confidence: waiting ? "" : confidenceLine(unverified, uncertain, missingCard, usedDefaultGear(catalog, roster, ids, state)),
     need: waiting
       ? [`請點對方第 ${enemyPicks.length + 1} 格，告訴我這一選。`]
-      : supplementLines(catalog, roster, state, unverified, newest ? [newest] : []),
+      : supplementLines(catalog, roster, state, unverified, newest ? [newest] : [], ids),
   }, {
     phase: "pick",
     kind: seat.side === "enemy" ? "report" : "pick",
@@ -3589,7 +3705,14 @@ export function battleBrief(catalog, roster, draft) {
   });
   battle.push(`我方實際速度：${speeds.join("、")}。不拿對手的中位數當成我的速度。`);
   const burnRule = draft.rule === "attack" ? "攻擊規則下燒魂傷害 +15%。" : "";
-  battle.push(`${burnRule}檔案沒有寫我方神器時，不假設我方帶魂書，開場魂量不確定。有魂才燒，沒有就不燒。`);
+  const soulBooks = userFight.flatMap((id) => {
+    const view = gearView(catalog, roster, ownHero(roster, id), draft);
+    if (!view?.artifactEnglish || !/book|tagehel/i.test(view.artifactEnglish)) return [];
+    return [`${screenName(catalog, id) || "我方"}的神器是${artifactZh(catalog, view.artifactEnglish) || "魂書"}（${view.text.includes("已確認") ? "已確認" : "預設，未確認"}）`];
+  });
+  battle.push(soulBooks.length
+    ? `${burnRule}${soulBooks.join("、")}。有魂才燒，沒有就不燒。`
+    : `${burnRule}我方這幾名沒有可當成魂書的神器，不假設我方帶魂書。有魂才燒，沒有就不燒。`);
   battle.push("避免單點開場就隱身的人，也避免替對手觸發反擊或開場被動。打法變了就改看配裝與專武分支。");
   const wave = survivalChance(catalog, roster, userFight, enemyFight, draft.userFirst !== false);
   const survive = wave == null ? "" : `照這樣打，對方大招打下來後，我方還活著的機會是 ${chancePct(wave.chance)}，整組剩下的生命是 ${chancePct(wave.hp)}。`;
@@ -3606,8 +3729,8 @@ export function battleBrief(catalog, roster, draft) {
     ],
     battle,
     gear: foes.flatMap((hero) => gearBranchLines(catalog, hero)),
-    confidence: confidenceLine(unverified, speeds.some((line) => line.includes("不確定")), foes.some((hero) => !e7Record(hero.code)?.有頁)),
-    need: supplementLines(catalog, roster, draft, unverified, foes),
+    confidence: confidenceLine(unverified, speeds.some((line) => line.includes("不確定")), foes.some((hero) => !e7Record(hero.code)?.有頁), usedDefaultGear(catalog, roster, userFight, draft)),
+    need: supplementLines(catalog, roster, draft, unverified, foes, userFight),
   });
   const summary = lines.join("\n");
   return {

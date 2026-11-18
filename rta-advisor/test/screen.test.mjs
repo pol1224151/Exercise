@@ -425,7 +425,7 @@ const thin = parseRoster({
 }, catalog);
 assert.equal(thin.unknown.join("、"), "Not A Real Person");
 assert.equal(thin.heroes.find((hero) => hero.id === "estelle").geared, false);
-assert.equal(rosterReadLine(thin), "已讀取 3 隻角色，其中 1 隻有配裝。請告訴我規則與先後手。");
+assert.equal(rosterReadLine(thin), "已讀取 3 隻角色，其中 1 隻有配裝，0 隻有完整神器與專武資料。請告訴我規則與先後手。");
 const thinPick = guidedDraft(catalog, thin, {
   userFirst: true,
   rule: "special",
@@ -435,7 +435,8 @@ const thinPick = guidedDraft(catalog, thin, {
 assert.equal(thinPick.action.ids.includes("estelle"), false);
 assert.match(thinPick.reason.summary, /迴避變低/);
 assert.match(thinPick.reason.summary, /Not A Real Person/);
-assert.match(thinPick.reason.summary, /不假設我方帶魂書/);
+assert.equal(thinPick.reason.summary.includes("檔案沒有神器"), false);
+assert.equal(thinPick.reason.summary.includes("不從檔案猜"), false);
 
 const sampleTurn = guidedDraft(catalog, roster, {
   userFirst: true,
@@ -499,6 +500,38 @@ const told = guidedDraft(catalog, roster, {
 });
 assert.match(told.reason.summary, /你說執行官維德瑞有專武/);
 assert.equal(told.reason.summary.includes("專武效果全部"), false);
+
+const filledHero = {
+  name: "Arbiter Vildred",
+  atk: 4000, hp: 12000, def: 1000, cr: 100, cd: 280, eff: 20, res: 0, dac: 5, spd: 250,
+  artifactName: "Alexa's Basket", artifactLevel: 30, imprintNumber: 3, eeNumber: 15,
+  artifactAttack: 0, artifactHealth: 0, artifactDefense: 0,
+};
+const blankHero = { name: "Notos", atk: 3000, hp: 10000, def: 900, cr: 80, cd: 250, eff: 40, res: 0, dac: 0, spd: 200 };
+const mixed = parseRoster({ heroes: [filledHero, blankHero] }, catalog);
+assert.equal(rosterReadLine(mixed), "已讀取 2 隻角色，其中 2 隻有配裝，1 隻有完整神器與專武資料。請告訴我規則與先後手。");
+assert.equal(mixed.heroes.find((hero) => hero.id === "arbiter-vildred").eeNumber, 15);
+assert.equal(mixed.heroes.find((hero) => hero.id === "notos").gearStatus, "unconfirmed");
+const mixedTurn = guidedDraft(catalog, mixed, {
+  userFirst: true,
+  rule: "attack",
+  userPicks: [],
+  enemyPicks: [],
+});
+assert.match(mixedTurn.reason.summary, /執行官維德瑞[\s\S]*專武 已裝備（已確認），數值 15/);
+assert.match(mixedTurn.reason.summary, /執行官維德瑞[\s\S]*烙印 3（已確認）/);
+assert.match(mixedTurn.reason.summary, /諾托斯[\s\S]*專武 已裝備（預設，未確認）/);
+assert.match(mixedTurn.reason.summary, /諾托斯[\s\S]*（預設，未確認）/);
+assert.match(mixedTurn.reason.summary, /信心度降一級/);
+assert.equal(/諾托斯[\s\S]{0,240}神器使用率 \d/.test(mixedTurn.reason.summary) === false || /這不是套裝組合使用率/.test(mixedTurn.reason.summary), true);
+const override = guidedDraft(catalog, mixed, {
+  userFirst: true,
+  rule: "attack",
+  userPicks: [],
+  enemyPicks: [],
+  exclusiveNote: "諾托斯沒有專武",
+});
+assert.match(override.reason.summary, /諾托斯[\s\S]*專武 沒有（已確認，你另外講的）/);
 for (const id of sampleTurn.action.ids) {
   const own = roster.heroes.find((hero) => hero.id === id);
   assert.equal(own?.geared, true, id);

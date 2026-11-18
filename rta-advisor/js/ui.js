@@ -216,7 +216,7 @@ function draftedFight() {
   const userFight = manual.userPicks.filter((id) => id !== manual.enemyBanId);
   const enemyFight = manual.enemyPicks.filter((id) => id !== manual.userBanId);
   if (userFight.length !== 4 || enemyFight.length !== 4) return null;
-  return { userFight, enemyFight, userFirst: manual.userFirst === true, rule: manual.rule || "" };
+  return { userFight, enemyFight, userFirst: manual.userFirst === true, rule: manual.rule || "", exclusiveNote: manual.exclusiveNote || "" };
 }
 
 function draftTaken() {
