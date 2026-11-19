@@ -1,4 +1,4 @@
-import { GEAR_ASK, battleBrief, buildGearReport, clearAccount, counterEdges, guidedDraft, loadAccount, matchesPicker, parseRoster, readAccountText, rosterReadLine, saveAccount, selectableHeroes, sourceBasis } from "./engine.js";
+import { GEAR_ASK, battleBrief, buildGearReport, clearAccount, counterEdges, effectGapItems, guidedDraft, loadAccount, loadEffectNotes, matchesPicker, parseRoster, readAccountText, rosterReadLine, saveAccount, saveEffectNotes, selectableHeroes, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, rateForType, recordResult, saveMatches } from "./records.js";
 
 const $ = (id) => document.getElementById(id);
@@ -26,6 +26,7 @@ function blankDraft(userFirst = null) {
     steps: [],
     filledNote: "",
     exclusiveNote: "",
+    effectNotes: loadEffectNotes(localStorage),
   };
 }
 
@@ -112,6 +113,7 @@ function applyRoster(data, source = "import") {
   }
   $("rosterState").textContent = `${bits.map((bit) => bit.replace(/。$/, "")).join("。")}。`;
   renderGear();
+  renderEffectGaps();
   guideKey = "";
   lastAdvice = null;
   if (!roster.heroes.length) {
@@ -199,6 +201,71 @@ function showCard({ action, rate, reason, lines, click }) {
   node.textContent = reason || "";
 }
 
+function renderEffectGaps(force = false) {
+  const root = $("effectGaps");
+  const list = $("effectGapList");
+  if (!root || !list) return;
+  if (!roster?.heroes?.length || !catalog) {
+    root.hidden = true;
+    root.dataset.signature = "";
+    list.replaceChildren();
+    return;
+  }
+  const items = effectGapItems(catalog, roster, manual.effectNotes || {}, manual.exclusiveNote || "");
+  const signature = items.map((item) => item.key).join("|");
+  if (!items.length) {
+    root.hidden = true;
+    root.dataset.signature = "";
+    list.replaceChildren();
+    return;
+  }
+  if (!force && root.dataset.signature === signature) return;
+  root.hidden = false;
+  root.dataset.signature = signature;
+  list.replaceChildren();
+  for (const item of items) {
+    const article = document.createElement("article");
+    const title = document.createElement("p");
+    const what = item.kind === "ee" ? "專武" : `神器 ${item.itemZh}`;
+    title.textContent = `${item.heroes.join("、")}的${what}：效果不確定。請貼這項的截圖。`;
+    const file = document.createElement("input");
+    file.type = "file";
+    file.accept = "image/*";
+    const caption = document.createElement("label");
+    caption.append("截圖上印出的效果");
+    const area = document.createElement("textarea");
+    area.placeholder = "只寫截圖上印出來的效果，沒印的數字不要補";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "寫進資料庫";
+    button.disabled = true;
+    let picked = false;
+    const refresh = () => {
+      button.disabled = !(picked && area.value.trim());
+    };
+    file.addEventListener("change", () => {
+      picked = Boolean(file.files?.length);
+      refresh();
+    });
+    area.addEventListener("input", refresh);
+    button.addEventListener("click", () => {
+      const effect = area.value.trim();
+      if (!picked || !effect) return;
+      manual.effectNotes = {
+        ...(manual.effectNotes || {}),
+        [item.key]: { effect, source: "使用者截圖" },
+      };
+      saveEffectNotes(localStorage, manual.effectNotes);
+      guideKey = "";
+      renderEffectGaps(true);
+      if (roster?.heroes?.length) renderGuide();
+    });
+    caption.append(area);
+    article.append(title, file, caption, button);
+    list.append(article);
+  }
+}
+
 function showReadyCard() {
   if (!roster?.heroes.length) {
     showCard({ action: GEAR_ASK, rate: "", reason: "", click: "import" });
@@ -216,7 +283,7 @@ function draftedFight() {
   const userFight = manual.userPicks.filter((id) => id !== manual.enemyBanId);
   const enemyFight = manual.enemyPicks.filter((id) => id !== manual.userBanId);
   if (userFight.length !== 4 || enemyFight.length !== 4) return null;
-  return { userFight, enemyFight, userFirst: manual.userFirst === true, rule: manual.rule || "", exclusiveNote: manual.exclusiveNote || "" };
+  return { userFight, enemyFight, userFirst: manual.userFirst === true, rule: manual.rule || "", exclusiveNote: manual.exclusiveNote || "", effectNotes: manual.effectNotes || {} };
 }
 
 function draftTaken() {
@@ -224,7 +291,7 @@ function draftTaken() {
 }
 
 function draftKey() {
-  return [manual.rule || "", manual.userFirst, manual.exclusiveNote || "", manual.enemyPrebansDone, (manual.enemyPrebans || []).join(","), manual.prebansDone, (manual.prebans || []).join(","), manual.userPicks.join(","), manual.enemyPicks.join(","), manual.userBanId || "", manual.enemyBanId || "", $("rank")?.value || ""].join("|");
+  return [manual.rule || "", manual.userFirst, manual.exclusiveNote || "", JSON.stringify(manual.effectNotes || {}), manual.enemyPrebansDone, (manual.enemyPrebans || []).join(","), manual.prebansDone, (manual.prebans || []).join(","), manual.userPicks.join(","), manual.enemyPicks.join(","), manual.userBanId || "", manual.enemyBanId || "", $("rank")?.value || ""].join("|");
 }
 
 function paintRule() {
@@ -316,9 +383,11 @@ function draftStatusText(result) {
 function setOrder(userFirst) {
   const rule = manual.rule || "";
   const exclusiveNote = manual.exclusiveNote || "";
+  const effectNotes = manual.effectNotes || {};
   manual = blankDraft(userFirst);
   manual.rule = rule;
   manual.exclusiveNote = exclusiveNote;
+  manual.effectNotes = effectNotes;
   guideKey = "";
   openRecord = null;
   const record = $("liveRecord");
@@ -680,6 +749,7 @@ $("forget").addEventListener("click", () => {
   guideKey = "";
   lastAdvice = null;
   manual = blankDraft();
+  renderEffectGaps(true);
   showReadyCard();
 });
 $("loadExample").addEventListener("click", () => loadExample().catch(showError));
@@ -756,6 +826,7 @@ $("resetDraft").addEventListener("click", () => setOrder(null));
 $("exclusiveNote").addEventListener("input", (event) => {
   manual.exclusiveNote = event.target.value;
   guideKey = "";
+  renderEffectGaps();
   if (roster?.heroes?.length) renderGuide();
 });
 $("ourBan").addEventListener("click", () => onBan("enemy"));

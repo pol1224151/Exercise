@@ -218,6 +218,22 @@ function heroByName(catalog, name) {
 }
 
 export const ACCOUNT_STORAGE_KEY = "rta-advisor-account";
+export const EFFECT_STORAGE_KEY = "rta-advisor-effects";
+
+export function saveEffectNotes(storage, notes) {
+  storage.setItem(EFFECT_STORAGE_KEY, JSON.stringify(notes || {}));
+}
+
+export function loadEffectNotes(storage) {
+  const raw = storage.getItem(EFFECT_STORAGE_KEY);
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 
 export function saveAccount(storage, data) {
   storage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify({ data }));
@@ -3432,14 +3448,68 @@ function gearView(catalog, roster, own, state) {
     ? `${own.imprintNumber}（已確認）`
     : (known || own.imprintNumber === 0 ? "沒有（已確認）" : "未確認");
   const level = own.artifactLevel == null ? "" : `，等級 ${own.artifactLevel}`;
+  let artifactEffect = "";
+  if (artifactEnglish && !usesDefault) {
+    const stored = storedUserEffect(state, `artifact:${artifactEnglish}`);
+    if (stored) artifactEffect = `效果：${stored}`;
+    else if (!ARTIFACT_NOTES[artifactEnglish]) artifactEffect = "效果不確定。";
+  }
   const artifactText = artifactEnglish
-    ? `神器 ${artifactZhName}${level}（${artifactLabel}）。${artifactNote}`
+    ? `神器 ${artifactZhName}${level}（${artifactLabel}）。${artifactNote}${artifactEffect}`
     : `神器（${artifactLabel}）。${artifactNote}`;
+  const eeEquipped = spoken.ee === true || (spoken.ee !== false && own.eeNumber > 0);
+  const eeEffect = !eeEquipped
+    ? ""
+    : (storedUserEffect(state, `ee:${own.id}`)
+      ? `效果：${storedUserEffect(state, `ee:${own.id}`)}`
+      : "效果不確定。");
   return {
     usesDefault,
     artifactEnglish,
-    text: `${artifactText}烙印 ${imprintLabel}。專武 ${eeLabel}。`,
+    text: `${artifactText}烙印 ${imprintLabel}。專武 ${eeLabel}。${eeEffect}`,
   };
+}
+
+function storedUserEffect(state, key) {
+  const note = state?.effectNotes?.[key];
+  const effect = String(note?.effect || "").trim().replace(/[。.\s]+$/, "");
+  if (!effect) return "";
+  return `${effect}。來源：使用者截圖。`;
+}
+
+export function effectGapItems(catalog, roster, notes = {}, spokenNote = "") {
+  const saved = notes || {};
+  const artifacts = new Map();
+  const rows = [];
+  for (const hero of roster?.heroes || []) {
+    if (!hero.geared) continue;
+    const spoken = spokenGear(catalog, roster, hero.id, spokenNote);
+    const artifactName = spoken.artifactName || (hero.gearKnown ? hero.artifact : "");
+    if (artifactName && !ARTIFACT_NOTES[artifactName]?.effect && !String(saved[`artifact:${artifactName}`]?.effect || "").trim()) {
+      const key = `artifact:${artifactName}`;
+      const row = artifacts.get(key) || {
+        key,
+        kind: "artifact",
+        item: artifactName,
+        itemZh: artifactZh(catalog, artifactName) || artifactName,
+        heroes: [],
+      };
+      const name = hero.nameZh || screenName(catalog, hero.id);
+      if (name && !row.heroes.includes(name)) row.heroes.push(name);
+      artifacts.set(key, row);
+    }
+    const eeEquipped = spoken.ee === true || (spoken.ee !== false && hero.eeNumber > 0);
+    if (eeEquipped && !String(saved[`ee:${hero.id}`]?.effect || "").trim()) {
+      rows.push({
+        key: `ee:${hero.id}`,
+        kind: "ee",
+        item: hero.id,
+        itemZh: "專武",
+        heroes: [hero.nameZh || screenName(catalog, hero.id)].filter(Boolean),
+      });
+    }
+  }
+  return [...artifacts.values(), ...rows];
 }
 
 function gearQuestion(catalog, roster, ids, state) {

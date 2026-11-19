@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { GEAR_ASK, battleBrief, fightFromRoster, guidedDraft, hasPublicDamage, heroCode, parseRoster, rosterReadLine, selectableHeroes, sourceBasis } from "../js/engine.js";
+import { GEAR_ASK, battleBrief, effectGapItems, fightFromRoster, guidedDraft, hasPublicDamage, heroCode, parseRoster, rosterReadLine, selectableHeroes, sourceBasis } from "../js/engine.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
 const version = JSON.parse(readFileSync(new URL("../data/version.json", import.meta.url)));
@@ -508,8 +508,9 @@ const filledHero = {
   artifactAttack: 0, artifactHealth: 0, artifactDefense: 0,
 };
 const blankHero = { name: "Notos", atk: 3000, hp: 10000, def: 900, cr: 80, cd: 250, eff: 40, res: 0, dac: 0, spd: 200 };
-const mixed = parseRoster({ heroes: [filledHero, blankHero] }, catalog);
-assert.equal(rosterReadLine(mixed), "已讀取 2 隻角色，其中 2 隻有配裝，1 隻有完整神器與專武資料。請告訴我規則與先後手。");
+const ungearedHero = { name: "Estelle", atk: 0, hp: 0, def: 0, cr: 0, cd: 0, eff: 0, res: 0, dac: 0, spd: 0, artifactName: "War Horn", eeNumber: 15 };
+const mixed = parseRoster({ heroes: [filledHero, blankHero, ungearedHero] }, catalog);
+assert.equal(rosterReadLine(mixed), "已讀取 3 隻角色，其中 2 隻有配裝，2 隻有完整神器與專武資料。請告訴我規則與先後手。");
 assert.equal(mixed.heroes.find((hero) => hero.id === "arbiter-vildred").eeNumber, 15);
 assert.equal(mixed.heroes.find((hero) => hero.id === "notos").gearStatus, "unconfirmed");
 const mixedTurn = guidedDraft(catalog, mixed, {
@@ -518,6 +519,7 @@ const mixedTurn = guidedDraft(catalog, mixed, {
   userPicks: [],
   enemyPicks: [],
 });
+assert.match(mixedTurn.reason.summary, /執行官維德瑞[\s\S]*效果不確定/);
 assert.match(mixedTurn.reason.summary, /執行官維德瑞[\s\S]*專武 已裝備（已確認），數值 15/);
 assert.match(mixedTurn.reason.summary, /執行官維德瑞[\s\S]*烙印 3（已確認）/);
 assert.match(mixedTurn.reason.summary, /諾托斯[\s\S]*專武 已裝備（預設，未確認）/);
@@ -532,6 +534,26 @@ const override = guidedDraft(catalog, mixed, {
   exclusiveNote: "諾托斯沒有專武",
 });
 assert.match(override.reason.summary, /諾托斯[\s\S]*專武 沒有（已確認，你另外講的）/);
+const gaps = effectGapItems(catalog, mixed, {});
+assert.ok(gaps.some((item) => item.key === "artifact:Alexa's Basket" && item.heroes.includes("執行官維德瑞")));
+assert.ok(gaps.some((item) => item.key === "ee:arbiter-vildred"));
+assert.equal(gaps.some((item) => item.heroes.includes("諾托斯")), false);
+assert.equal(gaps.some((item) => item.heroes.includes("艾絲黛")), false);
+const savedEffects = {
+  "artifact:Alexa's Basket": { effect: "攻擊時，以 20% 的機率使攻擊力增加。", source: "使用者截圖" },
+  "ee:arbiter-vildred": { effect: "戰鬥開始時，獲得護盾。", source: "使用者截圖" },
+};
+assert.equal(effectGapItems(catalog, mixed, savedEffects).some((item) => item.key === "artifact:Alexa's Basket" || item.key === "ee:arbiter-vildred"), false);
+const cited = guidedDraft(catalog, mixed, {
+  userFirst: true,
+  rule: "attack",
+  userPicks: [],
+  enemyPicks: [],
+  effectNotes: savedEffects,
+});
+assert.match(cited.reason.summary, /攻擊時，以 20% 的機率使攻擊力增加。來源：使用者截圖/);
+assert.match(cited.reason.summary, /戰鬥開始時，獲得護盾。來源：使用者截圖/);
+assert.equal(/執行官維德瑞[\s\S]{0,180}效果不確定/.test(cited.reason.summary), false);
 for (const id of sampleTurn.action.ids) {
   const own = roster.heroes.find((hero) => hero.id === id);
   assert.equal(own?.geared, true, id);

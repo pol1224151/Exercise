@@ -205,6 +205,15 @@ select, button, .file, .exclusive input {
   font: inherit;
 }
 
+.effect-gaps { margin: 12px 0; }
+.effect-gaps article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  margin: 8px 0;
+}
+.effect-gaps textarea { min-height: 4rem; }
+
 .exclusive { margin: 8px 0 0; max-width: 28rem; }
 .exclusive input {
   width: 100%;
