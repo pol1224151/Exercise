@@ -1,0 +1,748 @@
+{
+  "season": "pvp_rta_ss21",
+  "source": "https://www.epic7rtastats.com/meta",
+  "fetchedOn": "2026-11-14",
+  "note": "先手、後手各手的常見人選，以及最常一起被預禁的組合，抄自 Epic7RTAStats 的 meta 頁。沒有寫入克制，也沒有寫入技能倍率。",
+  "prebanPairs": [
+    {
+      "codes": [
+        "c2186",
+        "c6005"
+      ],
+      "names": [
+        "Lisette",
+        "Lady of the Scales"
+      ],
+      "count": 116475,
+      "winRate": 49.43
+    },
+    {
+      "codes": [
+        "c2185",
+        "c2186"
+      ],
+      "names": [
+        "Rhianna and Luciella",
+        "Lisette"
+      ],
+      "count": 73634,
+      "winRate": 49.21
+    },
+    {
+      "codes": [
+        "c2181",
+        "c2186"
+      ],
+      "names": [
+        "Notos",
+        "Lisette"
+      ],
+      "count": 66142,
+      "winRate": 49.44
+    },
+    {
+      "codes": [
+        "c1133",
+        "c1153"
+      ],
+      "names": [
+        "Zio",
+        "Harsetti"
+      ],
+      "count": 38330,
+      "winRate": 51.58
+    },
+    {
+      "codes": [
+        "c2181",
+        "c2185"
+      ],
+      "names": [
+        "Notos",
+        "Rhianna and Luciella"
+      ],
+      "count": 29801,
+      "winRate": 51.36
+    },
+    {
+      "codes": [
+        "c2185",
+        "c6005"
+      ],
+      "names": [
+        "Rhianna and Luciella",
+        "Lady of the Scales"
+      ],
+      "count": 29368,
+      "winRate": 50.94
+    },
+    {
+      "codes": [
+        "c2181",
+        "c6005"
+      ],
+      "names": [
+        "Notos",
+        "Lady of the Scales"
+      ],
+      "count": 23838,
+      "winRate": 51.88
+    },
+    {
+      "codes": [
+        "c1153",
+        "c2186"
+      ],
+      "names": [
+        "Harsetti",
+        "Lisette"
+      ],
+      "count": 18772,
+      "winRate": 49.74
+    },
+    {
+      "codes": [
+        "c1153",
+        "c2185"
+      ],
+      "names": [
+        "Harsetti",
+        "Rhianna and Luciella"
+      ],
+      "count": 10681,
+      "winRate": 52.9
+    },
+    {
+      "codes": [
+        "c1153",
+        "c6005"
+      ],
+      "names": [
+        "Harsetti",
+        "Lady of the Scales"
+      ],
+      "count": 9790,
+      "winRate": 51.7
+    },
+    {
+      "codes": [
+        "c1153",
+        "c2181"
+      ],
+      "names": [
+        "Harsetti",
+        "Notos"
+      ],
+      "count": 8619,
+      "winRate": 52.65
+    },
+    {
+      "codes": [
+        "c1117",
+        "c1153"
+      ],
+      "names": [
+        "Belian",
+        "Harsetti"
+      ],
+      "count": 7900,
+      "winRate": 51.46
+    }
+  ],
+  "firstPick": {
+    "1": [
+      {
+        "code": "c2185",
+        "name": "Rhianna and Luciella",
+        "count": 69195,
+        "winRate": 50.29
+      },
+      {
+        "code": "c6005",
+        "name": "Lady of the Scales",
+        "count": 68683,
+        "winRate": 52.31
+      },
+      {
+        "code": "c2131",
+        "name": "School Nurse Yulha",
+        "count": 48940,
+        "winRate": 48.78
+      },
+      {
+        "code": "c1183",
+        "name": "Estelle",
+        "count": 31469,
+        "winRate": 49.94
+      },
+      {
+        "code": "c2186",
+        "name": "Lisette",
+        "count": 24159,
+        "winRate": 58.18
+      },
+      {
+        "code": "c2181",
+        "name": "Notos",
+        "count": 18736,
+        "winRate": 52.59
+      },
+      {
+        "code": "c5154",
+        "name": "Perfumer Byblis",
+        "count": 14498,
+        "winRate": 52.01
+      },
+      {
+        "code": "c2124",
+        "name": "Boss Arunka",
+        "count": 6871,
+        "winRate": 46.63
+      },
+      {
+        "code": "c2007",
+        "name": "Arbiter Vildred",
+        "count": 2690,
+        "winRate": 46.65
+      },
+      {
+        "code": "c2184",
+        "name": "Salome",
+        "count": 1672,
+        "winRate": 48.74
+      },
+      {
+        "code": "c5112",
+        "name": "Uncharted Pioneer Politis",
+        "count": 999,
+        "winRate": 50.05
+      },
+      {
+        "code": "c1168",
+        "name": "Rinak",
+        "count": 884,
+        "winRate": 43.1
+      }
+    ],
+    "2": [
+      {
+        "code": "c2007",
+        "name": "Arbiter Vildred",
+        "count": 28892,
+        "winRate": 52.15
+      },
+      {
+        "code": "c2148",
+        "name": "Tidal Rift Elvira",
+        "count": 22423,
+        "winRate": 51.41
+      },
+      {
+        "code": "c5154",
+        "name": "Perfumer Byblis",
+        "count": 21198,
+        "winRate": 56.85
+      },
+      {
+        "code": "c1183",
+        "name": "Estelle",
+        "count": 20613,
+        "winRate": 51.57
+      },
+      {
+        "code": "c1192",
+        "name": "Haru",
+        "count": 17255,
+        "winRate": 48.8
+      },
+      {
+        "code": "c2131",
+        "name": "School Nurse Yulha",
+        "count": 16490,
+        "winRate": 49.96
+      },
+      {
+        "code": "c1073",
+        "name": "Kawerik",
+        "count": 15320,
+        "winRate": 51.78
+      },
+      {
+        "code": "c2001",
+        "name": "Genesis Ras",
+        "count": 15172,
+        "winRate": 55.12
+      },
+      {
+        "code": "c2124",
+        "name": "Boss Arunka",
+        "count": 15073,
+        "winRate": 47.81
+      },
+      {
+        "code": "c5112",
+        "name": "Uncharted Pioneer Politis",
+        "count": 12430,
+        "winRate": 49.28
+      },
+      {
+        "code": "c5147",
+        "name": "Eye of the Abyss Fumyr",
+        "count": 9781,
+        "winRate": 50.88
+      },
+      {
+        "code": "c1060",
+        "name": "Schniel",
+        "count": 6968,
+        "winRate": 53.53
+      }
+    ],
+    "3": [
+      {
+        "code": "c1133",
+        "name": "Zio",
+        "count": 35266,
+        "winRate": 45.65
+      },
+      {
+        "code": "c5147",
+        "name": "Eye of the Abyss Fumyr",
+        "count": 26466,
+        "winRate": 53.4
+      },
+      {
+        "code": "c5190",
+        "name": "Aube",
+        "count": 19394,
+        "winRate": 54.73
+      },
+      {
+        "code": "c2124",
+        "name": "Boss Arunka",
+        "count": 18038,
+        "winRate": 47.29
+      },
+      {
+        "code": "c1192",
+        "name": "Haru",
+        "count": 17128,
+        "winRate": 52.81
+      },
+      {
+        "code": "c2024",
+        "name": "Briar Witch Iseria",
+        "count": 13378,
+        "winRate": 53.33
+      },
+      {
+        "code": "c1168",
+        "name": "Rinak",
+        "count": 8998,
+        "winRate": 53.07
+      },
+      {
+        "code": "c2187",
+        "name": "Bunny Girl Great Detective Moro",
+        "count": 8439,
+        "winRate": 48.9
+      },
+      {
+        "code": "c1060",
+        "name": "Schniel",
+        "count": 7873,
+        "winRate": 50.35
+      },
+      {
+        "code": "c1191",
+        "name": "Mei Lin",
+        "count": 7688,
+        "winRate": 51.21
+      },
+      {
+        "code": "c1153",
+        "name": "Harsetti",
+        "count": 7266,
+        "winRate": 46.83
+      },
+      {
+        "code": "c2053",
+        "name": "Desert Jewel Basar",
+        "count": 6547,
+        "winRate": 51.41
+      }
+    ],
+    "4+5": [
+      {
+        "code": "c2076",
+        "name": "Shepherd of the Dark Diene",
+        "count": 49463,
+        "winRate": 56.66
+      },
+      {
+        "code": "c6024",
+        "name": "Monarch of the Sword Iseria",
+        "count": 24317,
+        "winRate": 50.92
+      },
+      {
+        "code": "c5069",
+        "name": "Aubade Ludwig",
+        "count": 22770,
+        "winRate": 50.48
+      },
+      {
+        "code": "c2007",
+        "name": "Arbiter Vildred",
+        "count": 19895,
+        "winRate": 51.02
+      },
+      {
+        "code": "c1117",
+        "name": "Belian",
+        "count": 18761,
+        "winRate": 53.97
+      },
+      {
+        "code": "c1182",
+        "name": "Ivana",
+        "count": 18617,
+        "winRate": 50.07
+      },
+      {
+        "code": "c1153",
+        "name": "Harsetti",
+        "count": 17997,
+        "winRate": 51.13
+      },
+      {
+        "code": "c1073",
+        "name": "Kawerik",
+        "count": 17725,
+        "winRate": 51.49
+      },
+      {
+        "code": "c1172",
+        "name": "Frieren",
+        "count": 16993,
+        "winRate": 57.74
+      },
+      {
+        "code": "c5033",
+        "name": "Tactical Archetype Coli",
+        "count": 11499,
+        "winRate": 50.28
+      },
+      {
+        "code": "c2001",
+        "name": "Genesis Ras",
+        "count": 10994,
+        "winRate": 48.44
+      },
+      {
+        "code": "c2181",
+        "name": "Notos",
+        "count": 10805,
+        "winRate": 53.08
+      }
+    ]
+  },
+  "secondPick": {
+    "3": [
+      {
+        "code": "c1153",
+        "name": "Harsetti",
+        "count": 23457,
+        "winRate": 50.01
+      },
+      {
+        "code": "c2124",
+        "name": "Boss Arunka",
+        "count": 20873,
+        "winRate": 51.09
+      },
+      {
+        "code": "c1133",
+        "name": "Zio",
+        "count": 19682,
+        "winRate": 41.53
+      },
+      {
+        "code": "c5147",
+        "name": "Eye of the Abyss Fumyr",
+        "count": 18705,
+        "winRate": 52.69
+      },
+      {
+        "code": "c1168",
+        "name": "Rinak",
+        "count": 14626,
+        "winRate": 47.84
+      },
+      {
+        "code": "c5190",
+        "name": "Aube",
+        "count": 10563,
+        "winRate": 53.04
+      },
+      {
+        "code": "c1117",
+        "name": "Belian",
+        "count": 10500,
+        "winRate": 52.19
+      },
+      {
+        "code": "c2024",
+        "name": "Briar Witch Iseria",
+        "count": 9466,
+        "winRate": 50.3
+      },
+      {
+        "code": "c2187",
+        "name": "Bunny Girl Great Detective Moro",
+        "count": 8427,
+        "winRate": 47.66
+      },
+      {
+        "code": "c1178",
+        "name": "Hecate",
+        "count": 7099,
+        "winRate": 46.98
+      },
+      {
+        "code": "c2053",
+        "name": "Desert Jewel Basar",
+        "count": 7009,
+        "winRate": 48.28
+      },
+      {
+        "code": "c4123",
+        "name": "Silvertide Christy",
+        "count": 6659,
+        "winRate": 46.04
+      }
+    ],
+    "4": [
+      {
+        "code": "c2076",
+        "name": "Shepherd of the Dark Diene",
+        "count": 40794,
+        "winRate": 53.01
+      },
+      {
+        "code": "c5033",
+        "name": "Tactical Archetype Coli",
+        "count": 13245,
+        "winRate": 49.32
+      },
+      {
+        "code": "c2007",
+        "name": "Arbiter Vildred",
+        "count": 13171,
+        "winRate": 49.83
+      },
+      {
+        "code": "c1073",
+        "name": "Kawerik",
+        "count": 11243,
+        "winRate": 49.48
+      },
+      {
+        "code": "c5069",
+        "name": "Aubade Ludwig",
+        "count": 11171,
+        "winRate": 46.16
+      },
+      {
+        "code": "c6024",
+        "name": "Monarch of the Sword Iseria",
+        "count": 10613,
+        "winRate": 46.52
+      },
+      {
+        "code": "c2001",
+        "name": "Genesis Ras",
+        "count": 8953,
+        "winRate": 51.01
+      },
+      {
+        "code": "c1117",
+        "name": "Belian",
+        "count": 8200,
+        "winRate": 50.59
+      },
+      {
+        "code": "c5154",
+        "name": "Perfumer Byblis",
+        "count": 7524,
+        "winRate": 54.61
+      },
+      {
+        "code": "c2148",
+        "name": "Tidal Rift Elvira",
+        "count": 7186,
+        "winRate": 49.89
+      },
+      {
+        "code": "c2124",
+        "name": "Boss Arunka",
+        "count": 6904,
+        "winRate": 49.51
+      },
+      {
+        "code": "c1183",
+        "name": "Estelle",
+        "count": 6780,
+        "winRate": 51.4
+      }
+    ],
+    "5": [
+      {
+        "code": "c2076",
+        "name": "Shepherd of the Dark Diene",
+        "count": 18395,
+        "winRate": 51.47
+      },
+      {
+        "code": "c6024",
+        "name": "Monarch of the Sword Iseria",
+        "count": 15504,
+        "winRate": 51.55
+      },
+      {
+        "code": "c2007",
+        "name": "Arbiter Vildred",
+        "count": 11848,
+        "winRate": 50.45
+      },
+      {
+        "code": "c1172",
+        "name": "Frieren",
+        "count": 11516,
+        "winRate": 56.19
+      },
+      {
+        "code": "c1117",
+        "name": "Belian",
+        "count": 11079,
+        "winRate": 47.24
+      },
+      {
+        "code": "c1182",
+        "name": "Ivana",
+        "count": 10456,
+        "winRate": 43.03
+      },
+      {
+        "code": "c1073",
+        "name": "Kawerik",
+        "count": 8995,
+        "winRate": 49.68
+      },
+      {
+        "code": "c5069",
+        "name": "Aubade Ludwig",
+        "count": 8982,
+        "winRate": 50.17
+      },
+      {
+        "code": "c2001",
+        "name": "Genesis Ras",
+        "count": 6790,
+        "winRate": 50.07
+      },
+      {
+        "code": "c1176",
+        "name": "Setsuka",
+        "count": 6604,
+        "winRate": 51.45
+      },
+      {
+        "code": "c1022",
+        "name": "Ruele of Light",
+        "count": 6478,
+        "winRate": 49.23
+      },
+      {
+        "code": "c1178",
+        "name": "Hecate",
+        "count": 5963,
+        "winRate": 45.15
+      }
+    ],
+    "1+2": [
+      {
+        "code": "c1183",
+        "name": "Estelle",
+        "count": 98993,
+        "winRate": 49.72
+      },
+      {
+        "code": "c2131",
+        "name": "School Nurse Yulha",
+        "count": 74803,
+        "winRate": 47.76
+      },
+      {
+        "code": "c5154",
+        "name": "Perfumer Byblis",
+        "count": 58386,
+        "winRate": 51.68
+      },
+      {
+        "code": "c2007",
+        "name": "Arbiter Vildred",
+        "count": 47268,
+        "winRate": 49.15
+      },
+      {
+        "code": "c2185",
+        "name": "Rhianna and Luciella",
+        "count": 39480,
+        "winRate": 49.59
+      },
+      {
+        "code": "c6005",
+        "name": "Lady of the Scales",
+        "count": 35779,
+        "winRate": 51.85
+      },
+      {
+        "code": "c2124",
+        "name": "Boss Arunka",
+        "count": 34581,
+        "winRate": 46.14
+      },
+      {
+        "code": "c1192",
+        "name": "Haru",
+        "count": 27028,
+        "winRate": 47.78
+      },
+      {
+        "code": "c2181",
+        "name": "Notos",
+        "count": 23694,
+        "winRate": 53.11
+      },
+      {
+        "code": "c5112",
+        "name": "Uncharted Pioneer Politis",
+        "count": 18143,
+        "winRate": 49.49
+      },
+      {
+        "code": "c2001",
+        "name": "Genesis Ras",
+        "count": 17338,
+        "winRate": 51.91
+      },
+      {
+        "code": "c2148",
+        "name": "Tidal Rift Elvira",
+        "count": 14509,
+        "winRate": 52.4
+      }
+    ]
+  }
+}
