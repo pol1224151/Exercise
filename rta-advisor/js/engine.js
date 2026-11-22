@@ -3005,6 +3005,39 @@ function heroDispels(hero) {
   return chinese.split("。").some((chunk) => !/不會受到|弱化/.test(chunk) && /解除[^。]{0,8}強化/.test(chunk));
 }
 
+function forecastEnemy(enemies) {
+  const seeds = (enemies || []).slice(0, 2).filter(Boolean);
+  if (!seeds.length) return null;
+  const picked = new Set(seeds.map((enemy) => enemy.code).filter(Boolean));
+  const partners = [];
+  for (const enemy of seeds) {
+    for (const row of sdHero(enemy.code)?.協同 || []) {
+      if (!row?.代碼 || picked.has(row.代碼) || typeof row.分數 !== "number") continue;
+      const name = sdHero(row.代碼)?.名稱;
+      if (!name || /[A-Za-z]/.test(name)) continue;
+      partners.push({ code: row.代碼, name, score: row.分數 });
+    }
+  }
+  partners.sort((left, right) => right.score - left.score || left.name.localeCompare(right.name, "zh-Hant"));
+  const later = [];
+  for (const row of partners) {
+    if (later.some((item) => item.code === row.code)) continue;
+    later.push(row);
+    if (later.length === 2) break;
+  }
+  const style = [];
+  const locks = seeds.map((enemy) => warfareFacts(enemy));
+  if (locks.some((row) => row.set)) style.push("有開戰");
+  else if (locks.some((row) => row.opener)) style.push("首次冷卻到最大");
+  if (seeds.some((enemy) => attackSkills(enemy).length) && seeds.every((enemy) => enemyCanSwitchTarget(enemy))) style.push("攻擊可改打別人");
+  const who = [...new Set(seeds.map((enemy) => enemy.nameZh).filter(Boolean))].join("、") || "對方";
+  if (!later.length && !style.length) return { sentence: "推估：不確定。", partners: [] };
+  if (!later.length) return { sentence: `推估：${who}整隊${style.join("、")}，後面幾手不確定。`, partners: [] };
+  const names = later.map((row) => row.name).join("、");
+  const tail = style.length ? `，整隊${style.join("、")}` : "";
+  return { sentence: `推估：${who}後面協同最高是${names}${tail}。`, partners: later };
+}
+
 function rememberedWins(memory, heroId) {
   const rows = Array.isArray(memory) ? memory : (memory?.matches || []);
   const id = canonicalId(heroId);
@@ -4113,12 +4146,16 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const waiting = seat.side === "enemy" && seat.left === seat.count;
   const ranked = waiting ? [] : compositionRank(catalog, roster, userPicks, enemyPicks, blocked, options.memory);
   const foes = enemyPicks.map((id) => draftHero(catalog, id)).filter(Boolean);
+  const forecast = !waiting && seat.side === "user" && foes.length > 0 && foes.length <= 2 ? forecastEnemy(foes) : null;
   const plans = !waiting && seat.side === "user" && foes.length
     ? buildPlans(catalog, ranked, userPicks, foes, options.memory, Math.min(Math.max(seat.left || 1, 1), 3))
     : null;
-  const ids = plans
-    ? plans.flatMap((plan) => plan.ids).filter((id, index, list) => list.indexOf(id) === index)
-    : ranked.slice(0, 3).map((row) => row.id);
+  const primary = plans?.find((plan) => plan.ids.length) || null;
+  const ids = forecast
+    ? (primary?.ids || [])
+    : (plans
+      ? plans.flatMap((plan) => plan.ids).filter((id, index, list) => list.indexOf(id) === index)
+      : ranked.slice(0, 3).map((row) => row.id));
   const top = userPicks.length >= 5 || waiting ? [] : topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirst, state, options.memory);
   if (!waiting && usedDefaultGear(catalog, roster, ids, state)) board.push("建議靠未確認的神器或專武，信心度降一級。");
   return advicePacket(catalog, basis, state, {
@@ -4136,6 +4173,8 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
     detail: FIRST_RULE,
     ids,
     plans,
+    forecast: forecast?.sentence || "",
+    forecastReason: primary?.reason || "",
     need: seat.left,
   });
 }
