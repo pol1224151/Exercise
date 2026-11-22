@@ -178,26 +178,53 @@ function renderGear() {
   root.innerHTML = cards + extra;
 }
 
-function showCard({ action, rate, reason, lines, click }) {
+function onePickWhy(result) {
+  const lines = result?.reason?.lines || [];
+  const top = lines.find((row) => /^\d+\.\s/.test(row)) || "";
+  const body = top.includes("理由：") ? top.split("理由：").slice(1).join("理由：") : "";
+  const sentences = body.split("。").map((part) => part.trim()).filter(Boolean);
+  const noisy = /技能|頁上|一技|二技|大招|專武|開場|練度|風險|這一手|我方先|我方後|我方還沒|和已選|效果不確定|烙印|神器 /;
+  const preferred = sentences.find((part) => /^(對戰：|協同：|替代：|計數器：|反制：)/.test(part) && !noisy.test(part));
+  const picked = preferred || sentences.find((part) => !noisy.test(part));
+  if (picked) return `${picked}。`;
+  if (sentences.some((part) => part.startsWith("對方還沒選"))) return "對方還沒選，先從有配裝的角色裡挑。";
+  return "從有配裝的角色裡挑。";
+}
+
+function adviceFace(result) {
+  const kind = result?.action?.kind;
+  const names = (result?.action?.ids || []).map((id) => heroName(id)).filter(Boolean);
+  if (kind === "preban") {
+    return { action: names.join("、"), reason: "從有配裝的角色裡，依本季預禁數挑。", click: "preban" };
+  }
+  if (kind === "enemy-preban") {
+    return { action: result.action?.title || "選對方的預禁", reason: "請選對方預禁的人。", click: "enemy-preban" };
+  }
+  if (kind === "pick") {
+    return { action: names.join("、"), reason: onePickWhy(result), click: "" };
+  }
+  if (kind === "report") {
+    const left = result.action?.need || 1;
+    return { action: `點對方這手的 ${left} 名`, reason: "", click: "" };
+  }
+  if (kind === "ban") {
+    return { action: result.action?.title || "選要禁的人", reason: "第 3 選不能禁。", click: "" };
+  }
+  if (kind === "brief" || result?.phase === "battle") {
+    const line = (result.reason?.lines || []).find((row) => row.startsWith("誰先打誰：")) || "";
+    return { action: result.action?.title || "照這一步打", reason: line, click: "" };
+  }
+  return { action: result?.action?.title || "", reason: "", click: "" };
+}
+
+function showCard({ action, rate, reason, click }) {
   const button = $("liveAction");
   button.textContent = action || "這一手沒有建議";
   button.disabled = !click;
   button.dataset.click = click || "";
-  $("liveRate").textContent = rate == null ? "尚無勝率" : rate;
+  $("liveRate").textContent = rate || "";
   const node = $("liveReason");
   node.replaceChildren();
-  if (Array.isArray(lines) && lines.length) {
-    const list = document.createElement("ul");
-    list.className = "advice-lines";
-    for (const row of lines) {
-      if (!row) continue;
-      const item = document.createElement("li");
-      item.textContent = row;
-      list.appendChild(item);
-    }
-    node.appendChild(list);
-    return;
-  }
   node.textContent = reason || "";
 }
 
@@ -295,18 +322,11 @@ function draftKey() {
 }
 
 function paintRule() {
-  const text = {
-    attack: "攻擊：靈魂燃燒技能的傷害量增加 15%。燒魂傷害提高，燃燒技能強的角色與魂量充足的配置更有價值。",
-    defense: "防禦：恢復量和防護罩效果量增加 30%。治療與護盾角色更強，持續回復的隊伍更難被消耗。",
-    resist: "抵抗：效果抗性增加 50%。控場與減益的成功率下降，依賴暈眩、封印、減益的角色價值降低。",
-    special: "特殊：迴避減少 30%。迴避變低，依賴迴避的角色與機制價值降低。",
-    none: "無規則：沒有額外效果。",
-  };
   for (const button of document.querySelectorAll("#ruleRow button")) {
     button.classList.toggle("primary", button.dataset.rule === manual.rule);
   }
   const node = $("ruleText");
-  if (node) node.textContent = manual.rule ? text[manual.rule] : "先選戰爭規則，再點先後手。";
+  if (node) node.textContent = manual.rule ? "" : "先選戰爭規則，再點先後手。";
 }
 
 function renderGuide() {
@@ -354,36 +374,16 @@ function renderGuide() {
   $("theyFirst")?.classList.toggle("primary", manual.userFirst === false);
 }
 
-function slotWords(index) {
-  const number = index + 1;
-  return number === 3 ? `第 ${number} 選，保護` : `第 ${number} 選，關鍵`;
-}
-
 function draftStatusText(result) {
-  const side = manual.userFirst ? "我方先手。" : "對方先手。";
-  const rule = "選角是先手 1、後手 2、先手 2、後手 2、先手 2、後手 1。第 3 選是保護位核心。";
+  if (!manual.rule || manual.userFirst == null) return "";
+  if (result?.action?.kind === "preban") return "";
+  if (result?.action?.kind === "enemy-preban") return "";
+  if (result?.action?.kind === "pick" || result?.action?.kind === "report") return "";
   if (manual.userPicks.length >= 5 && manual.enemyPicks.length >= 5) {
-    if (!manual.userBanId || !manual.enemyBanId) {
-      const suggest = result?.action?.kind === "ban" ? `${result.action.title}。` : "";
-      return `${side}${rule}五選完成。${suggest}點對方格子或「我禁對方」，再點我方格子或「對方禁我」。第 3 選不能打叉。`;
-    }
-    return `${side}禁完了。下面是戰鬥建議。`;
+    if (!manual.userBanId || !manual.enemyBanId) return "點禁位。第 3 選不能打叉。";
+    return "";
   }
-  if (result?.action?.kind === "preban") {
-    return `${side}${rule}先採用我方預禁。點上面那句就用建議的人。預禁完才進選角。`;
-  }
-  if (result?.action?.kind === "enemy-preban") {
-    return `${side}${rule}點上面那句，選對方的預禁。兩邊預禁都定了才進選角。`;
-  }
-  if (result?.action?.kind === "report") {
-    const index = manual.enemyPicks.length;
-    return `${side}${rule}點對方第 ${index + 1} 格，這是對方${slotWords(index)}。`;
-  }
-  if (result?.action?.kind === "pick") {
-    const index = manual.userPicks.length;
-    return `${side}${rule}點我方第 ${index + 1} 格，只從有配裝的角色選。這是我方${slotWords(index)}。`;
-  }
-  return `${side}${rule}`;
+  return "";
 }
 
 function setOrder(userFirst) {
@@ -523,27 +523,10 @@ function renderCounters() {
 }
 
 
-function oneAction(result) {
-  const title = result.action?.title || "";
-  if (result.action?.kind !== "skill" || !result.action.burn) return title;
-  return `${title}，${result.action.burn.yes ? "要燒魂" : "不要燒魂"}`;
-}
-
 function currentType() {
   const fight = draftedFight();
   if (!fight) return null;
   return draftType(fight.userFight, fight.enemyFight, fight.userFirst);
-}
-
-function oneReason(result) {
-  if (!result?.ok) return result?.reason?.summary || result?.action?.detail || "這一手沒有建議。";
-  if (result.history?.switched) {
-    const was = Math.round(result.history.replaced.rate * 100);
-    const cutoff = Math.round(result.history.cutoff * 100);
-    return `原本那組實戰 ${was}%，低於門檻 ${cutoff}%，所以改這一組。`;
-  }
-  if (result.history?.stuck) return "這一組實戰低於門檻，沙盤沒有另一組達標，仍用這一組。";
-  return result.reason?.summary || result.action?.detail || "";
 }
 
 function rateLine(result) {
@@ -672,17 +655,6 @@ function applyDraftChoice(slot, heroId) {
   renderGuide();
 }
 
-function battleLines(result) {
-  if (result?.phase !== "battle" || !result.reason?.lines?.length) return null;
-  const lines = [...result.reason.lines];
-  if (result.history?.switched) {
-    const was = Math.round(result.history.replaced.rate * 100);
-    const cutoff = Math.round(result.history.cutoff * 100);
-    lines.unshift(`原本那組實戰 ${was}%，低於門檻 ${cutoff}%，所以改這一組。`);
-  }
-  return lines;
-}
-
 function withRecord(result) {
   const type = currentType();
   if (!type || !result) return result;
@@ -709,17 +681,18 @@ function renderLive(result) {
     const title = result?.action?.title || "這一手沒有建議";
     showCard({
       action: title,
-      rate: "尚無勝率",
-      reason: oneReason(result),
+      rate: "",
+      reason: "",
       click: title === "先讀入帳號" ? "import" : "",
     });
   } else {
+    const face = adviceFace(result);
+    const rated = result.rate == null ? "" : rateLine(result);
     showCard({
-      action: oneAction(result),
-      rate: rateLine(result),
-      reason: oneReason(result),
-      lines: result.phase === "battle" ? battleLines(result) : result.reason?.lines,
-      click: result.action?.kind === "preban" ? "preban" : result.action?.kind === "enemy-preban" ? "enemy-preban" : "",
+      action: face.action,
+      rate: rated.startsWith("尚無") ? "" : rated,
+      reason: face.reason,
+      click: face.click,
     });
   }
   const type = currentType();

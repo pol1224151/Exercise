@@ -54,18 +54,27 @@ body {
   clip: rect(0 0 0 0);
 }
 
-#now {
+#draft {
+  padding: 28px 32px 24px;
+}
+
+main section#now {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 8px;
-  padding: 12px 0 28px;
+  gap: 10px;
+  margin: 8px 0 20px;
+  padding: 8px 4px 12px;
+  background: transparent;
+  border: none;
 }
+
+#resultRow:has(button:disabled) { display: none; }
 
 #liveAction {
   text-align: left;
-  font-size: clamp(2rem, 5vw, 3.2rem);
-  line-height: 1.25;
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  line-height: 1.35;
 }
 
 #liveAction:disabled {
@@ -88,8 +97,17 @@ body {
 
 #liveReason {
   margin: 0;
-  font-size: 1.2rem;
-  max-width: 40rem;
+  font-size: 1.05rem;
+  max-width: 36rem;
+  color: var(--muted);
+}
+
+#ruleText:empty,
+#draftStatus:empty,
+#liveReason:empty,
+#liveRate:empty,
+#liveRecord:empty {
+  display: none;
 }
 
 .advice-lines {
@@ -117,7 +135,7 @@ dialog::backdrop { background: rgba(36, 28, 22, 0.45); }
 
 .dialog-body { padding: 0 18px 18px; overflow: auto; }
 
-.board { display: grid; gap: 16px; margin: 8px 0 16px; }
+.board { display: grid; gap: 28px; margin: 32px 0 8px; }
 
 .lane-label { margin: 0 0 6px; font-weight: 700; }
 
@@ -125,8 +143,8 @@ dialog::backdrop { background: rgba(36, 28, 22, 0.45); }
 
 .cells {
   display: grid;
-  grid-template-columns: repeat(5, minmax(68px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(5, minmax(88px, 1fr));
+  gap: 16px;
   flex: 1;
 }
 
@@ -134,15 +152,16 @@ dialog::backdrop { background: rgba(36, 28, 22, 0.45); }
   aspect-ratio: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-start;
-  min-width: 68px;
-  padding: 8px;
+  justify-content: center;
+  align-items: center;
+  min-width: 88px;
+  padding: 12px;
+  gap: 8px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 16px;
   background: white;
   color: var(--ink);
-  text-align: left;
+  text-align: center;
 }
 
 .cell small, .ban-cell small { color: var(--muted); font-size: 0.75rem; }
@@ -205,7 +224,8 @@ select, button, .file, .exclusive input {
   font: inherit;
 }
 
-.effect-gaps { margin: 12px 0; }
+.effect-gaps { margin: 0 0 28px; }
+.effect-gaps .note { margin-top: 0; }
 .effect-gaps article {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -349,13 +369,13 @@ footer { padding: 8px 0 28px; color: var(--muted); font-size: 0.9rem; }
 .rule-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 8px 0;
+  gap: 12px;
+  margin: 18px 0 8px;
 }
 
 .rule-row button {
   font: inherit;
-  padding: 8px 14px;
+  padding: 10px 18px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: white;
