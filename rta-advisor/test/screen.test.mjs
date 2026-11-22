@@ -227,11 +227,9 @@ const buffPick = guidedDraft(catalog, roster, {
 }, { trials: 1, rank: "champion" });
 assert.equal(damagePick.ok, true, damagePick.reason?.summary);
 assert.equal(buffPick.ok, true, buffPick.reason?.summary);
-assert.match(damagePick.action.forecast, /灰光森林的伊賽麗亞一上場就會燒魂/);
-assert.match(damagePick.action.forecast, /黑暗牧者迪埃妮使用暗月/);
-assert.match(damagePick.action.forecast, /35%/);
-assert.match(damagePick.action.forecast, /第 4、5 選/);
-assert.equal(buffPick.action.forecast, damagePick.action.forecast);
+assert.equal(/一上場就會燒魂/.test(damagePick.action.forecast), false);
+assert.equal(/一上場就會燒魂/.test(buffPick.action.forecast), false);
+assert.notEqual(damagePick.action.forecast, buffPick.action.forecast);
 assert.equal(damagePick.action.forecast.includes("強力克制"), false);
 assert.equal(buffPick.action.forecast.includes("強力克制"), false);
 assert.match(buffPick.reason.summary, /迪埃妮|艾蕾娜/);
@@ -691,36 +689,38 @@ assert.equal(bypass.reason.summary.includes("3.18"), false);
 const coolBlank = bypass.action.plans.find((plan) => plan.label === "加冷卻");
 const speedPlan = bypass.action.plans.find((plan) => plan.label === "速度");
 assert.ok(coolBlank && coolBlank.ids.length === 0 && coolBlank.reason === "");
-assert.equal(speedPlan.ids.includes("sez"), false);
+assert.equal(speedPlan.ids.includes("sez"), true);
 assert.match(speedPlan.reason, /速度：諾托斯中位 202/);
-assert.match(bypass.action.forecast, /灰光森林的伊賽麗亞一上場就會燒魂/);
-assert.match(bypass.action.forecast, /黑暗牧者迪埃妮使用暗月/);
-assert.match(bypass.action.forecast, /35%/);
-assert.match(bypass.action.forecast, /第 4、5 選/);
+assert.match(bypass.action.forecast, /瑟琳/);
+assert.match(bypass.action.forecast, /有開戰/);
+assert.equal(/一上場就會燒魂/.test(bypass.action.forecast), false);
+assert.equal(/黑暗牧者迪埃妮/.test(bypass.action.forecast), false);
 assert.equal(bypass.action.forecast.includes("3.18"), false);
 assert.equal(bypass.action.forecast.includes("末日蘿菲"), false);
 assert.equal(bypass.action.forecast.includes("強力克制"), false);
-assert.equal(bypass.action.ids.includes("sez"), false);
+assert.equal(bypass.action.ids.includes("sez"), true);
 assert.equal(bypass.action.ids.includes("apocalypse-ravi"), false);
-assert.equal(bypass.action.ids[0], "destina");
-assert.match(bypass.action.forecastReason, /不確定/);
+assert.equal(bypass.action.ids[0], "sez");
+assert.match(bypass.action.forecastReason, /速度：諾托斯中位 202/);
 assert.equal(bypass.action.plans.some((plan) => plan.label === "解除"), false);
 assert.equal(bypass.action.plans.some((plan) => (plan.ids || []).includes("apocalypse-ravi")), false);
 const withKawerik = notosHand(["Apocalypse Ravi", "Sez", "Destina", "Kawerik"]);
 const coolPlan = withKawerik.action.plans.find((plan) => plan.label === "加冷卻");
-assert.equal(coolPlan.ids.includes("kawerik"), false);
+assert.equal(coolPlan.ids.includes("kawerik"), true);
 assert.match(coolPlan.reason, /資料庫有開戰套，這名能加冷卻/);
 assert.equal(coolPlan.reason.includes("3.18"), false);
-assert.equal(withKawerik.action.ids.includes("kawerik"), false);
-assert.equal(withKawerik.action.ids[0], "destina");
+assert.equal(withKawerik.action.ids.includes("kawerik"), true);
+assert.equal(withKawerik.action.ids[0], "kawerik");
+assert.match(withKawerik.action.forecastReason, /能加冷卻/);
+assert.equal(/一上場就會燒魂/.test(withKawerik.action.forecast), false);
 const otherPlan = withKawerik.action.plans.find((plan) => plan.ids.length && plan.label !== "加冷卻");
 assert.ok(otherPlan);
 assert.equal(otherPlan.ids.includes("kawerik"), false);
 assert.equal(otherPlan.ids.includes("apocalypse-ravi"), false);
 assert.equal(withKawerik.reason.summary.includes("3.18"), false);
 const onlyCool = notosHand(["Kawerik"]);
-assert.equal(onlyCool.action.ids.includes("kawerik"), false);
-assert.match(onlyCool.action.forecastReason, /不確定/);
+assert.equal(onlyCool.action.ids.includes("kawerik"), true);
+assert.match(onlyCool.action.forecastReason, /能加冷卻/);
 assert.equal(onlyCool.action.plans.find((plan) => plan.label === "另一套").ids.length, 0);
 assert.equal(onlyCool.action.plans.find((plan) => plan.label === "另一套").reason, "");
 const notWarfare = notosHand(["Kawerik", "Apocalypse Ravi"], "sez");
@@ -736,7 +736,7 @@ const remembered = notosHand(["Apocalypse Ravi", "Sez", "Destina"], "notos", {
 });
 const winPlan = remembered.action.plans.find((plan) => plan.label === "勝場");
 assert.ok(winPlan);
-assert.equal(winPlan.ids.includes("apocalypse-ravi"), false);
+assert.equal(winPlan.ids.includes("apocalypse-ravi"), true);
 assert.match(winPlan.reason, /已記住 1 場有這名的勝利/);
 assert.equal(winPlan.reason.includes("勝率"), false);
 assert.notEqual(remembered.action.ids[0], "apocalypse-ravi");
@@ -759,7 +759,56 @@ const fastKawerik = guidedDraft(catalog, parseRoster({
   enemyPicks: ["notos"],
 });
 assert.equal(fastKawerik.action.ids.includes("kawerik"), true);
-assert.equal(fastKawerik.action.ids.includes("flan"), false);
-assert.match(fastKawerik.action.forecastReason, /能加冷卻|燒魂前能動/);
+assert.equal(fastKawerik.action.ids[0], "kawerik");
+assert.match(fastKawerik.action.forecastReason, /能加冷卻/);
+assert.equal(/一上場就會燒魂/.test(fastKawerik.action.forecast), false);
+
+const namedBriar = notosHand(["Destina"], "astromancer-elena");
+assert.match(namedBriar.action.forecast, /灰光森林的伊賽麗亞一上場就會燒魂/);
+assert.match(namedBriar.action.forecast, /黑暗牧者迪埃妮使用暗月/);
+assert.match(namedBriar.action.forecast, /35%/);
+assert.match(namedBriar.action.forecast, /第 4、5 選/);
+
+function rnlBoard(heroes) {
+  return guidedDraft(catalog, parseRoster({ heroes }, catalog), {
+    userFirst: false,
+    rule: "none",
+    userPicks: ["boss-arunka", "desert-jewel-basar"],
+    enemyPicks: ["rhianna-and-luciella", "arbiter-vildred", "aube"],
+    enemyPrebans: ["cidd", "kise"],
+  });
+}
+const rnl = rnlBoard([
+  geared("Boss Arunka", 210),
+  geared("Desert Jewel Basar", 250),
+  geared("Belian", 180),
+  geared("Kawerik", 320),
+  geared("Sez", 220),
+]);
+assert.equal(rnl.action.ids.length, 1);
+assert.equal(rnl.action.ids[0], "kawerik");
+assert.equal(rnl.action.ids.includes("belian"), false);
+assert.match(rnl.action.forecast, /後面是/);
+assert.match(rnl.action.forecast, /里安娜路西艾拉/);
+assert.match(rnl.action.forecastReason, /里安娜路西艾拉/);
+assert.match(rnl.action.forecastReason, /執行官維德瑞/);
+assert.match(rnl.action.forecastReason, /檔案速度比開場快/);
+assert.equal(/協同分數/.test(rnl.action.forecastReason), false);
+assert.equal(/灰光|暗迪埃妮|黑暗牧者迪埃妮/.test(rnl.action.forecast), false);
+assert.equal(/灰光|暗迪埃妮|黑暗牧者迪埃妮/.test(rnl.action.forecastReason), false);
+assert.equal(/伯里安/.test(`${rnl.action.forecast}${rnl.action.forecastReason}`), false);
+const slowRnl = rnlBoard([
+  geared("Boss Arunka", 210),
+  geared("Desert Jewel Basar", 250),
+  geared("Belian", 180),
+  geared("Sez", 220),
+]);
+assert.equal(slowRnl.action.ids.includes("belian"), false);
+assert.equal(slowRnl.action.ids.length, 0);
+assert.match(slowRnl.action.forecastReason, /檔案速度打不過開場/);
+assert.match(slowRnl.action.forecastReason, /里安娜路西艾拉/);
+assert.match(slowRnl.action.forecastReason, /執行官維德瑞/);
+assert.equal(/協同分數/.test(slowRnl.action.forecastReason), false);
+assert.equal(/灰光|暗迪埃妮|黑暗牧者迪埃妮/.test(`${slowRnl.action.forecast}${slowRnl.action.forecastReason}`), false);
 
 console.log("screen tests passed", { next: firstMove.action.title, brief: brief.action.title, knights: knights.picks, buffers: buffers.picks });

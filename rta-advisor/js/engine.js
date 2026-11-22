@@ -3034,18 +3034,18 @@ function fileSpeedOf(roster, id) {
   return typeof own?.fileSpeed === "number" && own.fileSpeed > 0 ? own.fileSpeed : null;
 }
 
-function openerChain(catalog, roster, enemies) {
+function openerChain(catalog, roster, enemies, forecast) {
   const list = (enemies || []).filter(Boolean);
   if (!list.length) return null;
   const moon = dieneMoon();
   if (!moon) return null;
   const briar = list.find((enemy) => isBriar(enemy));
   const diene = list.find((enemy) => isDarkDiene(enemy));
-  const early = list.length <= 3 && !diene;
-  if (!briar && !diene && !early) return null;
+  const named = (forecast?.partners || []).some((row) => row.code === "c2024" || row.name === "灰光森林的伊賽麗亞");
+  if (!briar && !diene && !named) return null;
   const known = briar && heroHasSoulburn(briar) ? briar : null;
   const assumedCard = draftHero(catalog, "briar-witch-iseria");
-  const assumed = !known && early && assumedCard && heroHasSoulburn(assumedCard) ? assumedCard : null;
+  const assumed = !known && named && assumedCard && heroHasSoulburn(assumedCard) ? assumedCard : null;
   let burner = known || assumed;
   if (!burner && diene) {
     const burners = list.filter((enemy) => heroHasSoulburn(enemy));
@@ -3053,8 +3053,9 @@ function openerChain(catalog, roster, enemies) {
   }
   const uncertain = "還沒動的輸出會不會被先手打死，不確定，不放進這一手。";
   if (!burner) {
+    if (!diene) return null;
     return {
-      sentence: `推估：${moon.name}通常第 4、5 選。這手沒有已入庫的燒魂，會不會啟動她，不確定。`,
+      sentence: `推估：${moon.name}已經在場。這手沒有已入庫的燒魂，會不會啟動她，不確定。`,
       hold: (id) => DAMAGE_ROLES.has(draftHero(catalog, id)?.role),
       reasonFor: () => uncertain,
     };
@@ -3084,8 +3085,84 @@ function openerChain(catalog, roster, enemies) {
   };
 }
 
+function enemyTempo(enemies) {
+  return (enemies || []).filter(Boolean).map((enemy) => {
+    const bar = e7Record(enemy.code)?.速度?.["50"];
+    const facts = warfareFacts(enemy);
+    return {
+      name: enemy.nameZh || "",
+      bar: typeof bar === "number" ? bar : null,
+      burn: heroHasSoulburn(enemy),
+      lock: Boolean(facts.set || facts.opener),
+    };
+  }).filter((row) => row.name);
+}
+
+function soulCutQuote(hero) {
+  const chinese = (sdHero(hero?.code)?.技能 || []).map((skill) => (skill.效果 || []).join("")).join("。");
+  for (const chunk of chinese.split("。")) {
+    if (/靈魂獲得量減少/.test(chunk)) return chunk;
+  }
+  return "";
+}
+
+function tempoClause(enemies) {
+  const rows = enemyTempo(enemies);
+  const speeds = rows.filter((row) => typeof row.bar === "number");
+  const bits = [];
+  if (speeds.length) {
+    const top = speeds.reduce((best, row) => (row.bar > best.bar ? row : best));
+    bits.push(`開場最快是${top.name}中位 ${top.bar}`);
+  }
+  const burns = [...new Set(rows.filter((row) => row.burn).map((row) => row.name))];
+  if (burns.length) bits.push(`${burns.join("、")}有燒魂`);
+  return bits.join("，");
+}
+
+function protectedAnswer(catalog, roster, ranked, enemies) {
+  const rows = enemyTempo(enemies);
+  const speeds = rows.filter((row) => typeof row.bar === "number");
+  if (!speeds.length) return null;
+  const bar = Math.max(...speeds.map((row) => row.bar));
+  const speedText = [...speeds].sort((left, right) => right.bar - left.bar).map((row) => `${row.name}中位 ${row.bar}`).join("、");
+  const burns = [...new Set(rows.filter((row) => row.burn).map((row) => row.name))];
+  const locks = (enemies || []).filter((enemy) => {
+    const facts = warfareFacts(enemy);
+    return facts.set || facts.opener;
+  });
+  const pool = (ranked || []).map((row) => row.id).filter((id) => {
+    const speed = fileSpeedOf(roster, id);
+    return speed != null && speed > bar;
+  });
+  const scored = pool.map((id) => {
+    const hero = draftHero(catalog, id);
+    const speed = fileSpeedOf(roster, id);
+    let weight = speed;
+    let kind = "speed";
+    if (locks.length && cooldownIncreaseQuote(hero)) {
+      weight += 100000;
+      kind = "cool";
+    } else if (burns.length && soulCutQuote(hero)) {
+      weight += 50000;
+      kind = "soul";
+    }
+    return { id, weight, kind };
+  }).sort((left, right) => right.weight - left.weight || left.id.localeCompare(right.id));
+  const winner = scored[0] || null;
+  if (!winner) return { ids: [], reason: `${speedText}，檔案速度打不過開場。` };
+  if (winner.kind === "cool") {
+    const name = [...new Set(locks.map((enemy) => enemy.nameZh).filter(Boolean))].join("、");
+    return { ids: [winner.id], reason: `對上${name}，這名能加冷卻，檔案速度比開場快。` };
+  }
+  if (winner.kind === "soul") {
+    return { ids: [winner.id], reason: `${burns.join("、")}有燒魂，這名能滅魂，檔案速度比開場快。` };
+  }
+  const burnBit = burns.length ? `${burns.join("、")}有燒魂，` : "";
+  return { ids: [winner.id], reason: `${speedText}，${burnBit}這名檔案速度比開場快。` };
+}
+
 function forecastEnemy(enemies) {
-  const seeds = (enemies || []).slice(0, 2).filter(Boolean);
+  const seeds = (enemies || []).filter(Boolean);
   if (!seeds.length) return null;
   const picked = new Set(seeds.map((enemy) => enemy.code).filter(Boolean));
   const partners = [];
@@ -3110,11 +3187,15 @@ function forecastEnemy(enemies) {
   else if (locks.some((row) => row.opener)) style.push("首次冷卻到最大");
   if (seeds.some((enemy) => attackSkills(enemy).length) && seeds.every((enemy) => enemyCanSwitchTarget(enemy))) style.push("攻擊可改打別人");
   const who = [...new Set(seeds.map((enemy) => enemy.nameZh).filter(Boolean))].join("、") || "對方";
-  if (!later.length && !style.length) return { sentence: "推估：不確定。", partners: [] };
-  if (!later.length) return { sentence: `推估：${who}整隊${style.join("、")}，後面幾手不確定。`, partners: [] };
-  const names = later.map((row) => row.name).join("、");
-  const tail = style.length ? `，整隊${style.join("、")}` : "";
-  return { sentence: `推估：${who}後面協同最高是${names}${tail}。`, partners: later };
+  const tempo = tempoClause(seeds);
+  const styleText = style.length ? `整隊${style.join("、")}` : "";
+  if (!later.length && !styleText && !tempo) return { sentence: "推估：不確定。", partners: [] };
+  if (!later.length) {
+    const head = [styleText, tempo].filter(Boolean).join("，");
+    return { sentence: `推估：${who}${head}，後面幾手不確定。`, partners: [] };
+  }
+  const bits = [`後面是${later.map((row) => row.name).join("、")}`, styleText, tempo].filter(Boolean);
+  return { sentence: `推估：${who}${bits.join("，")}。`, partners: later };
 }
 
 function rememberedWins(memory, heroId) {
@@ -4225,10 +4306,11 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const waiting = seat.side === "enemy" && seat.left === seat.count;
   const ranked = waiting ? [] : compositionRank(catalog, roster, userPicks, enemyPicks, blocked, options.memory);
   const foes = enemyPicks.map((id) => draftHero(catalog, id)).filter(Boolean);
-  const chain = !waiting && seat.side === "user" ? openerChain(catalog, roster, foes) : null;
+  const forecastBase = !waiting && seat.side === "user" && foes.length ? forecastEnemy(foes) : null;
+  const chain = !waiting && seat.side === "user" ? openerChain(catalog, roster, foes, forecastBase) : null;
   const forecast = chain
-    ? { sentence: chain.sentence }
-    : (!waiting && seat.side === "user" && foes.length > 0 && foes.length <= 2 ? forecastEnemy(foes) : null);
+    ? { sentence: chain.sentence, partners: forecastBase?.partners || [] }
+    : forecastBase;
   const pickLimit = Math.min(Math.max(seat.left || 1, 1), 3);
   let plans = !waiting && seat.side === "user" && foes.length
     ? buildPlans(catalog, ranked, userPicks, foes, options.memory, pickLimit)
@@ -4241,11 +4323,23 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
     }
   }
   const primary = plans?.find((plan) => plan.ids.length) || null;
-  const ids = forecast
+  let ids = forecast && foes.length <= 2
     ? (primary?.ids || [])
     : (plans
       ? plans.flatMap((plan) => plan.ids).filter((id, index, list) => list.indexOf(id) === index)
       : ranked.slice(0, 3).map((row) => row.id));
+  let forecastReason = chain
+    ? ((primary?.ids?.[0] && primary.reason && !chain.hold(primary.ids[0]))
+      ? primary.reason
+      : chain.reasonFor(primary?.ids?.[0] || ""))
+    : (primary?.reason || "");
+  if (!waiting && seat.side === "user" && userPicks.length === 2 && seat.left === seat.count && foes.length) {
+    const answer = protectedAnswer(catalog, roster, ranked, foes);
+    if (answer) {
+      ids = answer.ids.slice(0, 1);
+      forecastReason = answer.reason;
+    }
+  }
   const top = userPicks.length >= 5 || waiting ? [] : topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirst, state, options.memory);
   if (!waiting && usedDefaultGear(catalog, roster, ids, state)) board.push("建議靠未確認的神器或專武，信心度降一級。");
   return advicePacket(catalog, basis, state, {
@@ -4264,11 +4358,7 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
     ids,
     plans,
     forecast: forecast?.sentence || "",
-    forecastReason: chain
-      ? ((primary?.ids?.[0] && primary.reason && !chain.hold(primary.ids[0]))
-        ? primary.reason
-        : chain.reasonFor(primary?.ids?.[0] || ""))
-      : (primary?.reason || ""),
+    forecastReason,
     need: seat.left,
   });
 }
