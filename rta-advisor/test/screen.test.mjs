@@ -227,9 +227,11 @@ const buffPick = guidedDraft(catalog, roster, {
 }, { trials: 1, rank: "champion" });
 assert.equal(damagePick.ok, true, damagePick.reason?.summary);
 assert.equal(buffPick.ok, true, buffPick.reason?.summary);
-assert.notEqual(damagePick.action.forecast, buffPick.action.forecast);
-assert.match(buffPick.action.forecast, /一輪孤月維爾蘿娜|赫卡特/);
-assert.match(damagePick.action.forecast, /不確定/);
+assert.match(damagePick.action.forecast, /灰光森林的伊賽麗亞一上場就會燒魂/);
+assert.match(damagePick.action.forecast, /黑暗牧者迪埃妮使用暗月/);
+assert.match(damagePick.action.forecast, /35%/);
+assert.match(damagePick.action.forecast, /第 4、5 選/);
+assert.equal(buffPick.action.forecast, damagePick.action.forecast);
 assert.equal(damagePick.action.forecast.includes("強力克制"), false);
 assert.equal(buffPick.action.forecast.includes("強力克制"), false);
 assert.match(buffPick.reason.summary, /迪埃妮|艾蕾娜/);
@@ -689,32 +691,36 @@ assert.equal(bypass.reason.summary.includes("3.18"), false);
 const coolBlank = bypass.action.plans.find((plan) => plan.label === "加冷卻");
 const speedPlan = bypass.action.plans.find((plan) => plan.label === "速度");
 assert.ok(coolBlank && coolBlank.ids.length === 0 && coolBlank.reason === "");
-assert.equal(speedPlan.ids[0], "sez");
+assert.equal(speedPlan.ids.includes("sez"), false);
 assert.match(speedPlan.reason, /速度：諾托斯中位 202/);
-assert.match(bypass.action.forecast, /推估：諾托斯後面協同最高是/);
-assert.match(bypass.action.forecast, /瑟琳/);
-assert.match(bypass.action.forecast, /黑暗的科爾布思/);
-assert.match(bypass.action.forecast, /有開戰/);
-assert.match(bypass.action.forecast, /攻擊可改打別人/);
+assert.match(bypass.action.forecast, /灰光森林的伊賽麗亞一上場就會燒魂/);
+assert.match(bypass.action.forecast, /黑暗牧者迪埃妮使用暗月/);
+assert.match(bypass.action.forecast, /35%/);
+assert.match(bypass.action.forecast, /第 4、5 選/);
 assert.equal(bypass.action.forecast.includes("3.18"), false);
 assert.equal(bypass.action.forecast.includes("末日蘿菲"), false);
 assert.equal(bypass.action.forecast.includes("強力克制"), false);
-assert.equal(bypass.action.ids[0], "sez");
-assert.match(bypass.action.forecastReason, /速度：諾托斯中位 202/);
+assert.equal(bypass.action.ids.includes("sez"), false);
+assert.equal(bypass.action.ids.includes("apocalypse-ravi"), false);
+assert.equal(bypass.action.ids[0], "destina");
+assert.match(bypass.action.forecastReason, /不確定/);
 assert.equal(bypass.action.plans.some((plan) => plan.label === "解除"), false);
 assert.equal(bypass.action.plans.some((plan) => (plan.ids || []).includes("apocalypse-ravi")), false);
 const withKawerik = notosHand(["Apocalypse Ravi", "Sez", "Destina", "Kawerik"]);
-assert.equal(withKawerik.action.plans[0].label, "加冷卻");
-assert.equal(withKawerik.action.plans[0].ids[0], "kawerik");
-assert.match(withKawerik.action.plans[0].reason, /資料庫有開戰套，這名能加冷卻/);
-assert.equal(withKawerik.action.plans[0].reason.includes("3.18"), false);
+const coolPlan = withKawerik.action.plans.find((plan) => plan.label === "加冷卻");
+assert.equal(coolPlan.ids.includes("kawerik"), false);
+assert.match(coolPlan.reason, /資料庫有開戰套，這名能加冷卻/);
+assert.equal(coolPlan.reason.includes("3.18"), false);
+assert.equal(withKawerik.action.ids.includes("kawerik"), false);
+assert.equal(withKawerik.action.ids[0], "destina");
 const otherPlan = withKawerik.action.plans.find((plan) => plan.ids.length && plan.label !== "加冷卻");
 assert.ok(otherPlan);
 assert.equal(otherPlan.ids.includes("kawerik"), false);
 assert.equal(otherPlan.ids.includes("apocalypse-ravi"), false);
 assert.equal(withKawerik.reason.summary.includes("3.18"), false);
 const onlyCool = notosHand(["Kawerik"]);
-assert.equal(onlyCool.action.plans.find((plan) => plan.label === "加冷卻").ids[0], "kawerik");
+assert.equal(onlyCool.action.ids.includes("kawerik"), false);
+assert.match(onlyCool.action.forecastReason, /不確定/);
 assert.equal(onlyCool.action.plans.find((plan) => plan.label === "另一套").ids.length, 0);
 assert.equal(onlyCool.action.plans.find((plan) => plan.label === "另一套").reason, "");
 const notWarfare = notosHand(["Kawerik", "Apocalypse Ravi"], "sez");
@@ -730,11 +736,30 @@ const remembered = notosHand(["Apocalypse Ravi", "Sez", "Destina"], "notos", {
 });
 const winPlan = remembered.action.plans.find((plan) => plan.label === "勝場");
 assert.ok(winPlan);
-assert.equal(winPlan.ids.includes("apocalypse-ravi"), true);
+assert.equal(winPlan.ids.includes("apocalypse-ravi"), false);
 assert.match(winPlan.reason, /已記住 1 場有這名的勝利/);
 assert.equal(winPlan.reason.includes("勝率"), false);
 assert.notEqual(remembered.action.ids[0], "apocalypse-ravi");
 assert.equal(bypass.reason.summary.includes("勝場："), false);
 assert.equal(bypass.reason.summary.includes("勝率"), false);
+const opened = notosHand(["Flan", "Eda", "Boss Arunka"], "briar-witch-iseria");
+assert.equal(opened.action.ids.includes("flan"), false);
+assert.equal(opened.action.ids.includes("eda"), false);
+assert.equal(opened.action.ids[0], "boss-arunka");
+assert.match(opened.action.forecast, /灰光森林的伊賽麗亞會燒魂/);
+assert.match(opened.action.forecast, /黑暗牧者迪埃妮使用暗月，速攻值增加 35%/);
+assert.match(opened.action.forecast, /第 4、5 選/);
+assert.match(opened.action.forecastReason, /不確定/);
+assert.equal(opened.action.forecast.includes("？"), false);
+const fastKawerik = guidedDraft(catalog, parseRoster({
+  heroes: [geared("Kawerik", 320), geared("Flan", 200), geared("Destina", 180)],
+}, catalog), {
+  userFirst: false,
+  rule: "resist",
+  enemyPicks: ["notos"],
+});
+assert.equal(fastKawerik.action.ids.includes("kawerik"), true);
+assert.equal(fastKawerik.action.ids.includes("flan"), false);
+assert.match(fastKawerik.action.forecastReason, /能加冷卻|燒魂前能動/);
 
 console.log("screen tests passed", { next: firstMove.action.title, brief: brief.action.title, knights: knights.picks, buffers: buffers.picks });

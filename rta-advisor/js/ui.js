@@ -401,6 +401,8 @@ function draftStatusText(result) {
 }
 
 function setOrder(userFirst) {
+  pendingSlot = null;
+  if ($("slotChoices")) $("slotChoices").hidden = true;
   const rule = manual.rule || "";
   const exclusiveNote = manual.exclusiveNote || "";
   const effectNotes = manual.effectNotes || {};
@@ -439,7 +441,8 @@ function paintSide(rootId, side, picks, banId) {
       (side === "enemy" && lastAdvice?.action?.kind === "report")
       || (side === "user" && lastAdvice?.action?.kind === "pick")
     );
-    button.className = ["cell", index === 2 ? "protect" : "key", id ? "filled" : "", id && id === banId ? "banned" : "", active ? "active" : ""].filter(Boolean).join(" ");
+    const editing = pendingSlot && pendingSlot.kind === side && pendingSlot.index === index;
+    button.className = ["cell", index === 2 ? "protect" : "key", id ? "filled" : "", id && id === banId ? "banned" : "", active ? "active" : "", editing ? "active" : ""].filter(Boolean).join(" ");
     const small = document.createElement("small");
     small.textContent = `第 ${index + 1} 選・${slotTag(index)}`;
     const strong = document.createElement("strong");
@@ -477,6 +480,12 @@ function onCell(side, index) {
   }
   const full = manual.userPicks.length >= 5 && manual.enemyPicks.length >= 5;
   if (!full) {
+    const picks = side === "enemy" ? manual.enemyPicks : manual.userPicks;
+    if (index < picks.length && picks[index]) {
+      pendingSlot = { kind: side, index, replace: true };
+      openSlotChoices();
+      return;
+    }
     if (side === "enemy") {
       if (lastAdvice?.action?.kind !== "report" || index !== manual.enemyPicks.length) {
         $("draftStatus").textContent = lastAdvice?.action?.kind === "pick"
@@ -484,18 +493,16 @@ function onCell(side, index) {
           : `先點對方第 ${manual.enemyPicks.length + 1} 格。`;
         return;
       }
-      pendingSlot = { kind: "enemy", index };
-      pickerIds = null;
-      openDraftPicker(`對方第 ${index + 1} 格`);
+      pendingSlot = { kind: "enemy", index, replace: false };
+      openSlotChoices();
       return;
     }
     if (lastAdvice?.action?.kind !== "pick" || index !== manual.userPicks.length) {
       $("draftStatus").textContent = `先點對方第 ${manual.enemyPicks.length + 1} 格。`;
       return;
     }
-    pendingSlot = { kind: "user", index };
-    pickerIds = null;
-    openDraftPicker(`我方第 ${index + 1} 格`);
+    pendingSlot = { kind: "user", index, replace: false };
+    openSlotChoices();
     return;
   }
   if (index === 2) {
@@ -519,6 +526,56 @@ function onBan(which) {
   pickerIds = picks.filter((_, index) => index !== 2);
   pendingSlot = { kind: which === "enemy" ? "ban-enemy" : "ban-user" };
   openDraftPicker(which === "enemy" ? "我禁對方哪一名" : "對方禁了我方哪一名");
+}
+
+function openSlotChoices() {
+  const box = $("slotChoices");
+  const slot = pendingSlot;
+  if (!box || !slot || (slot.kind !== "user" && slot.kind !== "enemy")) {
+    if (box) box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const side = slot.kind === "user" ? "我方" : "對方";
+  $("slotChoicesTitle").textContent = slot.replace
+    ? `${side}第 ${slot.index + 1} 格，點一名換掉`
+    : `${side}第 ${slot.index + 1} 格，點一名填進去`;
+  $("slotSearch").value = "";
+  fillSlotChoices("");
+  paintBoard();
+  $("draftStatus").textContent = slot.kind === "user"
+    ? "有配裝的角色點一下就填進這一格。再點這一格可以換。已經選上和預禁過的不會出現。"
+    : "輸入名字，點一下就填進這一格。再點這一格可以換。已經選上和預禁過的不會出現。";
+}
+
+function fillSlotChoices(query = "") {
+  const list = $("slotList");
+  const slot = pendingSlot;
+  if (!list || !slot) return;
+  list.replaceChildren();
+  const needle = query.trim().toLowerCase();
+  if (slot.kind === "enemy" && !needle) return;
+  const taken = draftTaken();
+  let heroes = selectableHeroes(catalog).sort((left, right) => left.nameZh.localeCompare(right.nameZh, "zh-Hant"));
+  heroes = heroes.filter((hero) => !taken.has(hero.id));
+  if (slot.kind === "user") {
+    const geared = new Set((roster?.heroes || []).filter((hero) => hero.geared).map((hero) => hero.id));
+    heroes = heroes.filter((hero) => geared.has(hero.id));
+  }
+  for (const hero of heroes) {
+    const labels = [hero.nameZh, hero.name, hero.id, ...(hero.aliases || [])].map((label) => String(label || "").toLowerCase());
+    if (needle && !labels.some((label) => label.includes(needle))) continue;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = hero.nameZh;
+    button.addEventListener("click", () => {
+      const chosen = pendingSlot;
+      pendingSlot = null;
+      $("slotChoices").hidden = true;
+      if (chosen) applyDraftChoice(chosen, hero.id);
+    });
+    list.appendChild(button);
+  }
 }
 
 function openDraftPicker(title) {
@@ -647,19 +704,29 @@ function applyDraftChoice(slot, heroId) {
       $("draftStatus").textContent = `${heroName(heroId)}沒有配裝，預設不推薦。`;
       return;
     }
-    if (manual.userPicks.length !== slot.index) return;
-    manual.userPicks.push(heroId);
-    manual.steps.push({ side: "user", ids: [heroId] });
+    if (slot.replace) {
+      if (slot.index >= manual.userPicks.length) return;
+      manual.userPicks[slot.index] = heroId;
+    } else {
+      if (manual.userPicks.length !== slot.index) return;
+      manual.userPicks.push(heroId);
+      manual.steps.push({ side: "user", ids: [heroId] });
+    }
   }
   if (slot.kind === "enemy") {
     const taken = draftTaken();
-    if (taken.has(heroId)) {
+    if (!slot.replace && taken.has(heroId)) {
       $("draftStatus").textContent = `${heroName(heroId)}已經選過或預禁過。`;
       return;
     }
-    if (manual.enemyPicks.length !== slot.index) return;
-    manual.enemyPicks.push(heroId);
-    manual.steps.push({ side: "enemy", ids: [heroId] });
+    if (slot.replace) {
+      if (slot.index >= manual.enemyPicks.length) return;
+      manual.enemyPicks[slot.index] = heroId;
+    } else {
+      if (manual.enemyPicks.length !== slot.index) return;
+      manual.enemyPicks.push(heroId);
+      manual.steps.push({ side: "enemy", ids: [heroId] });
+    }
   }
   if (slot.kind === "ban-enemy") {
     const index = manual.enemyPicks.indexOf(heroId);
@@ -818,6 +885,7 @@ $("closePicker").addEventListener("click", () => {
   $("picker").close();
 });
 $("pickerSearch").addEventListener("input", (event) => fillPicker(event.target.value));
+$("slotSearch").addEventListener("input", (event) => fillSlotChoices(event.target.value));
 for (const button of document.querySelectorAll("#pickerFilters button")) {
   button.addEventListener("click", () => {
     button.setAttribute("aria-pressed", button.getAttribute("aria-pressed") === "true" ? "false" : "true");

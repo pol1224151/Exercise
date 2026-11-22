@@ -3005,6 +3005,85 @@ function heroDispels(hero) {
   return chinese.split("。").some((chunk) => !/不會受到|弱化/.test(chunk) && /解除[^。]{0,8}強化/.test(chunk));
 }
 
+const DAMAGE_ROLES = new Set(["warrior", "assassin", "mage", "ranger"]);
+
+function isBriar(hero) {
+  return hero?.id === "briar-witch-iseria" || hero?.code === "c2024";
+}
+
+function isDarkDiene(hero) {
+  return hero?.id === "shepherd-of-the-dark-diene" || hero?.code === "c2076";
+}
+
+function heroHasSoulburn(hero) {
+  return ["S1", "S2", "S3"].some((slot) => hero?.skills?.[slot]?.soulburnCost);
+}
+
+function dieneMoon() {
+  const page = sdHero("c2076");
+  const chunks = (page?.技能 || []).map((skill) => (skill.效果 || []).join(""));
+  const hit = chunks.find((text) => /靈魂燃燒/.test(text) && /暗月/.test(text) && /速攻值增加/.test(text));
+  const pct = hit?.match(/速攻值增加\s*(\d+(?:\.\d+)?)%/);
+  if (!page?.名稱 || !pct) return null;
+  return { name: page.名稱, pct: pct[1] };
+}
+
+function fileSpeedOf(roster, id) {
+  const want = canonicalId(id);
+  const own = (roster?.heroes || []).find((hero) => hero.id === id || canonicalId(hero.id) === want);
+  return typeof own?.fileSpeed === "number" && own.fileSpeed > 0 ? own.fileSpeed : null;
+}
+
+function openerChain(catalog, roster, enemies) {
+  const list = (enemies || []).filter(Boolean);
+  if (!list.length) return null;
+  const moon = dieneMoon();
+  if (!moon) return null;
+  const briar = list.find((enemy) => isBriar(enemy));
+  const diene = list.find((enemy) => isDarkDiene(enemy));
+  const early = list.length <= 3 && !diene;
+  if (!briar && !diene && !early) return null;
+  const known = briar && heroHasSoulburn(briar) ? briar : null;
+  const assumedCard = draftHero(catalog, "briar-witch-iseria");
+  const assumed = !known && early && assumedCard && heroHasSoulburn(assumedCard) ? assumedCard : null;
+  let burner = known || assumed;
+  if (!burner && diene) {
+    const burners = list.filter((enemy) => heroHasSoulburn(enemy));
+    burner = burners.sort((left, right) => (e7Record(right.code)?.速度?.["50"] || 0) - (e7Record(left.code)?.速度?.["50"] || 0))[0] || null;
+  }
+  const uncertain = "還沒動的輸出會不會被先手打死，不確定，不放進這一手。";
+  if (!burner) {
+    return {
+      sentence: `推估：${moon.name}通常第 4、5 選。這手沒有已入庫的燒魂，會不會啟動她，不確定。`,
+      hold: (id) => DAMAGE_ROLES.has(draftHero(catalog, id)?.role),
+      reasonFor: () => uncertain,
+    };
+  }
+  const bar = e7Record(burner.code)?.速度?.["50"];
+  const name = burner.nameZh || "灰光森林的伊賽麗亞";
+  const verb = known ? "會燒魂" : (assumed ? "一上場就會燒魂" : "有燒魂");
+  const late = !diene ? "，她通常第 4、5 選" : "";
+  const hold = (id) => {
+    const hero = draftHero(catalog, id);
+    if (!hero || !DAMAGE_ROLES.has(hero.role)) return false;
+    const speed = fileSpeedOf(roster, id);
+    if (typeof bar !== "number" || speed == null) return true;
+    return speed < bar;
+  };
+  return {
+    sentence: `推估：${name}${verb}，燒魂後${moon.name}使用暗月，速攻值增加 ${moon.pct}%${late}。`,
+    hold,
+    reasonFor: (id) => {
+      const hero = draftHero(catalog, id);
+      const speed = fileSpeedOf(roster, id);
+      if (id && hero && DAMAGE_ROLES.has(hero.role) && typeof bar === "number" && speed != null && speed >= bar) {
+        return `這名的檔案速度比${name}中位 ${bar} 快，燒魂前能動。`;
+      }
+      return uncertain;
+    },
+  };
+}
+
 function forecastEnemy(enemies) {
   const seeds = (enemies || []).slice(0, 2).filter(Boolean);
   if (!seeds.length) return null;
@@ -4146,10 +4225,21 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const waiting = seat.side === "enemy" && seat.left === seat.count;
   const ranked = waiting ? [] : compositionRank(catalog, roster, userPicks, enemyPicks, blocked, options.memory);
   const foes = enemyPicks.map((id) => draftHero(catalog, id)).filter(Boolean);
-  const forecast = !waiting && seat.side === "user" && foes.length > 0 && foes.length <= 2 ? forecastEnemy(foes) : null;
-  const plans = !waiting && seat.side === "user" && foes.length
-    ? buildPlans(catalog, ranked, userPicks, foes, options.memory, Math.min(Math.max(seat.left || 1, 1), 3))
+  const chain = !waiting && seat.side === "user" ? openerChain(catalog, roster, foes) : null;
+  const forecast = chain
+    ? { sentence: chain.sentence }
+    : (!waiting && seat.side === "user" && foes.length > 0 && foes.length <= 2 ? forecastEnemy(foes) : null);
+  const pickLimit = Math.min(Math.max(seat.left || 1, 1), 3);
+  let plans = !waiting && seat.side === "user" && foes.length
+    ? buildPlans(catalog, ranked, userPicks, foes, options.memory, pickLimit)
     : null;
+  if (plans && chain?.hold) {
+    plans = plans.map((plan) => ({ ...plan, ids: plan.ids.filter((id) => !chain.hold(id)) }));
+    if (!plans.some((plan) => plan.ids.length)) {
+      const rest = ranked.map((row) => row.id).filter((id) => !chain.hold(id)).slice(0, pickLimit);
+      if (rest.length) plans = [{ label: "先動", ids: rest, reason: "" }, ...plans];
+    }
+  }
   const primary = plans?.find((plan) => plan.ids.length) || null;
   const ids = forecast
     ? (primary?.ids || [])
@@ -4174,7 +4264,11 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
     ids,
     plans,
     forecast: forecast?.sentence || "",
-    forecastReason: primary?.reason || "",
+    forecastReason: chain
+      ? ((primary?.ids?.[0] && primary.reason && !chain.hold(primary.ids[0]))
+        ? primary.reason
+        : chain.reasonFor(primary?.ids?.[0] || ""))
+      : (primary?.reason || ""),
     need: seat.left,
   });
 }
