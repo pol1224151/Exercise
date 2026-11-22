@@ -534,6 +534,61 @@ const override = guidedDraft(catalog, mixed, {
   exclusiveNote: "諾托斯沒有專武",
 });
 assert.match(override.reason.summary, /諾托斯[\s\S]*專武 沒有（已確認，你另外講的）/);
+const schuriGear = {
+  name: "Schuri",
+  atk: 3000, hp: 9000, def: 800, cr: 100, cd: 250, eff: 0, res: 0, dac: 0, spd: 260,
+};
+const schuriRoster = parseRoster({ heroes: [schuriGear, filledHero] }, catalog);
+const schuriTurn = guidedDraft(catalog, schuriRoster, {
+  userFirst: true,
+  rule: "attack",
+  userPicks: ["arbiter-vildred"],
+  enemyPicks: ["harsetti"],
+});
+assert.match(schuriTurn.reason.summary, /修里對上赫爾賽蒂是被強力克制，對戰分數 -4\.86/);
+assert.match(schuriTurn.reason.summary, /協同效果普通，協同分數 \+0\.00/);
+const schuriPage = guidedDraft(catalog, schuriRoster, {
+  userFirst: true,
+  rule: "attack",
+  userPicks: ["arbiter-vildred"],
+  enemyPicks: ["schuri"],
+});
+assert.match(schuriPage.reason.summary, /香袋伊妲涅斯/);
+assert.match(schuriPage.reason.summary, /組合使用率 70%/);
+assert.match(schuriPage.reason.summary, /這是套裝組合的比例，不是神器使用率/);
+assert.match(schuriPage.reason.summary, /射手/);
+assert.match(schuriPage.reason.summary, /頁上沒有陣行使用率，不編陣行/);
+assert.match(schuriPage.reason.summary, /我方用 JSON 的實際練度/);
+assert.match(schuriPage.reason.summary, /敵人死亡時，使全體我軍的速攻值增加16%/);
+const ariaTurn = guidedDraft(catalog, schuriRoster, {
+  userFirst: true,
+  rule: "attack",
+  userPicks: ["arbiter-vildred"],
+  enemyPicks: ["disciplinary-prefect-aria"],
+});
+assert.match(ariaTurn.reason.summary, /貫徹使命/);
+assert.match(ariaTurn.reason.summary, /權威之證/);
+assert.match(ariaTurn.reason.summary, /生命力 7% ~ 14%/);
+assert.match(ariaTurn.reason.summary, /處分的傷害量增加10%，並使敵人減少靈魂20點/);
+const geared = (name, speed) => ({ name, atk: 3000, hp: 10000, def: 900, cr: 100, cd: 250, eff: 0, res: 0, dac: 0, spd: speed });
+const standIn = guidedDraft(catalog, parseRoster({ heroes: [geared("Arbiter Vildred", 250)] }, catalog), {
+  userFirst: true,
+  rule: "attack",
+  userPicks: ["rhianna-and-luciella"],
+  enemyPicks: ["harsetti", "notos"],
+});
+assert.match(standIn.reason.summary, /替代：沒有黎潔特或沒有他的配裝，執行官維德瑞最相似分數 \+0\.37/);
+const keepSynergy = guidedDraft(catalog, parseRoster({ heroes: [geared("Arbiter Vildred", 250), geared("Lisette", 240)] }, catalog), {
+  userFirst: true,
+  rule: "attack",
+  userPicks: ["rhianna-and-luciella"],
+  enemyPicks: ["harsetti", "notos"],
+});
+assert.match(keepSynergy.reason.summary, /協同：和里安娜路西艾拉的協同分數 \+3\.04/);
+assert.equal(keepSynergy.reason.summary.includes("替代：沒有黎潔特"), false);
+const lisetteAt = keepSynergy.action.ids.indexOf("lisette");
+const vildredAt = keepSynergy.action.ids.indexOf("arbiter-vildred");
+assert.ok(lisetteAt >= 0 && (vildredAt < 0 || lisetteAt < vildredAt));
 const gaps = effectGapItems(catalog, mixed, {});
 assert.ok(gaps.some((item) => item.key === "artifact:Alexa's Basket" && item.heroes.includes("執行官維德瑞")));
 assert.ok(gaps.some((item) => item.key === "ee:arbiter-vildred"));

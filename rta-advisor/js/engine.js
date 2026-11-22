@@ -8,6 +8,7 @@ import heroLinks from "../data/hero-links.json" with { type: "json" };
 import screenSkills from "../data/screen-skills.json" with { type: "json" };
 import rarityByCode from "../data/rarity.json" with { type: "json" };
 import e7Rta from "../data/e7rtabot-rta.json" with { type: "json" };
+import e7Sd from "../data/e7-sd.json" with { type: "json" };
 import skillEnhanceMax from "../data/skill-enhance-max.json" with { type: "json" };
 import versionFile from "../data/version.json" with { type: "json" };
 
@@ -2065,6 +2066,32 @@ function e7Record(code) {
   return e7Rta.英雄?.[code] || null;
 }
 
+function sdHero(code) {
+  return e7Sd.英雄?.[code] || null;
+}
+
+function signedScore(value) {
+  if (typeof value !== "number") return "";
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}`;
+}
+
+function pairRecord(ourCode, enemyCode) {
+  if (!ourCode || !enemyCode) return null;
+  return e7Sd.配對?.[`${ourCode}|${enemyCode}`] || null;
+}
+
+function listedSynergy(ourCode, allyCode) {
+  if (!ourCode || !allyCode) return null;
+  const scores = [];
+  for (const row of sdHero(allyCode)?.協同 || []) {
+    if (row.代碼 === ourCode && typeof row.分數 === "number") scores.push(row.分數);
+  }
+  for (const row of sdHero(ourCode)?.協同 || []) {
+    if (row.代碼 === allyCode && typeof row.分數 === "number") scores.push(row.分數);
+  }
+  return scores.length ? Math.max(...scores) : null;
+}
+
 export function rtaSummary(hero) {
   const row = e7Record(hero?.code);
   if (!row?.有頁) return "沒有世界競技場頁";
@@ -2396,6 +2423,8 @@ function unitStat(catalog, roster, id, field) {
 }
 
 function topArtifactEnglish(catalog, hero) {
+  const top = (sdHero(hero?.code)?.配裝 || []).find((row) => row.神器 && typeof row.使用率 === "number");
+  if (top) return artifactEnglish(catalog, top.神器);
   const build = e7Record(hero?.code)?.建造?.[0];
   return build?.神器 ? artifactEnglish(catalog, build.神器) : "";
 }
@@ -2918,7 +2947,17 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
     geared.add(hero.id);
     geared.add(canonicalId(hero.id));
   }
-  const pool = (catalog.heroes || []).filter((hero) => owned.has(hero.id) && geared.has(hero.id) && !taken.has(hero.id) && draftHero(catalog, hero.id));
+  const modelIds = new Set((catalog.heroes || []).map((hero) => hero.id));
+  const seen = new Set();
+  const pool = [];
+  for (const hero of [...(catalog.heroes || []), ...(catalog.database || [])]) {
+    if (!hero?.id || seen.has(hero.id)) continue;
+    if (!owned.has(hero.id) || !geared.has(hero.id) || taken.has(hero.id)) continue;
+    if (!modelIds.has(hero.id) && !sdHero(hero.code)) continue;
+    if (!catalogHero(catalog, hero.id)) continue;
+    seen.add(hero.id);
+    pool.push(hero);
+  }
   const knownEnemy = (enemyPicks || []).map((id) => draftHero(catalog, id)).filter(Boolean);
   const allies = (userPicks || []).map((id) => draftHero(catalog, id)).filter(Boolean);
   const scored = [];
@@ -2973,6 +3012,17 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
       } else if (sets.length && !counter && !countered) {
         notes.push({ weight: 0.1, text: `建造：${name}常見${sets.join("、")}。` });
       }
+      const pair = pairRecord(mine?.code, enemy.code);
+      if (pair && typeof pair.對戰分數 === "number") {
+        score += pair.對戰分數 * 10;
+        const syn = typeof pair.協同分數 === "number"
+          ? `配對分析的協同是${pair.協同評價}，協同分數 ${signedScore(pair.協同分數)}。`
+          : "";
+        notes.push({
+          weight: pair.對戰分數,
+          text: `對戰：對上${name}是${pair.對戰評價}，對戰分數 ${signedScore(pair.對戰分數)}。${syn}`,
+        });
+      }
     }
     let combo = null;
     const group = [mine, ...allies];
@@ -2982,6 +3032,22 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
       if (syn) {
         score += syn * 8;
         notes.push({ weight: syn * 8, text: `協同：和已選的${ally.nameZh}。` });
+      }
+      const listed = listedSynergy(mine?.code, ally.code);
+      if (listed != null) {
+        score += listed * 40;
+        notes.push({ weight: listed * 40, text: `協同：和${ally.nameZh}的協同分數 ${signedScore(listed)}。` });
+      }
+      const best = (sdHero(ally.code)?.協同 || [])[0];
+      const bestGeared = best && (roster?.heroes || []).some((own) => own.geared && catalogHero(catalog, own.id)?.code === best.代碼);
+      const someoneHasSynergy = (roster?.heroes || []).some((own) => own.geared && listedSynergy(catalogHero(catalog, own.id)?.code, ally.code) != null);
+      if (best && !bestGeared && !someoneHasSynergy && listed == null) {
+        const similar = (sdHero(best.代碼)?.最相似 || []).find((item) => item.代碼 === mine?.code && typeof item.分數 === "number");
+        if (similar) {
+          score += similar.分數;
+          const wanted = sdHero(best.代碼)?.名稱 || "那名";
+          notes.push({ weight: similar.分數, text: `替代：沒有${wanted}或沒有他的配裝，${mine.nameZh}最相似分數 ${signedScore(similar.分數)}。` });
+        }
       }
       const similar = (row?.最相似 || []).some((item) => item.代碼 === ally.code)
         || (allyRow?.最相似 || []).some((item) => item.代碼 === mine?.code);
@@ -2995,12 +3061,20 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
     notes.sort((left, right) => right.weight - left.weight);
     const seen = new Set();
     const reason = [];
-    if (combo) reason.push(combo.text);
-    for (const note of notes) {
-      if (seen.has(note.text) || reason.includes(note.text)) continue;
+    const stored = notes.filter((note) => /^(替代：|對戰：)/.test(note.text) || note.text.includes("協同分數"));
+    const rest = notes.filter((note) => !stored.includes(note));
+    const pushNote = (note) => {
+      if (!note?.text || seen.has(note.text) || reason.includes(note.text)) return;
       seen.add(note.text);
       reason.push(note.text);
-      if (reason.length === 2) break;
+    };
+    if (combo) reason.push(combo.text);
+    for (const note of stored) pushNote(note);
+    let extra = 0;
+    for (const note of rest) {
+      pushNote(note);
+      extra += 1;
+      if (extra === 2) break;
     }
     const enemyNames = knownEnemy.map((enemy) => enemy.nameZh).filter(Boolean).join("、");
     scored.push({
@@ -3013,7 +3087,7 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
       hpImpact: null,
     });
   }
-  scored.sort((left, right) => right.score - left.score || left.id.localeCompare(right.id));
+  scored.sort((left, right) => right.score - left.score || Number(modelIds.has(right.id)) - Number(modelIds.has(left.id)) || left.id.localeCompare(right.id));
   return scored;
 }
 
@@ -3283,7 +3357,37 @@ function gearSwitch(catalog, artifactZhName) {
   return "";
 }
 
+function sdGearLines(catalog, hero, sd) {
+  const builds = (sd.配裝 || []).filter((row) => row.神器 && typeof row.使用率 === "number");
+  if (!builds.length) return [];
+  const lines = ["對手算法：等級用最大，技能用頁上印出的最高強化。神器取這一頁使用率最高的一種，並按最大強化。我方用 JSON 的實際練度，不改成最大。"];
+  builds.slice(0, 2).forEach((build, index) => {
+    const sets = (build.套裝 || []).filter(Boolean).join("、") || "套裝不在這列";
+    const used = `組合使用率 ${usageText(build.使用率)}。這是套裝組合的比例，不是神器使用率。`;
+    const win = typeof build.勝率 === "number" ? `勝率 ${usageText(build.勝率)}。` : "";
+    const head = index === 0 ? "預設用使用率最高的配裝" : "次高當備案";
+    const art = e7Sd.神器?.[build.神器代碼];
+    const klass = art?.職業中文 ? `（${art.職業中文}）` : "";
+    const effect = index === 0
+      ? (art?.最大效果 ? `最大效果：${art.最大效果}` : "沒有神器效果文字，不編效果。")
+      : "";
+    lines.push(`${hero.nameZh}${head}：套裝 ${sets}，神器 ${build.神器}${klass}。${used}${win}${gearSwitch(catalog, build.神器)}${effect}`.replace(/。{2,}/g, "。"));
+  });
+  if (sd.刻印?.陣行 && typeof sd.刻印.陣行.使用率 !== "number") {
+    lines.push("頁上沒有陣行使用率，不編陣行。");
+  }
+  const aggregated = (hero?.rtaGear?.artifacts || []).filter((art) => art?.names?.[0] && typeof art.pickRate === "number").slice(0, 2);
+  if (aggregated.length) {
+    const bits = aggregated.map((art) => `${artifactZh(catalog, art.names[0])} ${Math.round(art.pickRate * 10) / 10}%`).join("、");
+    const updated = hero.rtaGear?.updated || "沒有日期";
+    lines.push(`神器使用率是資料庫已經加總的數字，統計範圍是 Epic7RTAStats 冠軍以上，更新日期 ${updated}：${bits}。這組數字不是上面的套裝組合使用率。`);
+  }
+  return lines;
+}
+
 function gearBranchLines(catalog, hero) {
+  const sd = sdHero(hero?.code);
+  if (sd) return sdGearLines(catalog, hero, sd);
   const builds = (e7Record(hero?.code)?.建造 || [])
     .filter((build) => (build.套裝 || []).some(Boolean) || build.神器)
     .slice()
@@ -3326,6 +3430,32 @@ function compareSpeed(fileSpeed, hero) {
   return `我的速度 ${fileSpeed}，對手速度區間 ${bits.join("、")}，落在${place}。${risk}`;
 }
 
+function pageSkillLines(hero) {
+  const sd = sdHero(hero?.code);
+  if (!sd) return [];
+  const name = hero.nameZh || sd.名稱 || "這名";
+  const lines = [];
+  if (sd.缺少技能 || !sd.技能?.length) lines.push(`缺少${name}的技能頁，不憑記憶補。`);
+  else {
+    for (const skill of sd.技能) {
+      const body = (skill.效果 || []).join("");
+      const enhance = skill.強化?.length ? `強化：${skill.強化.join("、")}` : "";
+      if (!body && !enhance) continue;
+      const tail = enhance ? (enhance.endsWith("。") ? enhance : `${enhance}。`) : "";
+      const head = body && !/[。！？]$/.test(body) ? `${body}。` : body;
+      lines.push(`頁上${skill.欄 || "技能"} ${skill.名稱 || ""}：${head}${tail}`);
+    }
+  }
+  const ee = sd.專武;
+  if (ee?.缺少) lines.push(`缺少${name}的專武頁，不憑記憶補。`);
+  else if (ee?.頁上沒有) lines.push(`${name}的頁上沒有印專武。`);
+  else if (ee?.名稱) {
+    const bits = (ee.效果 || []).map((row) => `${row.技能 || ""} ${row.文字 || ""}`.trim()).filter(Boolean).join("");
+    lines.push(`專武 ${ee.名稱}：${ee.屬性 || ""}。${bits}`.replace(/。{2,}/g, "。"));
+  }
+  return lines;
+}
+
 function heroProfileLines(catalog, hero) {
   if (!hero) return [];
   const name = hero.nameZh || "這名";
@@ -3346,6 +3476,7 @@ function heroProfileLines(catalog, hero) {
   else lines.push(skillUnverified(hero) ? "開場效果：沒有技能文字，不憑記憶補。" : "開場效果：公開技能文字沒有寫開場。");
   if (skillUnverified(hero)) lines.push("缺少技能文字，不憑記憶補。");
   else lines.push(skillBrief(hero, "S1", "一技"), skillBrief(hero, "S2", "二技"), skillBrief(hero, "S3", "大招"), passiveNote(hero));
+  lines.push(...pageSkillLines(hero));
   lines.push(speedBandText(hero));
   return lines.filter(Boolean);
 }
@@ -3566,7 +3697,8 @@ function supplementLines(catalog, roster, state, unverified, heroes, askIds) {
   if (roster?.unknown?.length) lines.push(`這些英文名對不上，請告訴我是誰：${roster.unknown.join("、")}。`);
   const told = mentionedHeroIds(catalog, roster, state?.exclusiveNote).filter((id) => spokenGear(catalog, roster, id, state?.exclusiveNote).ee === true);
   if (told.length) lines.push(`你說${told.map((id) => screenName(catalog, id)).filter(Boolean).join("、")}有專武，以你說的為準。資料庫沒有專武效果，不另編效果。`);
-  lines.push("資料庫沒有專武效果，不把對手專武編進去。");
+  const storedEe = (heroes || []).some((hero) => sdHero(hero?.code)?.專武?.名稱);
+  if (!storedEe) lines.push("資料庫沒有專武效果，不把對手專武編進去。");
   const question = gearQuestion(catalog, roster, askIds, state);
   if (question) lines.push(question);
   for (const hero of heroes || []) {
@@ -3575,6 +3707,16 @@ function supplementLines(catalog, roster, state, unverified, heroes, askIds) {
     else if (!(e7Record(hero.code)?.建造 || []).length) lines.push(`缺少${hero.nameZh}的配裝表。`);
   }
   if (unverified) lines.push("有角色缺少技能文字，不憑記憶補。");
+  for (const hero of heroes || []) {
+    if (!hero?.code) continue;
+    for (const own of roster?.heroes || []) {
+      if (!own.geared) continue;
+      const pair = pairRecord(catalogHero(catalog, own.id)?.code, hero.code);
+      if (pair?.來源 !== "配對分析" || typeof pair.對戰分數 !== "number") continue;
+      const syn = typeof pair.協同分數 === "number" ? `協同${pair.協同評價}，協同分數 ${signedScore(pair.協同分數)}。` : "";
+      lines.push(`${own.nameZh}對上${hero.nameZh}是${pair.對戰評價}，對戰分數 ${signedScore(pair.對戰分數)}。${syn}`);
+    }
+  }
   return lines;
 }
 
@@ -3783,6 +3925,22 @@ export function battleBrief(catalog, roster, draft) {
   battle.push(soulBooks.length
     ? `${burnRule}${soulBooks.join("、")}。有魂才燒，沒有就不燒。`
     : `${burnRule}我方這幾名沒有可當成魂書的神器，不假設我方帶魂書。有魂才燒，沒有就不燒。`);
+  battle.push("對手按最大強化估算：等級最大，技能用頁上印出的最高強化，神器用該英雄頁最高的一種並按最大強化。沒有比例或沒有效果文字的不編。我方用檔案裡的實際練度。");
+  for (const id of enemyFight) {
+    const hero = byId[id];
+    const sd = sdHero(hero?.code);
+    const top = (sd?.配裝 || []).find((row) => row.神器 && typeof row.使用率 === "number");
+    if (!top) continue;
+    const art = e7Sd.神器?.[top.神器代碼];
+    const effect = art?.最大效果 ? `最大效果：${art.最大效果}` : "沒有神器效果文字，不編效果。";
+    battle.push(`${hero.nameZh}的神器是${top.神器}。${effect}`);
+    if (sd.專武?.名稱) {
+      const bits = (sd.專武.效果 || []).map((row) => row.文字).filter(Boolean).join("");
+      battle.push(`${hero.nameZh}的專武 ${sd.專武.名稱}：${sd.專武.屬性 || ""}。${bits}`.replace(/。{2,}/g, "。"));
+    } else if (sd.專武?.缺少) {
+      battle.push(`缺少${hero.nameZh}的專武，不憑記憶補。`);
+    }
+  }
   battle.push("避免單點開場就隱身的人，也避免替對手觸發反擊或開場被動。打法變了就改看配裝與專武分支。");
   const wave = survivalChance(catalog, roster, userFight, enemyFight, draft.userFirst !== false);
   const survive = wave == null ? "" : `照這樣打，對方大招打下來後，我方還活著的機會是 ${chancePct(wave.chance)}，整組剩下的生命是 ${chancePct(wave.hp)}。`;
