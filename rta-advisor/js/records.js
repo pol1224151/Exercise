@@ -31,20 +31,46 @@ export function saveMatches(storage, book) {
   storage.setItem(MATCH_KEY, JSON.stringify({ matches: book.matches || [] }));
 }
 
-export function recordResult(book, typeKey, result, matchId) {
+export function matchIdentity(draft) {
+  const clean = (ids) => (ids || []).filter((id) => id && id !== "empty" && id !== "unknown");
+  const prebans = clean(draft?.prebans).slice().sort();
+  const enemyPrebans = clean(draft?.enemyPrebans).slice().sort();
+  const userPicks = clean(draft?.userPicks);
+  const enemyPicks = clean(draft?.enemyPicks);
+  if (!prebans.length || !enemyPrebans.length || userPicks.length !== 5 || enemyPicks.length !== 5) return null;
+  if (draft?.userFirst !== true && draft?.userFirst !== false) return null;
+  return {
+    key: `${draft.userFirst ? "first" : "second"}|pre:${prebans.join(",")}|epre:${enemyPrebans.join(",")}|u:${userPicks.join(">")}|e:${enemyPicks.join(">")}`,
+    prebans,
+    enemyPrebans,
+    userPicks,
+    enemyPicks,
+    userFirst: draft.userFirst === true,
+  };
+}
+
+export function recordResult(book, typeKey, result, matchId, detail) {
   if (result !== "win" && result !== "loss") throw new Error("結果只能是贏或輸");
   if (!typeKey) throw new Error("這場還沒有 4 對 4，不能記");
   const matches = (book.matches || []).slice();
-  if (matchId) {
-    const index = matches.findIndex((row) => row.id === matchId);
-    if (index >= 0) {
-      matches[index] = { ...matches[index], type: typeKey, result };
-      return { matches, id: matchId };
-    }
+  const key = detail?.key || "";
+  let index = matchId ? matches.findIndex((row) => row.id === matchId) : -1;
+  if (index < 0 && key) index = matches.findIndex((row) => row.key === key);
+  const fields = detail ? {
+    key,
+    prebans: detail.prebans || [],
+    enemyPrebans: detail.enemyPrebans || [],
+    userPicks: detail.userPicks || [],
+    enemyPicks: detail.enemyPicks || [],
+    userFirst: detail.userFirst === true,
+  } : {};
+  if (index >= 0) {
+    matches[index] = { ...matches[index], ...fields, type: typeKey, result };
+    return { matches, id: matches[index].id, replaced: true };
   }
   const id = `${Date.now()}-${matches.length}`;
-  matches.push({ id, type: typeKey, result, at: new Date().toISOString() });
-  return { matches, id };
+  matches.push({ id, type: typeKey, result, at: new Date().toISOString(), ...fields });
+  return { matches, id, replaced: false };
 }
 
 export function rateForType(book, typeKey) {

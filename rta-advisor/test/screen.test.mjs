@@ -202,7 +202,8 @@ const notosPick = guidedDraft(catalog, roster, {
 assert.equal(notosPick.ok, true, notosPick.reason?.summary);
 assert.equal(notosPick.action.kind, "pick");
 assert.equal(notosPick.action.need, 2);
-assert.equal(notosPick.action.ids.length, 3);
+assert.ok(notosPick.action.ids.length > 0);
+assert.ok(Array.isArray(notosPick.action.plans) && notosPick.action.plans.length > 1);
 assert.match(notosPick.reason.summary, /諾托斯/);
 assert.match(notosPick.reason.summary, /計數器|反制|協同|速度|建造|配對/);
 assert.match(notosPick.reason.summary, /已選/);
@@ -667,5 +668,59 @@ assert.equal(scalesTurn.reason.summary.includes("開場效果"), false);
 assert.match(scalesTurn.reason.summary, /【局面確認】/);
 assert.match(scalesTurn.reason.summary, /【對手陣容判讀】/);
 assert.match(scalesTurn.reason.summary, /【我方推薦 Top 3】/);
+
+function notosHand(names, enemy = "notos", memory) {
+  return guidedDraft(catalog, parseRoster({ heroes: names.map((name) => geared(name, 220)) }, catalog), {
+    userFirst: false,
+    rule: "resist",
+    userPicks: [],
+    enemyPicks: [enemy],
+  }, { memory });
+}
+const bypass = notosHand(["Apocalypse Ravi", "Sez", "Destina"]);
+assert.notEqual(bypass.action.ids[0], "apocalypse-ravi");
+assert.equal(bypass.action.ids.includes("apocalypse-ravi"), false);
+assert.equal(/1\. 末日蘿菲/.test(bypass.reason.summary), false);
+assert.equal(bypass.reason.summary.includes("3.18"), false);
+const coolBlank = bypass.action.plans.find((plan) => plan.label === "加冷卻");
+const speedPlan = bypass.action.plans.find((plan) => plan.label === "速度");
+assert.ok(coolBlank && coolBlank.ids.length === 0 && coolBlank.reason === "");
+assert.equal(speedPlan.ids[0], "sez");
+assert.match(speedPlan.reason, /速度：諾托斯中位 202/);
+assert.equal(bypass.action.plans.some((plan) => plan.label === "解除"), false);
+assert.equal(bypass.action.plans.some((plan) => (plan.ids || []).includes("apocalypse-ravi")), false);
+const withKawerik = notosHand(["Apocalypse Ravi", "Sez", "Destina", "Kawerik"]);
+assert.equal(withKawerik.action.plans[0].label, "加冷卻");
+assert.equal(withKawerik.action.plans[0].ids[0], "kawerik");
+assert.match(withKawerik.action.plans[0].reason, /資料庫有開戰套，這名能加冷卻/);
+assert.equal(withKawerik.action.plans[0].reason.includes("3.18"), false);
+const otherPlan = withKawerik.action.plans.find((plan) => plan.ids.length && plan.label !== "加冷卻");
+assert.ok(otherPlan);
+assert.equal(otherPlan.ids.includes("kawerik"), false);
+assert.equal(otherPlan.ids.includes("apocalypse-ravi"), false);
+assert.equal(withKawerik.reason.summary.includes("3.18"), false);
+const onlyCool = notosHand(["Kawerik"]);
+assert.equal(onlyCool.action.plans.find((plan) => plan.label === "加冷卻").ids[0], "kawerik");
+assert.equal(onlyCool.action.plans.find((plan) => plan.label === "另一套").ids.length, 0);
+assert.equal(onlyCool.action.plans.find((plan) => plan.label === "另一套").reason, "");
+const notWarfare = notosHand(["Kawerik", "Apocalypse Ravi"], "sez");
+assert.equal(notWarfare.action.plans.some((plan) => plan.label === "加冷卻"), false);
+assert.equal(notWarfare.reason.summary.includes("能加冷卻"), false);
+const immuneOnly = notosHand(["School Nurse Yulha", "Apocalypse Ravi"]);
+assert.equal(immuneOnly.action.plans.find((plan) => plan.label === "加冷卻").ids.includes("school-nurse-yulha"), false);
+const remembered = notosHand(["Apocalypse Ravi", "Sez", "Destina"], "notos", {
+  matches: [{
+    result: "win",
+    userPicks: ["apocalypse-ravi", "sez", "destina", "schuri", "arbiter-vildred"],
+  }],
+});
+const winPlan = remembered.action.plans.find((plan) => plan.label === "勝場");
+assert.ok(winPlan);
+assert.equal(winPlan.ids.includes("apocalypse-ravi"), true);
+assert.match(winPlan.reason, /已記住 1 場有這名的勝利/);
+assert.equal(winPlan.reason.includes("勝率"), false);
+assert.notEqual(remembered.action.ids[0], "apocalypse-ravi");
+assert.equal(bypass.reason.summary.includes("勝場："), false);
+assert.equal(bypass.reason.summary.includes("勝率"), false);
 
 console.log("screen tests passed", { next: firstMove.action.title, brief: brief.action.title, knights: knights.picks, buffers: buffers.picks });

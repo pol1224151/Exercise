@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chooseComposition, draftType, rateForType, recordResult } from "../js/records.js";
+import { chooseComposition, draftType, matchIdentity, rateForType, recordResult } from "../js/records.js";
 
 const same = ["belian", "harsetti", "lisette", "zio"];
 const other = ["estelle", "notos", "school-nurse-yulha", "boss-arunka"];
@@ -46,5 +46,28 @@ assert.equal(stuck.line, weak);
 const fresh = chooseComposition([weak, otherComp], { matches: [] }, 0.4, true);
 assert.equal(fresh.switched, false);
 assert.equal(fresh.line, weak);
+
+const detail = matchIdentity({
+  userFirst: true,
+  prebans: ["zio", "estelle"],
+  enemyPrebans: ["belian", "notos"],
+  userPicks: ["kawerik", "sez", "destina", "schuri", "arbiter-vildred"],
+  enemyPicks: ["notos", "apocalypse-ravi", "harsetti", "ml-ken", "belian"],
+});
+assert.ok(detail);
+assert.equal(matchIdentity({ ...detail, userPicks: detail.userPicks.slice(0, 4) }), null);
+let remembered = { matches: [] };
+const noted = recordResult(remembered, detail.key, "win", null, detail);
+remembered = { matches: noted.matches };
+assert.equal(noted.replaced, false);
+assert.deepEqual(remembered.matches[0].prebans, ["estelle", "zio"]);
+assert.equal(remembered.matches[0].userPicks[0], "kawerik");
+const overwritten = recordResult(remembered, detail.key, "loss", null, detail);
+remembered = { matches: overwritten.matches };
+assert.equal(overwritten.replaced, true);
+assert.equal(remembered.matches.length, 1);
+assert.equal(remembered.matches[0].result, "loss");
+assert.equal(remembered.matches[0].id, noted.id);
+assert.equal(rateForType(remembered, "missing").rate, null);
 
 console.log("record tests passed", rate);

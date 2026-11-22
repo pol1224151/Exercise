@@ -75,6 +75,7 @@ main section#now {
   text-align: left;
   font-size: clamp(1.7rem, 3vw, 2.4rem);
   line-height: 1.35;
+  white-space: pre-line;
 }
 
 #liveAction:disabled {
@@ -100,6 +101,7 @@ main section#now {
   font-size: 1.05rem;
   max-width: 36rem;
   color: var(--muted);
+  white-space: pre-line;
 }
 
 #ruleText:empty,

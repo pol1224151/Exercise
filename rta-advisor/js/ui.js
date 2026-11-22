@@ -1,5 +1,5 @@
 import { GEAR_ASK, battleBrief, buildGearReport, clearAccount, counterEdges, effectGapItems, guidedDraft, loadAccount, loadEffectNotes, matchesPicker, parseRoster, readAccountText, rosterReadLine, saveAccount, saveEffectNotes, selectableHeroes, sourceBasis } from "./engine.js";
-import { draftType, loadMatches, rateForType, recordResult, saveMatches } from "./records.js";
+import { draftType, loadMatches, matchIdentity, rateForType, recordResult, saveMatches } from "./records.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -184,7 +184,7 @@ function onePickWhy(result) {
   const body = top.includes("理由：") ? top.split("理由：").slice(1).join("理由：") : "";
   const sentences = body.split("。").map((part) => part.trim()).filter(Boolean);
   const noisy = /技能|頁上|一技|二技|大招|專武|開場|練度|風險|這一手|我方先|我方後|我方還沒|和已選|效果不確定|烙印|神器 /;
-  const preferred = sentences.find((part) => /^(對戰：|協同：|替代：|計數器：|反制：)/.test(part) && !noisy.test(part));
+  const preferred = sentences.find((part) => /^(冷卻：|勝場：|對戰：|協同：|替代：|計數器：|反制：)/.test(part) && !noisy.test(part));
   const picked = preferred || sentences.find((part) => !noisy.test(part));
   if (picked) return `${picked}。`;
   if (sentences.some((part) => part.startsWith("對方還沒選"))) return "對方還沒選，先從有配裝的角色裡挑。";
@@ -199,6 +199,15 @@ function adviceFace(result) {
   }
   if (kind === "enemy-preban") {
     return { action: result.action?.title || "選對方的預禁", reason: "請選對方預禁的人。", click: "enemy-preban" };
+  }
+  if (kind === "pick" && Array.isArray(result.action?.plans) && result.action.plans.length) {
+    const plans = result.action.plans;
+    const action = plans.map((plan) => {
+      const planNames = (plan.ids || []).map((id) => heroName(id)).filter(Boolean);
+      return `${plan.label}：${planNames.length ? planNames.join("、") : "不確定"}`;
+    }).join("\n");
+    const reason = plans.map((plan) => (plan.ids?.length ? plan.reason : "")).filter(Boolean).join("\n");
+    return { action, reason, click: "" };
   }
   if (kind === "pick") {
     return { action: names.join("、"), reason: onePickWhy(result), click: "" };
@@ -352,7 +361,7 @@ function renderGuide() {
     $("theyFirst")?.classList.toggle("primary", manual.userFirst === false);
     return;
   }
-  let result = guidedDraft(catalog, roster, manual, { rank: $("rank").value, trials: 1 });
+  let result = guidedDraft(catalog, roster, manual, { rank: $("rank").value, trials: 1, memory: loadMatches(localStorage) });
   const fight = draftedFight();
   if (fight && !manual.rule) {
     guideKey = draftKey();
@@ -529,6 +538,17 @@ function currentType() {
   return draftType(fight.userFight, fight.enemyFight, fight.userFirst);
 }
 
+function currentIdentity() {
+  if (!manual.prebansDone || !manual.enemyPrebansDone) return null;
+  return matchIdentity({
+    userFirst: manual.userFirst === true,
+    prebans: manual.prebans,
+    enemyPrebans: manual.enemyPrebans,
+    userPicks: manual.userPicks,
+    enemyPicks: manual.enemyPicks,
+  });
+}
+
 function rateLine(result) {
   const sandbox = result?.rate == null ? "尚無勝率" : `沙盤估計 ${Math.round(result.rate * 100)}%`;
   const history = result?.history;
@@ -656,9 +676,11 @@ function applyDraftChoice(slot, heroId) {
 }
 
 function withRecord(result) {
+  const identity = currentIdentity();
   const type = currentType();
-  if (!type || !result) return result;
-  const stats = rateForType(loadMatches(localStorage), type.key);
+  if ((!identity && !type) || !result) return result;
+  const stats = rateForType(loadMatches(localStorage), identity?.key || type.key);
+  if (!stats.total) return result;
   return {
     ...result,
     history: {
@@ -695,7 +717,7 @@ function renderLive(result) {
       click: face.click,
     });
   }
-  const type = currentType();
+  const type = currentIdentity();
   const canRecord = Boolean(type);
   $("markWin").disabled = !canRecord;
   $("markLoss").disabled = !canRecord;
@@ -706,20 +728,21 @@ function renderLive(result) {
 }
 
 function markMatch(result) {
-  const type = currentType();
-  if (!type) return;
-  if (!openRecord || openRecord.type !== type.key) openRecord = { type: type.key, id: null };
-  const updating = Boolean(openRecord.id);
-  const saved = recordResult(loadMatches(localStorage), type.key, result, openRecord.id);
-  openRecord.id = saved.id;
+  const identity = currentIdentity();
+  if (!identity) return;
+  const book = loadMatches(localStorage);
+  const existing = book.matches.find((row) => row.key === identity.key);
+  const saved = recordResult(book, identity.key, result, existing?.id || null, identity);
+  openRecord = { type: identity.key, id: saved.id };
   saveMatches(localStorage, saved);
-  const text = updating
+  const text = saved.replaced
     ? (result === "win" ? "已改成這場勝利，沒有多加一場。" : "已改成這場落敗，沒有多加一場。")
     : (result === "win" ? "已記下這場勝利。" : "已記下這場落敗。");
   $("recordState").textContent = text;
   const live = $("liveRecord");
   if (live) live.textContent = text;
-  renderLive(lastAdvice);
+  guideKey = "";
+  renderGuide();
 }
 
 

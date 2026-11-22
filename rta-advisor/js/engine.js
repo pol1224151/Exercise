@@ -2937,7 +2937,180 @@ function answersOf(hero) {
   };
 }
 
-function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
+function attackSkills(hero) {
+  return ["S1", "S2", "S3"]
+    .map((slot) => hero?.skills?.[slot])
+    .filter((skill) => skill && !skill.passive && (skill.targets || 0) >= 1);
+}
+
+function enemyCanSwitchTarget(enemy) {
+  const attacks = attackSkills(enemy);
+  if (!attacks.length) return true;
+  return attacks.every((skill) => skill.targets === 1);
+}
+
+function forcesTheHit(hero) {
+  const slots = ["S1", "S2", "S3"].map((slot) => hero?.skills?.[slot]).filter(Boolean);
+  if (slots.some((skill) => (skill.effects || []).some((effect) => effect.kind === "provoke"))) return true;
+  const english = slots.map((skill) => skill.text || "").join("\n");
+  if (/\bprovoke\b/i.test(english)) return true;
+  if (/when an ally is attacked|after an ally is attacked/i.test(english)) return true;
+  const chinese = (sdHero(hero?.code)?.技能 || []).map((skill) => (skill.效果 || []).join("")).join("。");
+  return /挑釁/.test(chinese) || /我軍受到攻擊時|隊友受到攻擊時|我軍被攻擊時/.test(chinese);
+}
+
+function matchupIsForced(hero, enemy) {
+  if (!enemyCanSwitchTarget(enemy)) return true;
+  return forcesTheHit(hero);
+}
+
+function topSetNames(enemy) {
+  const page = sdHero(enemy?.code)?.配裝 || [];
+  const older = e7Record(enemy?.code)?.建造 || [];
+  const rows = (page.length ? page : older).filter((row) => Array.isArray(row.套裝) && typeof row.使用率 === "number");
+  if (!rows.length) return [];
+  return [...rows].sort((left, right) => right.使用率 - left.使用率)[0].套裝;
+}
+
+function startsAtMaxCooldown(enemy) {
+  if (opensOnFullCooldown(enemy) != null) return true;
+  const chinese = (sdHero(enemy?.code)?.技能 || []).map((skill) => (skill.效果 || []).join("")).join("。");
+  return /技能冷卻時間增加到最多/.test(chinese);
+}
+
+function warfareFacts(enemy) {
+  return { set: topSetNames(enemy).includes("開戰"), opener: startsAtMaxCooldown(enemy) };
+}
+
+function cooldownIncreaseQuote(hero) {
+  const chinese = (sdHero(hero?.code)?.技能 || []).map((skill) => (skill.效果 || []).join("")).join("。");
+  for (const chunk of chinese.split("。")) {
+    if (/不會受到|增加到最多的狀態開始|全部重置/.test(chunk)) continue;
+    if (/使[^。]{0,16}技能冷卻時間增加/.test(chunk) || /造成\d*次的技能冷卻時間增加/.test(chunk) || /技能冷卻時間增加\d+回合/.test(chunk)) return chunk;
+  }
+  for (const slot of ["S1", "S2", "S3"]) {
+    const text = hero?.skills?.[slot]?.text || "";
+    if (/begins the first battle with/i.test(text)) continue;
+    if (/fully increasing skill cooldowns|increas(?:e|ing) skill cooldown/i.test(text)) return text;
+  }
+  return "";
+}
+
+function heroDispels(hero) {
+  const slots = ["S1", "S2", "S3"].map((slot) => hero?.skills?.[slot]).filter(Boolean);
+  if (slots.some((skill) => (skill.effects || []).some((effect) => effect.kind === "dispelBuff"))) return true;
+  const english = slots.map((skill) => skill.text || "").join(" ");
+  if (/dispel(?:s|ling)? (?:up to )?(?:\d+ |one |two |all |a )?(?:enemy )?buffs?\b/i.test(english)) return true;
+  const chinese = (sdHero(hero?.code)?.技能 || []).map((skill) => (skill.效果 || []).join("")).join("。");
+  return chinese.split("。").some((chunk) => !/不會受到|弱化/.test(chunk) && /解除[^。]{0,8}強化/.test(chunk));
+}
+
+function rememberedWins(memory, heroId) {
+  const rows = Array.isArray(memory) ? memory : (memory?.matches || []);
+  const id = canonicalId(heroId);
+  return rows.filter((row) => row?.result === "win" && (row.userPicks || []).some((pick) => pick === heroId || canonicalId(pick) === id));
+}
+
+function buildPlans(catalog, ranked, userPicks, enemies, memory, limit) {
+  const coolIds = new Set();
+  const plans = [];
+  const locks = (enemies || []).map((enemy) => ({ enemy, ...warfareFacts(enemy) })).filter((row) => row.set || row.opener);
+  if (locks.length) {
+    const cool = (ranked || []).filter((row) => cooldownIncreaseQuote(draftHero(catalog, row.id)));
+    for (const row of cool) coolIds.add(row.id);
+    const because = locks.some((row) => row.set) ? "資料庫有開戰套" : "公開文字寫首次冷卻到最大";
+    const name = [...new Set(locks.map((row) => row.enemy.nameZh).filter(Boolean))].join("、");
+    if (cool.length) {
+      plans.push({
+        label: "加冷卻",
+        ids: cool.slice(0, limit).map((row) => row.id),
+        reason: `對上${name}，${because}，這名能加冷卻。`,
+        weight: 30,
+      });
+    }
+  }
+  const speedRows = (enemies || [])
+    .map((enemy) => ({ enemy, bar: e7Record(enemy.code)?.速度?.["50"] }))
+    .filter((row) => typeof row.bar === "number");
+  if (speedRows.length) {
+    const bar = Math.max(...speedRows.map((row) => row.bar));
+    const name = speedRows.find((row) => row.bar === bar)?.enemy.nameZh || "對方";
+    const fast = (ranked || []).filter((row) => {
+      if (coolIds.has(row.id)) return false;
+      const own = e7Record(draftHero(catalog, row.id)?.code)?.速度?.["50"];
+      return typeof own === "number" && own >= bar;
+    });
+    if (fast.length) {
+      plans.push({
+        label: "速度",
+        ids: fast.slice(0, limit).map((row) => row.id),
+        reason: `速度：${name}中位 ${bar}。`,
+        weight: 2,
+      });
+    }
+  }
+  const immune = (enemies || []).find((enemy) => topSetNames(enemy).includes("免疫"));
+  if (immune) {
+    const strip = (ranked || []).filter((row) => !coolIds.has(row.id) && heroDispels(draftHero(catalog, row.id)));
+    if (strip.length) {
+      plans.push({
+        label: "解除",
+        ids: strip.slice(0, limit).map((row) => row.id),
+        reason: `對上${immune.nameZh}，配裝有免疫，這名能解除。`,
+        weight: 6,
+      });
+    }
+  }
+  if ((userPicks || []).length) {
+    const syn = [];
+    for (const row of ranked || []) {
+      if (coolIds.has(row.id)) continue;
+      const mine = draftHero(catalog, row.id);
+      let best = null;
+      for (const id of userPicks) {
+        const ally = draftHero(catalog, id);
+        const listed = listedSynergy(mine?.code, ally?.code);
+        if (listed == null) continue;
+        if (!best || listed > best.listed) best = { listed, name: ally?.nameZh || "已選" };
+      }
+      if (best) syn.push({ id: row.id, listed: best.listed, name: best.name });
+    }
+    syn.sort((left, right) => right.listed - left.listed || left.id.localeCompare(right.id));
+    if (syn.length) {
+      const top = syn[0];
+      plans.push({
+        label: "協同",
+        ids: syn.slice(0, limit).map((row) => row.id),
+        reason: `協同：和${top.name}的協同分數 ${signedScore(top.listed)}。`,
+        weight: top.listed * 40,
+      });
+    }
+  }
+  const winners = [];
+  for (const row of ranked || []) {
+    const wins = rememberedWins(memory, row.id);
+    if (wins.length) winners.push({ id: row.id, wins: wins.length });
+  }
+  winners.sort((left, right) => right.wins - left.wins || left.id.localeCompare(right.id));
+  if (winners.length) {
+    plans.push({
+      label: "勝場",
+      ids: winners.slice(0, limit).map((row) => row.id),
+      reason: `已記住 ${winners[0].wins} 場有這名的勝利。`,
+      weight: winners[0].wins,
+    });
+  }
+  const coolPlan = plans.find((plan) => plan.label === "加冷卻");
+  const rest = plans.filter((plan) => plan.label !== "加冷卻").sort((left, right) => right.weight - left.weight);
+  const named = coolPlan ? [coolPlan, ...rest] : rest;
+  const blanks = [];
+  if (locks.length && !coolPlan) blanks.push({ label: "加冷卻", ids: [], reason: "" });
+  if (locks.length && !named.some((plan) => plan.label !== "加冷卻")) blanks.push({ label: "另一套", ids: [], reason: "" });
+  if (!named.length && !blanks.length) blanks.push({ label: "配對", ids: [], reason: "" });
+  return [...named, ...blanks].map(({ label, ids, reason }) => ({ label, ids, reason }));
+}
+
+function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds, memory) {
   const owned = ownedIdsOf(roster);
   const taken = new Set([...(userPicks || []), ...(enemyPicks || []), ...(blockedIds || [])].filter(Boolean));
   for (const id of [...taken]) taken.add(canonicalId(id));
@@ -2959,6 +3132,7 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
   }
   const knownEnemy = (enemyPicks || []).map((id) => draftHero(catalog, id)).filter(Boolean);
   const allies = (userPicks || []).map((id) => draftHero(catalog, id)).filter(Boolean);
+  const flexPick = (userPicks || []).length < 2;
   const scored = [];
   for (const hero of pool) {
     const mine = draftHero(catalog, hero.id);
@@ -2981,13 +3155,14 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
     for (const enemy of knownEnemy) {
       const enemyRow = e7Record(enemy.code);
       const name = enemy.nameZh || "對方";
+      const forced = !flexPick && matchupIsForced(mine, enemy);
       const counter = Math.max(pairScore(row?.克制, enemy.code), pairScore(enemyRow?.被克制, mine?.code));
       const countered = Math.max(pairScore(row?.被克制, enemy.code), pairScore(enemyRow?.克制, mine?.code));
-      if (counter) {
+      if (forced && counter) {
         score += counter * 20;
         notes.push({ weight: counter * 20, text: `計數器：克制${name}。` });
       }
-      if (countered) {
+      if (forced && countered) {
         score -= countered * 20;
         notes.push({ weight: countered * 20, text: `反制：${name}克制這名。` });
       }
@@ -3012,7 +3187,7 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
         notes.push({ weight: 0.1, text: `建造：${name}常見${sets.join("、")}。` });
       }
       const pair = pairRecord(mine?.code, enemy.code);
-      if (pair && typeof pair.對戰分數 === "number") {
+      if (forced && pair && typeof pair.對戰分數 === "number") {
         score += pair.對戰分數 * 10;
         const syn = typeof pair.協同分數 === "number"
           ? `配對分析的協同是${pair.協同評價}，協同分數 ${signedScore(pair.協同分數)}。`
@@ -3022,6 +3197,17 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
           text: `對戰：對上${name}是${pair.對戰評價}，對戰分數 ${signedScore(pair.對戰分數)}。${syn}`,
         });
       }
+      const lock = warfareFacts(enemy);
+      if ((lock.set || lock.opener) && cooldownIncreaseQuote(mine)) {
+        const because = lock.set ? "資料庫有開戰套" : "公開文字寫首次冷卻到最大";
+        score += 30;
+        notes.push({ weight: 30, text: `冷卻：對上${name}，${because}，這名能加冷卻。` });
+      }
+    }
+    const wins = rememberedWins(memory, hero.id);
+    if (wins.length) {
+      score += Math.min(wins.length, 3);
+      notes.push({ weight: wins.length, text: `勝場：已記住 ${wins.length} 場有這名的勝利。` });
     }
     let combo = null;
     const group = [mine, ...allies];
@@ -3060,7 +3246,7 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
     notes.sort((left, right) => right.weight - left.weight);
     const seen = new Set();
     const reason = [];
-    const stored = notes.filter((note) => /^(替代：|對戰：)/.test(note.text) || note.text.includes("協同分數"));
+    const stored = notes.filter((note) => /^(替代：|對戰：|冷卻：|勝場：)/.test(note.text) || note.text.includes("協同分數"));
     const rest = notes.filter((note) => !stored.includes(note));
     const pushNote = (note) => {
       if (!note?.text || seen.has(note.text) || reason.includes(note.text)) return;
@@ -3678,8 +3864,8 @@ function gearQuestion(catalog, roster, ids, state) {
   return `${names.join("、")}的神器未確認，預設會改開場的隱身或魂量。若和這個預設不同，請告訴我。`;
 }
 
-function topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirst, state) {
-  const ranked = compositionRank(catalog, roster, userPicks, enemyPicks, blocked).slice(0, 3);
+function topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirst, state, memory) {
+  const ranked = compositionRank(catalog, roster, userPicks, enemyPicks, blocked, memory).slice(0, 3);
   if (!ranked.length) return ["帳號裡沒有還能選、而且有配裝的角色。"];
   const next = userPicks.length;
   const seat = next === 2
@@ -3925,9 +4111,15 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   }
   if (!seat) return invalid(catalog, "人數對不上選角順序", FIRST_RULE);
   const waiting = seat.side === "enemy" && seat.left === seat.count;
-  const ranked = waiting ? [] : compositionRank(catalog, roster, userPicks, enemyPicks, blocked);
-  const ids = ranked.slice(0, 3).map((row) => row.id);
-  const top = userPicks.length >= 5 || waiting ? [] : topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirst, state);
+  const ranked = waiting ? [] : compositionRank(catalog, roster, userPicks, enemyPicks, blocked, options.memory);
+  const foes = enemyPicks.map((id) => draftHero(catalog, id)).filter(Boolean);
+  const plans = !waiting && seat.side === "user" && foes.length
+    ? buildPlans(catalog, ranked, userPicks, foes, options.memory, Math.min(Math.max(seat.left || 1, 1), 3))
+    : null;
+  const ids = plans
+    ? plans.flatMap((plan) => plan.ids).filter((id, index, list) => list.indexOf(id) === index)
+    : ranked.slice(0, 3).map((row) => row.id);
+  const top = userPicks.length >= 5 || waiting ? [] : topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirst, state, options.memory);
   if (!waiting && usedDefaultGear(catalog, roster, ids, state)) board.push("建議靠未確認的神器或專武，信心度降一級。");
   return advicePacket(catalog, basis, state, {
     board: waiting ? board : [...board, `我方有配裝可選 ${geared.filter((hero) => !blocked.includes(hero.id) && !blocked.includes(canonicalId(hero.id))).length} 名。`],
@@ -3938,9 +4130,12 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
     kind: seat.side === "enemy" ? "report" : "pick",
     title: seat.side === "enemy"
       ? (seat.left === seat.count ? `告訴我對方這手的 ${seat.count} 名` : `對方這手還有 ${seat.left} 名`)
-      : (ids.length ? `這一手選 ${seat.left} 名。推薦 ${ids.map((id) => screenName(catalog, id)).filter(Boolean).join("、")}` : "帳號裡沒有有配裝的角色可選。"),
+      : (ids.length
+        ? `這一手選 ${seat.left} 名。推薦 ${ids.map((id) => screenName(catalog, id)).filter(Boolean).join("、")}`
+        : (plans ? `這一手選 ${seat.left} 名。` : "帳號裡沒有有配裝的角色可選。")),
     detail: FIRST_RULE,
     ids,
+    plans,
     need: seat.left,
   });
 }
