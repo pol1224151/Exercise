@@ -369,6 +369,12 @@ function draftStatusText(result) {
     }
     return `${side}禁完了。下面是戰鬥建議。`;
   }
+  if (result?.action?.kind === "preban") {
+    return `${side}${rule}先採用我方預禁。點上面那句就用建議的人。預禁完才進選角。`;
+  }
+  if (result?.action?.kind === "enemy-preban") {
+    return `${side}${rule}點上面那句，選對方的預禁。兩邊預禁都定了才進選角。`;
+  }
   if (result?.action?.kind === "report") {
     const index = manual.enemyPicks.length;
     return `${side}${rule}點對方第 ${index + 1} 格，這是對方${slotWords(index)}。`;
@@ -449,6 +455,10 @@ function paintBan(button, label, id) {
 function onCell(side, index) {
   if (!manual.rule || manual.userFirst == null) {
     $("draftStatus").textContent = roster?.heroes?.length ? rosterReadLine(roster) : GEAR_ASK;
+    return;
+  }
+  if (!manual.prebansDone || !manual.enemyPrebansDone) {
+    $("draftStatus").textContent = "先完成雙方預禁，再選角。";
     return;
   }
   const full = manual.userPicks.length >= 5 && manual.enemyPicks.length >= 5;

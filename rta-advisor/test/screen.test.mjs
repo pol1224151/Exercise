@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { GEAR_ASK, battleBrief, effectGapItems, fightFromRoster, guidedDraft, hasPublicDamage, heroCode, parseRoster, rosterReadLine, selectableHeroes, sourceBasis } from "../js/engine.js";
+import { GEAR_ASK, battleBrief, effectGapItems, fightFromRoster, guidedDraft as guidedDraftRaw, hasPublicDamage, heroCode, parseRoster, rosterReadLine, selectableHeroes, sourceBasis } from "../js/engine.js";
+
+function guidedDraft(catalog, roster, state = {}, options = {}) {
+  if (state.rule && state.userFirst != null && state.prebansDone == null && !options.rawPreban) {
+    state = {
+      prebans: ["estelle", "zio"],
+      prebansDone: true,
+      enemyPrebans: ["belian", "tidal-rift-elvira"],
+      enemyPrebansDone: true,
+      ...state,
+    };
+  }
+  return guidedDraftRaw(catalog, roster, state, options);
+}
 
 const catalog = JSON.parse(readFileSync(new URL("../data/catalog.json", import.meta.url)));
 const version = JSON.parse(readFileSync(new URL("../data/version.json", import.meta.url)));
@@ -61,9 +74,13 @@ const answerTwo = guidedDraft(catalog, roster, {
   enemyPicks: [scales.id],
 }, { trials: 1, rank: "champion" });
 assert.equal(answerTwo.ok, true, answerTwo.reason?.summary);
-assert.match(answerTwo.reason.summary, /【對手新角色檔案】/);
+assert.equal(answerTwo.reason.summary.includes("【對手新角色檔案】"), false);
+assert.equal(answerTwo.reason.summary.includes("一技："), false);
+assert.equal(answerTwo.reason.summary.includes("頁上S"), false);
 assert.match(answerTwo.reason.summary, /天秤之主/);
 assert.match(answerTwo.reason.summary, /【我方推薦 Top 3】/);
+assert.notEqual(answerTwo.action.title, "這一手沒有可選的人");
+assert.ok(answerTwo.action.ids.length > 0);
 assert.match(answerTwo.reason.summary, /控場與減益的成功率下降/);
 assert.equal(answerTwo.action.ids.includes(scales.id), false);
 assert.equal(answerTwo.reason.summary.includes("【BAN 建議】"), false);
@@ -446,29 +463,23 @@ const sampleTurn = guidedDraft(catalog, roster, {
 });
 assert.equal(sampleTurn.ok, true, sampleTurn.reason.summary);
 assert.match(sampleTurn.reason.summary, /【局面確認】/);
-assert.match(sampleTurn.reason.summary, /【對手新角色檔案】/);
+assert.equal(sampleTurn.reason.summary.includes("【對手新角色檔案】"), false);
 assert.match(sampleTurn.reason.summary, /【對手陣容判讀】/);
 assert.match(sampleTurn.reason.summary, /【我方推薦 Top 3】/);
-assert.match(sampleTurn.reason.summary, /【配裝與專武分支】/);
-assert.match(sampleTurn.reason.summary, /【信心度】/);
-assert.match(sampleTurn.reason.summary, /【需要我補充】/);
+assert.equal(sampleTurn.reason.summary.includes("【配裝與專武分支】"), false);
+assert.equal(sampleTurn.reason.summary.includes("【信心度】"), false);
+assert.equal(sampleTurn.reason.summary.includes("【需要我補充】"), false);
 assert.equal(sampleTurn.reason.summary.includes("【BAN 建議】"), false);
 assert.equal(sampleTurn.reason.summary.includes("【戰鬥建議】"), false);
+assert.equal(sampleTurn.reason.summary.includes("一技："), false);
+assert.equal(sampleTurn.reason.summary.includes("開場效果："), false);
 assert.match(sampleTurn.reason.summary, /保健室老師律荷/);
-assert.match(sampleTurn.reason.summary, /開場效果：/);
-const profileAt = sampleTurn.reason.summary.indexOf("【對手新角色檔案】");
-const skillAt = sampleTurn.reason.summary.indexOf("一技：");
-const openingAt = sampleTurn.reason.summary.indexOf("開場效果：");
-assert.ok(profileAt >= 0 && openingAt > profileAt && (skillAt < 0 || openingAt < skillAt));
 assert.match(sampleTurn.reason.summary, /組合使用率/);
 assert.match(sampleTurn.reason.summary, /這是套裝組合的比例，不是神器使用率/);
 assert.equal(/常見神器/.test(sampleTurn.reason.summary), false);
-const gearAt = sampleTurn.reason.summary.indexOf("【配裝與專武分支】");
-const gearBody = sampleTurn.reason.summary.slice(gearAt, sampleTurn.reason.summary.indexOf("【信心度】"));
-const comboLine = gearBody.split("\n").find((row) => row.includes("預設用使用率最高的配裝"));
-assert.match(comboLine, /套裝 .+，神器 .+。組合使用率 \d/);
+const comboLine = sampleTurn.reason.summary.split("\n").find((row) => row.includes("組合使用率"));
+assert.match(comboLine, /組合使用率 \d/);
 assert.equal(/神器使用率 \d/.test(comboLine), false);
-assert.match(gearBody, /神器使用率是資料庫已經加總的數字，統計範圍是 Epic7RTAStats/);
 
 const noBuild = guidedDraft(catalog, roster, {
   userFirst: true,
@@ -487,7 +498,7 @@ const scoutTurn = guidedDraft(catalog, roster, {
   enemyPicks: ["mighty-scout"],
 });
 assert.match(scoutTurn.reason.summary, /缺少偵查兵瑪伊堤的角色資料卡/);
-assert.match(scoutTurn.reason.summary, /【信心度】\n低/);
+assert.equal(scoutTurn.reason.summary.includes("【信心度】"), false);
 assert.equal(scoutTurn.reason.summary.includes("一技："), false);
 assert.match(scoutTurn.reason.summary, /資料可能過時，請確認/);
 
@@ -559,17 +570,19 @@ assert.match(schuriPage.reason.summary, /這是套裝組合的比例，不是神
 assert.match(schuriPage.reason.summary, /射手/);
 assert.match(schuriPage.reason.summary, /頁上沒有陣行使用率，不編陣行/);
 assert.match(schuriPage.reason.summary, /我方用 JSON 的實際練度/);
-assert.match(schuriPage.reason.summary, /敵人死亡時，使全體我軍的速攻值增加16%/);
+assert.equal(schuriPage.reason.summary.includes("敵人死亡時"), false);
+assert.equal(schuriPage.reason.summary.includes("頁上S"), false);
 const ariaTurn = guidedDraft(catalog, schuriRoster, {
   userFirst: true,
   rule: "attack",
   userPicks: ["arbiter-vildred"],
   enemyPicks: ["disciplinary-prefect-aria"],
 });
-assert.match(ariaTurn.reason.summary, /貫徹使命/);
-assert.match(ariaTurn.reason.summary, /權威之證/);
-assert.match(ariaTurn.reason.summary, /生命力 7% ~ 14%/);
-assert.match(ariaTurn.reason.summary, /處分的傷害量增加10%，並使敵人減少靈魂20點/);
+assert.match(ariaTurn.reason.summary, /風紀委員艾莉雅/);
+assert.equal(ariaTurn.reason.summary.includes("貫徹使命"), false);
+assert.equal(ariaTurn.reason.summary.includes("權威之證"), false);
+assert.equal(ariaTurn.reason.summary.includes("一技："), false);
+assert.ok(ariaTurn.action.ids.length > 0);
 const geared = (name, speed) => ({ name, atk: 3000, hp: 10000, def: 900, cr: 100, cd: 250, eff: 0, res: 0, dac: 0, spd: speed });
 const standIn = guidedDraft(catalog, parseRoster({ heroes: [geared("Arbiter Vildred", 250)] }, catalog), {
   userFirst: true,
@@ -619,5 +632,40 @@ const overForty = Object.values(e7.英雄).filter((row) => row.選擇率 > 0.4);
 assert.equal(overForty.length, 0);
 assert.deepEqual(e7.出場率門檻["超過40%"], []);
 assert.deepEqual(e7.出場率門檻.缺頁, []);
+
+const preban = guidedDraftRaw(catalog, roster, { userFirst: false, rule: "none" }, { rank: "champion" });
+assert.equal(preban.action.kind, "preban");
+assert.equal(preban.action.ids.length, 2);
+assert.equal(preban.reason.summary.includes("【我方推薦 Top 3】"), false);
+assert.equal(preban.reason.summary.includes("一技："), false);
+for (const id of preban.action.ids) assert.equal(roster.heroes.find((hero) => hero.id === id)?.geared, true);
+const enemyBan = guidedDraftRaw(catalog, roster, {
+  userFirst: false,
+  rule: "none",
+  prebans: preban.action.ids,
+  prebansDone: true,
+}, { rank: "champion" });
+assert.equal(enemyBan.action.kind, "enemy-preban");
+assert.match(enemyBan.action.title, /對方預禁的 2 名/);
+assert.equal(enemyBan.reason.summary.includes("【我方推薦 Top 3】"), false);
+const scalesTurn = guidedDraftRaw(catalog, roster, {
+  userFirst: false,
+  rule: "none",
+  prebans: preban.action.ids,
+  prebansDone: true,
+  enemyPrebans: ["estelle", "zio"],
+  enemyPrebansDone: true,
+  enemyPicks: ["lady-of-the-scales"],
+}, { rank: "champion" });
+assert.equal(scalesTurn.action.kind, "pick");
+assert.equal(scalesTurn.action.need, 2);
+assert.notEqual(scalesTurn.action.title, "這一手沒有可選的人");
+assert.ok(scalesTurn.action.ids.length > 0);
+assert.equal(scalesTurn.reason.summary.includes("一技："), false);
+assert.equal(scalesTurn.reason.summary.includes("頁上S"), false);
+assert.equal(scalesTurn.reason.summary.includes("開場效果"), false);
+assert.match(scalesTurn.reason.summary, /【局面確認】/);
+assert.match(scalesTurn.reason.summary, /【對手陣容判讀】/);
+assert.match(scalesTurn.reason.summary, /【我方推薦 Top 3】/);
 
 console.log("screen tests passed", { next: firstMove.action.title, brief: brief.action.title, knights: knights.picks, buffers: buffers.picks });

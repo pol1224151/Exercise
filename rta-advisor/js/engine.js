@@ -2953,7 +2953,6 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds) {
   for (const hero of [...(catalog.heroes || []), ...(catalog.database || [])]) {
     if (!hero?.id || seen.has(hero.id)) continue;
     if (!owned.has(hero.id) || !geared.has(hero.id) || taken.has(hero.id)) continue;
-    if (!modelIds.has(hero.id) && !sdHero(hero.code)) continue;
     if (!catalogHero(catalog, hero.id)) continue;
     seen.add(hero.id);
     pool.push(hero);
@@ -3481,7 +3480,7 @@ function heroProfileLines(catalog, hero) {
   return lines.filter(Boolean);
 }
 
-function lineupLines(catalog, enemyPicks, rule) {
+function lineupLines(catalog, enemyPicks, rule, roster) {
   const heroes = (enemyPicks || []).map((id) => catalogHero(catalog, id)).filter(Boolean);
   if (!heroes.length) return [];
   const names = heroes.map((hero) => hero.nameZh).join("、");
@@ -3492,7 +3491,30 @@ function lineupLines(catalog, enemyPicks, rule) {
   else if (/\brecover|\bheal\b|\bbarrier\b/i.test(text)) style = "有治療或防護罩。";
   else if (/counterattack|counter attack/i.test(text)) style = "有反擊。";
   const core = heroes[2] ? `對手第 3 選是${heroes[2].nameZh}，這名不能 BAN，整隊打法圍繞這名。` : "對手還沒選到第 3 選。";
-  return [`目前對手：${names}。${style}`, core, RULE_IMPACT[rule] || ""];
+  const lines = [`目前對手：${names}。${style}`, core, RULE_IMPACT[rule] || ""];
+  for (const hero of heroes) {
+    const sd = sdHero(hero.code);
+    const top = (sd?.配裝 || []).find((row) => row.神器 && typeof row.使用率 === "number");
+    if (top) {
+      const klass = e7Sd.神器?.[top.神器代碼]?.職業中文 ? `（${e7Sd.神器[top.神器代碼].職業中文}）` : "";
+      lines.push(`${hero.nameZh}的預設神器是使用率最高的${top.神器}${klass}，組合使用率 ${usageText(top.使用率)}。這是套裝組合的比例，不是神器使用率。`);
+    } else if (!sd && !(e7Record(hero.code)?.建造 || []).length) {
+      lines.push(e7Record(hero.code)?.有頁 ? `缺少${hero.nameZh}的配裝表。` : `缺少${hero.nameZh}的角色資料卡。`);
+    }
+  }
+  if (heroes.some((hero) => sdHero(hero.code)?.刻印?.陣行 && typeof sdHero(hero.code).刻印.陣行.使用率 !== "number")) {
+    lines.push("頁上沒有陣行使用率，不編陣行。");
+  }
+  for (const hero of heroes) {
+    for (const own of roster?.heroes || []) {
+      if (!own.geared) continue;
+      const pair = pairRecord(catalogHero(catalog, own.id)?.code, hero.code);
+      if (pair?.來源 !== "配對分析" || typeof pair.對戰分數 !== "number") continue;
+      const syn = typeof pair.協同分數 === "number" ? `協同${pair.協同評價}，協同分數 ${signedScore(pair.協同分數)}。` : "";
+      lines.push(`${own.nameZh}對上${hero.nameZh}是${pair.對戰評價}，對戰分數 ${signedScore(pair.對戰分數)}。${syn}`);
+    }
+  }
+  return lines.filter(Boolean);
 }
 
 const OPENING_ARTIFACTS = new Set(["Guiding Light", "Tagehel's Ancient Book", "Aubade Orb", "Unseen Observer", "Wall of Order"]);
@@ -3682,7 +3704,7 @@ function banLines(catalog, roster, userPicks, enemyPicks) {
   foes.sort((left, right) => threatScore(catalog, right.hero) - threatScore(catalog, left.hero) || left.hero.nameZh.localeCompare(right.hero.nameZh, "zh"));
   const ours = userPicks.map((id, index) => ({ id, index, hero: draftHero(catalog, id) })).filter((row) => row.index !== 2 && row.hero);
   ours.sort((left, right) => threatScore(catalog, right.hero) - threatScore(catalog, left.hero));
-  const bans = foes.slice(0, 3).map((row, index) => `${index + 1}. BAN ${row.hero.nameZh}。這是對方${slotNote(row.index)}，不是保護位。${shownKit(catalog, row.hero)}`);
+  const bans = foes.slice(0, 3).map((row, index) => `${index + 1}. BAN ${row.hero.nameZh}。這是對方${slotNote(row.index)}，不是保護位。`);
   const predicted = ours[0]?.hero;
   const backup = compositionRank(catalog, roster, userPicks, enemyPicks, userPicks).find((row) => !userPicks.includes(row.id));
   const predict = predicted
@@ -3766,6 +3788,35 @@ function advicePacket(catalog, basis, state, parts, action) {
   };
 }
 
+function prebanEach(options) {
+  return options?.rank === "below" ? 1 : 2;
+}
+
+function gearedCards(catalog, roster) {
+  const seen = new Set();
+  const cards = [];
+  for (const hero of roster?.heroes || []) {
+    if (!hero?.geared) continue;
+    const id = canonicalId(hero.id);
+    if (!id || seen.has(id)) continue;
+    const card = catalogHero(catalog, hero.id) || catalogHero(catalog, id);
+    if (!card) continue;
+    seen.add(id);
+    seen.add(card.id);
+    cards.push(card);
+  }
+  return cards;
+}
+
+function ourPrebanPick(catalog, roster, count) {
+  return gearedCards(catalog, roster)
+    .slice()
+    .sort((left, right) => (right.rtaPresence?.prebans || 0) - (left.rtaPresence?.prebans || 0) || left.id.localeCompare(right.id))
+    .slice(0, count);
+}
+
+const OPPONENT_RULE = "對手的技能、專武、神器按頁上最大強化判斷，神器取使用率最高的一種。沒有使用率或沒有效果文字的不編。陣行沒有使用率就不編。我方用 JSON 的實際練度。";
+
 export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const basis = sourceBasis(catalog);
   if (!basis.ok) return invalid(catalog, "資料還沒齊", basis.problems.slice(0, 4).join("；"));
@@ -3789,20 +3840,69 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const prebans = (state.prebans || []).filter(Boolean);
   const enemyPre = (state.enemyPrebans || []).filter(Boolean);
   const who = userFirst ? "我方先手" : "對方先手";
+  const geared = gearedCards(catalog, roster);
+  const each = Math.min(prebanEach(options), geared.length);
+  if (!geared.length) {
+    const line = "沒有有配裝的角色可預禁，也不能進選角。";
+    return advicePacket(catalog, basis, state, { board: [who, line] }, { phase: "preban", kind: "ask", title: line, ids: [] });
+  }
+  if (!state.prebansDone || prebans.length < each) {
+    const picked = ourPrebanPick(catalog, roster, each);
+    const names = picked.map((hero) => hero.nameZh).filter(Boolean);
+    const counts = picked.map((hero) => {
+      const count = hero.rtaPresence?.prebans;
+      return typeof count === "number" ? `${hero.nameZh}的本季預禁數是 ${count}。` : `${hero.nameZh}沒有預禁數，不另編排名。`;
+    });
+    return advicePacket(catalog, basis, state, {
+      board: [
+        who,
+        RULE_IMPACT[state.rule] || "規則數值不確定，請告訴我這一場的規則。",
+        `先預禁。我方 ${each} 名，對方 ${each} 名。預禁完才進選角。`,
+        `我方預禁：${names.join("、")}。從有配裝的角色裡，依本季預禁數挑。點上面那句就採用。`,
+        ...counts,
+      ],
+    }, {
+      phase: "preban",
+      kind: "preban",
+      title: `我方預禁 ${names.join("、")}`,
+      detail: "點這句採用這組預禁。",
+      ids: picked.map((hero) => hero.id),
+    });
+  }
+  if (!state.enemyPrebansDone || enemyPre.length < each) {
+    const left = each - enemyPre.length;
+    const ours = prebans.map((id) => screenName(catalog, id)).filter(Boolean).join("、");
+    return advicePacket(catalog, basis, state, {
+      board: [
+        who,
+        `我方預禁：${ours}。`,
+        `請點上面那句，選對方預禁的 ${left} 名。選完 ${each} 名才進選角。`,
+      ],
+    }, {
+      phase: "preban",
+      kind: "enemy-preban",
+      title: left === each ? `告訴我對方預禁的 ${each} 名` : `對方預禁還差 ${left} 名`,
+      detail: "點這句選對方預禁。",
+      ids: [],
+    });
+  }
   const seat = draftSeat(userPicks.length, enemyPicks.length, userFirst);
   const blocked = [...userPicks, ...enemyPicks, ...prebans, ...enemyPre];
   const newest = enemyPicks.length && (!seat || seat.side === "user" || seat.left < seat.count)
     ? catalogHero(catalog, enemyPicks[enemyPicks.length - 1])
     : null;
-  const unverified = Boolean(newest && skillUnverified(newest));
-  const missingCard = Boolean(newest && !e7Record(newest.code)?.有頁);
   const board = [
     staleNotice(newest ? [newest] : []),
     progressText(userFirst, userPicks, enemyPicks),
     RULE_IMPACT[state.rule] || "規則數值不確定，請告訴我這一場的規則。",
     "第 3 選是保護位核心，雙方都不能 BAN。",
+    OPPONENT_RULE,
     who,
     FIRST_RULE,
+    roster?.unknown?.length ? `這些英文名對不上，請告訴我是誰：${roster.unknown.join("、")}。` : "",
+    mentionedHeroIds(catalog, roster, state?.exclusiveNote).some((id) => spokenGear(catalog, roster, id, state?.exclusiveNote).ee === true)
+      ? `你說${mentionedHeroIds(catalog, roster, state?.exclusiveNote).filter((id) => spokenGear(catalog, roster, id, state?.exclusiveNote).ee === true).map((id) => screenName(catalog, id)).filter(Boolean).join("、")}有專武，以你說的為準。`
+      : "",
   ];
   if (!seat && userPicks.length >= 5 && enemyPicks.length >= 5) {
     const foes = enemyPicks.map((id) => catalogHero(catalog, id)).filter(Boolean);
@@ -3812,12 +3912,8 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
       .sort((left, right) => threatScore(catalog, right.hero) - threatScore(catalog, left.hero))[0];
     return advicePacket(catalog, basis, state, {
       board: [staleNotice(foes), ...board.slice(1)],
-      profile: newest ? heroProfileLines(catalog, newest) : [],
-      read: lineupLines(catalog, enemyPicks, state.rule),
+      read: lineupLines(catalog, enemyPicks, state.rule, roster),
       ban: suggested,
-      gear: foes.flatMap((hero) => gearBranchLines(catalog, hero)),
-      confidence: confidenceLine(unverified, !newest || skillUnverified(newest), missingCard || foes.some((hero) => !e7Record(hero.code)?.有頁), usedDefaultGear(catalog, roster, userPicks, state)),
-      need: supplementLines(catalog, roster, state, unverified, foes, userPicks),
     }, {
       phase: "postban",
       kind: "ban",
@@ -3832,25 +3928,17 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const ranked = waiting ? [] : compositionRank(catalog, roster, userPicks, enemyPicks, blocked);
   const ids = ranked.slice(0, 3).map((row) => row.id);
   const top = userPicks.length >= 5 || waiting ? [] : topThreeLines(catalog, roster, userPicks, enemyPicks, blocked, userFirst, state);
-  const profile = waiting || !newest ? [] : heroProfileLines(catalog, newest);
-  const gear = waiting || !newest ? [] : gearBranchLines(catalog, newest);
-  const uncertain = profile.some((line) => line.includes("不確定")) || top.some((line) => line.includes("不確定"));
+  if (!waiting && usedDefaultGear(catalog, roster, ids, state)) board.push("建議靠未確認的神器或專武，信心度降一級。");
   return advicePacket(catalog, basis, state, {
-    board,
-    profile,
-    read: waiting ? [] : lineupLines(catalog, enemyPicks, state.rule),
+    board: waiting ? board : [...board, `我方有配裝可選 ${geared.filter((hero) => !blocked.includes(hero.id) && !blocked.includes(canonicalId(hero.id))).length} 名。`],
+    read: waiting ? [`請點對方第 ${enemyPicks.length + 1} 格，告訴我這一選。`] : lineupLines(catalog, enemyPicks, state.rule, roster),
     top,
-    gear,
-    confidence: waiting ? "" : confidenceLine(unverified, uncertain, missingCard, usedDefaultGear(catalog, roster, ids, state)),
-    need: waiting
-      ? [`請點對方第 ${enemyPicks.length + 1} 格，告訴我這一選。`]
-      : supplementLines(catalog, roster, state, unverified, newest ? [newest] : [], ids),
   }, {
     phase: "pick",
     kind: seat.side === "enemy" ? "report" : "pick",
     title: seat.side === "enemy"
       ? (seat.left === seat.count ? `告訴我對方這手的 ${seat.count} 名` : `對方這手還有 ${seat.left} 名`)
-      : (ids.length ? `推薦 ${ids.map((id) => screenName(catalog, id)).filter(Boolean).join("、")}` : "這一手沒有可選的人"),
+      : (ids.length ? `這一手選 ${seat.left} 名。推薦 ${ids.map((id) => screenName(catalog, id)).filter(Boolean).join("、")}` : "帳號裡沒有有配裝的角色可選。"),
     detail: FIRST_RULE,
     ids,
     need: seat.left,
