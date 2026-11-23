@@ -200,6 +200,9 @@ function adviceFace(result) {
   if (kind === "enemy-preban") {
     return { action: result.action?.title || "選對方的預禁", reason: "請選對方預禁的人。", click: "enemy-preban" };
   }
+  if (kind === "pick" && result.action?.report) {
+    return { action: names[0] || "不確定", reason: result.action.report, click: "" };
+  }
   if (kind === "pick" && result.action?.forecast) {
     const who = names.length ? names.join("、") : "不確定";
     const reason = [result.action.forecast, result.action.forecastReason].filter(Boolean).join("");

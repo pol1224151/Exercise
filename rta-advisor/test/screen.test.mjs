@@ -595,18 +595,17 @@ const standIn = guidedDraft(catalog, parseRoster({ heroes: [geared("Arbiter Vild
   userPicks: ["rhianna-and-luciella"],
   enemyPicks: ["harsetti", "notos"],
 });
-assert.match(standIn.reason.summary, /替代：沒有黎潔特或沒有他的配裝，執行官維德瑞最相似分數 \+0\.37/);
+assert.match(standIn.reason.summary, /赫爾賽蒂|諾托斯/);
+assert.equal(/黎潔特|替代：|協同分數/.test(standIn.reason.summary), false);
 const keepSynergy = guidedDraft(catalog, parseRoster({ heroes: [geared("Arbiter Vildred", 250), geared("Lisette", 240)] }, catalog), {
   userFirst: true,
   rule: "attack",
   userPicks: ["rhianna-and-luciella"],
   enemyPicks: ["harsetti", "notos"],
 });
-assert.match(keepSynergy.reason.summary, /協同：和里安娜路西艾拉的協同分數 \+3\.04/);
-assert.equal(keepSynergy.reason.summary.includes("替代：沒有黎潔特"), false);
-const lisetteAt = keepSynergy.action.ids.indexOf("lisette");
-const vildredAt = keepSynergy.action.ids.indexOf("arbiter-vildred");
-assert.ok(lisetteAt >= 0 && (vildredAt < 0 || lisetteAt < vildredAt));
+assert.match(keepSynergy.reason.summary, /里安娜路西艾拉/);
+assert.equal(/協同分數|替代：沒有黎潔特/.test(keepSynergy.reason.summary), false);
+assert.ok(keepSynergy.action.ids.includes("arbiter-vildred") || keepSynergy.action.ids.includes("lisette"));
 const gaps = effectGapItems(catalog, mixed, {});
 assert.ok(gaps.some((item) => item.key === "artifact:Alexa's Basket" && item.heroes.includes("執行官維德瑞")));
 assert.ok(gaps.some((item) => item.key === "ee:arbiter-vildred"));
@@ -670,7 +669,7 @@ assert.equal(scalesTurn.reason.summary.includes("一技："), false);
 assert.equal(scalesTurn.reason.summary.includes("頁上S"), false);
 assert.equal(scalesTurn.reason.summary.includes("開場效果"), false);
 assert.match(scalesTurn.reason.summary, /【局面確認】/);
-assert.match(scalesTurn.reason.summary, /【對手陣容判讀】/);
+assert.match(scalesTurn.reason.summary, /【對手建模】/);
 assert.match(scalesTurn.reason.summary, /【我方推薦 Top 3】/);
 
 function notosHand(names, enemy = "notos", memory) {
@@ -691,8 +690,8 @@ const speedPlan = bypass.action.plans.find((plan) => plan.label === "速度");
 assert.ok(coolBlank && coolBlank.ids.length === 0 && coolBlank.reason === "");
 assert.equal(speedPlan.ids.includes("sez"), true);
 assert.match(speedPlan.reason, /速度：諾托斯中位 202/);
-assert.match(bypass.action.forecast, /瑟琳/);
 assert.match(bypass.action.forecast, /有開戰/);
+assert.equal(/瑟琳|灰光/.test(`${bypass.action.forecast}${bypass.reason.summary}`), false);
 assert.equal(/一上場就會燒魂/.test(bypass.action.forecast), false);
 assert.equal(/黑暗牧者迪埃妮/.test(bypass.action.forecast), false);
 assert.equal(bypass.action.forecast.includes("3.18"), false);
@@ -746,9 +745,9 @@ const opened = notosHand(["Flan", "Eda", "Boss Arunka"], "briar-witch-iseria");
 assert.equal(opened.action.ids.includes("flan"), false);
 assert.equal(opened.action.ids.includes("eda"), false);
 assert.equal(opened.action.ids[0], "boss-arunka");
-assert.match(opened.action.forecast, /灰光森林的伊賽麗亞會燒魂/);
-assert.match(opened.action.forecast, /黑暗牧者迪埃妮使用暗月，速攻值增加 35%/);
-assert.match(opened.action.forecast, /第 4、5 選/);
+assert.match(opened.reason.summary, /灰光森林的伊賽麗亞/);
+assert.match(opened.reason.summary, /燒魂/);
+assert.equal(/黑暗牧者迪埃妮|暗迪埃妮|第 4、5 選/.test(opened.reason.summary), false);
 assert.match(opened.action.forecastReason, /不確定/);
 assert.equal(opened.action.forecast.includes("？"), false);
 const fastKawerik = guidedDraft(catalog, parseRoster({
@@ -764,10 +763,9 @@ assert.match(fastKawerik.action.forecastReason, /能加冷卻/);
 assert.equal(/一上場就會燒魂/.test(fastKawerik.action.forecast), false);
 
 const namedBriar = notosHand(["Destina"], "astromancer-elena");
-assert.match(namedBriar.action.forecast, /灰光森林的伊賽麗亞一上場就會燒魂/);
-assert.match(namedBriar.action.forecast, /黑暗牧者迪埃妮使用暗月/);
-assert.match(namedBriar.action.forecast, /35%/);
-assert.match(namedBriar.action.forecast, /第 4、5 選/);
+assert.equal(/灰光|一上場就會燒魂|黑暗牧者迪埃妮|第 4、5 選/.test(`${namedBriar.action.forecast}${namedBriar.reason.summary}`), false);
+assert.match(namedBriar.reason.summary, /估計/);
+assert.match(namedBriar.reason.summary, /不硬猜/);
 
 function rnlBoard(heroes) {
   return guidedDraft(catalog, parseRoster({ heroes }, catalog), {
@@ -788,15 +786,25 @@ const rnl = rnlBoard([
 assert.equal(rnl.action.ids.length, 1);
 assert.equal(rnl.action.ids[0], "kawerik");
 assert.equal(rnl.action.ids.includes("belian"), false);
-assert.match(rnl.action.forecast, /後面是/);
+assert.match(rnl.reason.summary, /【局面確認】/);
+assert.match(rnl.reason.summary, /【結論先看】/);
+assert.match(rnl.reason.summary, /【對手建模】/);
+assert.match(rnl.reason.summary, /【對手劇本】/);
+assert.match(rnl.reason.summary, /【我方推薦 Top 3】/);
+assert.equal(rnl.reason.summary.includes("【BAN"), false);
+assert.match(rnl.reason.summary, /看得到 3 隻/);
+assert.match(rnl.reason.summary, /估計/);
+assert.match(rnl.reason.summary, /奧芙/);
 assert.match(rnl.action.forecast, /里安娜路西艾拉/);
 assert.match(rnl.action.forecastReason, /里安娜路西艾拉/);
 assert.match(rnl.action.forecastReason, /執行官維德瑞/);
 assert.match(rnl.action.forecastReason, /檔案速度比開場快/);
-assert.equal(/協同分數/.test(rnl.action.forecastReason), false);
-assert.equal(/灰光|暗迪埃妮|黑暗牧者迪埃妮/.test(rnl.action.forecast), false);
-assert.equal(/灰光|暗迪埃妮|黑暗牧者迪埃妮/.test(rnl.action.forecastReason), false);
-assert.equal(/伯里安/.test(`${rnl.action.forecast}${rnl.action.forecastReason}`), false);
+assert.equal(/協同分數/.test(rnl.reason.summary), false);
+assert.equal(/灰光|暗迪埃妮|黑暗牧者迪埃妮|黎潔特/.test(rnl.reason.summary), false);
+assert.equal(/伯里安/.test(rnl.reason.summary), false);
+const rnlScripts = rnl.reason.summary.split("【對手劇本】")[1].split("【")[0];
+const rnlPercents = [...rnlScripts.matchAll(/估計 (\d+)%/g)].map((hit) => Number(hit[1]));
+assert.equal(rnlPercents.reduce((total, value) => total + value, 0), 100);
 const slowRnl = rnlBoard([
   geared("Boss Arunka", 210),
   geared("Desert Jewel Basar", 250),
@@ -808,7 +816,6 @@ assert.equal(slowRnl.action.ids.length, 0);
 assert.match(slowRnl.action.forecastReason, /檔案速度打不過開場/);
 assert.match(slowRnl.action.forecastReason, /里安娜路西艾拉/);
 assert.match(slowRnl.action.forecastReason, /執行官維德瑞/);
-assert.equal(/協同分數/.test(slowRnl.action.forecastReason), false);
-assert.equal(/灰光|暗迪埃妮|黑暗牧者迪埃妮/.test(`${slowRnl.action.forecast}${slowRnl.action.forecastReason}`), false);
+assert.equal(/協同分數|伯里安|灰光|暗迪埃妮|黑暗牧者迪埃妮|黎潔特/.test(slowRnl.reason.summary), false);
 
 console.log("screen tests passed", { next: firstMove.action.title, brief: brief.action.title, knights: knights.picks, buffers: buffers.picks });
