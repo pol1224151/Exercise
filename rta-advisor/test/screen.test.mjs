@@ -63,7 +63,12 @@ const theirFirst = guidedDraft(catalog, roster, {
 }, { trials: 1, rank: "champion" });
 assert.equal(theirFirst.action.kind, "report");
 assert.match(theirFirst.reason.summary, /對方第 1 選/);
-assert.equal(theirFirst.reason.summary.includes("【我方推薦 Top 3】"), false);
+assert.match(theirFirst.reason.summary, /【局面確認】/);
+assert.match(theirFirst.reason.summary, /【結論先看】/);
+assert.match(theirFirst.reason.summary, /【我方推薦 Top 3】/);
+assert.match(theirFirst.reason.summary, /【信心度與需要補充】/);
+assert.equal(theirFirst.reason.summary.includes("【對手陣容判讀】"), false);
+assert.equal(theirFirst.reason.summary.includes("【戰鬥建議】"), false);
 
 const scales = selectableHeroes(catalog).find((hero) => hero.nameZh === "天秤之主");
 assert.ok(scales);
@@ -118,14 +123,16 @@ const beforeArtifacts = (summary) => {
 };
 assert.equal(beforeArtifacts(brief.reason.summary).includes("使用率"), false);
 assert.match(brief.reason.summary, /【配裝與專武分支】/);
-assert.match(brief.reason.summary, /【戰鬥建議】/);
+assert.match(brief.reason.summary, /【戰鬥推演】/);
+assert.equal(brief.reason.summary.includes("【戰鬥建議】"), false);
 assert.equal(brief.reason.summary.includes("【BAN 建議】"), false);
 assert.equal(brief.reason.summary.includes("速度分位"), false);
 assert.equal(brief.reason.summary, brief.reason.lines.join("\n"));
-for (const label of ["誰先打誰：", "要不要開大：", "打到誰：", "先殺誰："]) {
-  assert.ok(brief.reason.lines.some((row) => row.startsWith(label)), label);
-}
-assert.match(brief.reason.lines.find((row) => row.startsWith("誰先打誰：")), /我方/);
+assert.match(brief.reason.summary, /前 2～3 回合/);
+assert.match(brief.reason.summary, /打斷協同鏈/);
+const briefBranches = brief.reason.lines.filter((row) => row.startsWith("若"));
+assert.ok(briefBranches.length >= 1 && briefBranches.length <= 3, String(briefBranches.length));
+assert.match(brief.reason.summary, /我方/);
 
 const added = ["lone-crescent-bellona", "midnight-gala-lilias", "sylvan-sage-vivian"];
 for (const id of added) {
@@ -292,10 +299,8 @@ const light = fightFromRoster({
 assert.match(light.log.join("\n"), /引導之光 最大強化/);
 assert.match(light.log.join("\n"), /隱身 1 回合/);
 assert.match(yulhaBrief.reason.summary, /增益/);
-const yulhaWho = yulhaBrief.reason.lines.find((row) => row.startsWith("誰先打誰："));
-const yulhaUlt = yulhaBrief.reason.lines.find((row) => row.startsWith("要不要開大："));
-assert.match(yulhaWho, /我方/);
-assert.match(yulhaUlt, /我方|要開大|不開大|開大給/);
+assert.match(yulhaBrief.reason.summary, /我方/);
+assert.match(yulhaBrief.reason.summary, /開大|先動|先打/);
 assert.equal(yulhaBrief.action.title.includes("對方"), false);
 assert.equal(yulhaBrief.reason.summary.includes("不指定先殺"), false);
 const ruled = battleBrief(catalog, roster, {
@@ -423,16 +428,13 @@ assert.equal(darkClaws.ok, true, darkClaws.reason?.summary);
 assert.match(darkClaws.action.title, /^我方黑暗牧者迪埃妮先打/);
 assert.equal(darkClaws.action.title.includes("開一技給"), false);
 assert.equal(darkClaws.action.title.includes("給森之賢者薇薇安"), false);
-const darkKill = darkClaws.reason.lines.find((row) => row.startsWith("先殺誰："));
-const darkHit = darkClaws.reason.lines.find((row) => row.startsWith("打到誰："));
-assert.match(darkKill, /^先殺誰：先殺/);
-assert.equal(darkKill.includes("增益"), false);
-assert.equal(darkHit.includes("開給"), false);
-assert.match(darkHit, /公開傷害倍率 0\.5/);
-assert.match(darkHit, /公開係數 生命 0\.12/);
-assert.match(darkHit, /必暴/);
-assert.match(darkHit, /強化到最大的傷害增加 30%/);
-assert.match(darkHit, /開場自己有不死 1 回合，叫攻擊最高的森之賢者薇薇安夾攻/);
+const darkText = darkClaws.reason.summary;
+assert.match(darkText, /先處理|先殺|先打/);
+assert.match(darkText, /公開傷害倍率 0\.5/);
+assert.match(darkText, /公開係數 生命 0\.12/);
+assert.match(darkText, /必暴/);
+assert.match(darkText, /強化到最大的傷害增加 30%/);
+assert.match(darkText, /開場自己有不死 1 回合，叫攻擊最高的森之賢者薇薇安夾攻/);
 assert.match(darkClaws.reason.summary, /技能組合：黑暗牧者迪埃妮一技打對方/);
 assert.equal(darkClaws.reason.summary.includes("一技給隊友"), false);
 assert.equal(darkClaws.reason.summary.includes("這是增益，先幫我方輸出"), false);
@@ -469,10 +471,13 @@ const sampleTurn = guidedDraft(catalog, roster, {
 assert.equal(sampleTurn.ok, true, sampleTurn.reason.summary);
 assert.match(sampleTurn.reason.summary, /【局面確認】/);
 assert.equal(sampleTurn.reason.summary.includes("【對手新角色檔案】"), false);
-assert.match(sampleTurn.reason.summary, /【對手陣容判讀】/);
+assert.match(sampleTurn.reason.summary, /【對手建模】/);
+assert.match(sampleTurn.reason.summary, /【對手劇本】/);
+assert.match(sampleTurn.reason.summary, /【結論先看】/);
 assert.match(sampleTurn.reason.summary, /【我方推薦 Top 3】/);
 assert.equal(sampleTurn.reason.summary.includes("【配裝與專武分支】"), false);
-assert.equal(sampleTurn.reason.summary.includes("【信心度】"), false);
+assert.match(sampleTurn.reason.summary, /【信心度與需要補充】/);
+assert.equal(sampleTurn.reason.summary.includes("【對手陣容判讀】"), false);
 assert.equal(sampleTurn.reason.summary.includes("【需要我補充】"), false);
 assert.equal(sampleTurn.reason.summary.includes("【BAN 建議】"), false);
 assert.equal(sampleTurn.reason.summary.includes("【戰鬥建議】"), false);
@@ -503,7 +508,8 @@ const scoutTurn = guidedDraft(catalog, roster, {
   enemyPicks: ["mighty-scout"],
 });
 assert.match(scoutTurn.reason.summary, /缺少偵查兵瑪伊堤的角色資料卡/);
-assert.equal(scoutTurn.reason.summary.includes("【信心度】"), false);
+assert.match(scoutTurn.reason.summary, /【信心度與需要補充】/);
+assert.equal(scoutTurn.reason.summary.includes("【對手陣容判讀】"), false);
 assert.equal(scoutTurn.reason.summary.includes("一技："), false);
 assert.match(scoutTurn.reason.summary, /資料可能過時，請確認/);
 
@@ -561,8 +567,8 @@ const schuriTurn = guidedDraft(catalog, schuriRoster, {
   userPicks: ["arbiter-vildred"],
   enemyPicks: ["harsetti"],
 });
-assert.match(schuriTurn.reason.summary, /修里對上赫爾賽蒂是被強力克制，對戰分數 -4\.86/);
-assert.match(schuriTurn.reason.summary, /協同效果普通，協同分數 \+0\.00/);
+assert.match(schuriTurn.reason.summary, /赫爾賽蒂/);
+assert.equal(/對戰分數|協同分數|強力克制/.test(schuriTurn.reason.summary), false);
 const schuriPage = guidedDraft(catalog, schuriRoster, {
   userFirst: true,
   rule: "attack",

@@ -228,8 +228,7 @@ function adviceFace(result) {
     return { action: result.action?.title || "選要禁的人", reason: "第 3 選不能禁。", click: "" };
   }
   if (kind === "brief" || result?.phase === "battle") {
-    const line = (result.reason?.lines || []).find((row) => row.startsWith("誰先打誰：")) || "";
-    return { action: result.action?.title || "照這一步打", reason: line, click: "" };
+    return { action: result.action?.title || "照這一步打", reason: result.action?.report || result.reason?.summary || "", click: "" };
   }
   return { action: result?.action?.title || "", reason: "", click: "" };
 }
