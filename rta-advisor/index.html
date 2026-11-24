@@ -26,13 +26,47 @@
     <section id="draft" class="draft">
       <p class="lane-label">戰爭規則</p>
       <div class="rule-row" id="ruleRow">
-        <button type="button" data-rule="attack">攻擊</button>
+        <button type="button" data-rule="support">支援</button>
         <button type="button" data-rule="defense">防禦</button>
         <button type="button" data-rule="resist">抵抗</button>
         <button type="button" data-rule="special">特殊</button>
         <button type="button" data-rule="none">無規則</button>
       </div>
-      <p id="ruleText" class="note">先選戰爭規則，再點先後手。</p>
+      <p id="ruleText" class="note">先選戰爭規則，再點先後手。支援要先貼效果文字。</p>
+      <label class="exclusive" id="supportBox" hidden>支援的效果文字
+        <input id="supportText" type="text" placeholder="貼上遊戲內顯示的效果文字" autocomplete="off">
+      </label>
+      <div class="row">
+        <button id="modeQuick" type="button" class="primary">快速</button>
+        <button id="modeDeep" type="button">深度</button>
+      </div>
+      <form id="prebanAsk" class="exclusive" hidden>
+        <p class="lane-label">預先禁用先填這五項</p>
+        <label>每人幾隻 <input id="prebanCount" type="number" min="1" max="5" inputmode="numeric"></label>
+        <label>影響誰
+          <select id="prebanAffects">
+            <option value="">請選</option>
+            <option value="雙方都不能選">雙方都不能選</option>
+            <option value="只有對手不能選">只有對手不能選</option>
+          </select>
+        </label>
+        <label>順序
+          <select id="prebanOrder">
+            <option value="">請選</option>
+            <option value="同時禁用">同時</option>
+            <option value="依序禁用">依序</option>
+          </select>
+        </label>
+        <label>時機
+          <select id="prebanTiming">
+            <option value="">請選</option>
+            <option value="在先後手之前">先後手之前</option>
+            <option value="在先後手之後">先後手之後</option>
+          </select>
+        </label>
+        <label>當時看得到什麼 <input id="prebanVisible" type="text" autocomplete="off"></label>
+        <button type="submit">用這五項</button>
+      </form>
       <div class="row">
         <button id="weFirst" type="button">我先手</button>
         <button id="theyFirst" type="button">對方先手</button>
@@ -119,8 +153,8 @@
         <div class="row">
           <label>分段
             <select id="rank">
-              <option value="champion">冠軍以上，各預禁 2 名</option>
-              <option value="below">冠軍以下，各預禁 1 名</option>
+              <option value="champion">資料檔沒有標段位</option>
+              <option value="below">不沿用各 2 名</option>
             </select>
           </label>
           <label class="check"><input id="maxEnhance" type="checkbox" checked> 技能用滿強化估算（檔案通常沒有強化等級）</label>
@@ -128,7 +162,7 @@
             <input id="cutoff" type="number" min="0" max="100" step="1" value="40"> %
           </label>
         </div>
-        <p class="note">沒有練度檔時不給選角。讀完後先等規則和先後手，接著先定雙方預禁，再進選角。有配裝、而且神器或專武已經知道但效果不在資料庫的項目，匯入後立刻列出來請貼截圖，不等對局，也不擋選角。我方只從有配裝的角色推薦，屬性全 0 不推薦。神器名稱有填時，專武和烙印照檔案判斷；三欄都空白才用預設並標未確認。你另外講的神器或專武蓋過檔案。預禁下面只寫名字和一句理由。每一手先看資訊結構：先手第 1 手看 0 隻，第 3 手看對手 #1、#2，第 5 手看 #1～#4；後手第 2 手看對手 #1，第 4 手看 #1～#3，第 6 手看全部 5 隻。資訊少時優先靈活，資訊多時才針對場上這幾隻。畫面依序寫局面確認、結論先看、對手建模、對手劇本、我方推薦，到了才寫 BAN 與戰鬥，再寫觸發改選和信心度。沒內容的段省略。結論 5 行內。機率、評分、期望值標估計。只引用資料卡和專武，沒有的標缺口並降信心。不寫沒上場的人，不用協同分數當理由，不講簡單克制。檔案速度打不過對方開場中位的，保護位不推。沒入庫的寫不確定，不編。點格子後，有配裝的角色直接點一下就填進該格，再點該格可以換。已經選上和預禁過的不再出現。對方選了某人，不因為我方有人克他，就把克他的人當這一手。技能和專武留在程式裡判斷，畫面不整段列出。配裝使用率是套裝組合的比例，不是神器使用率。五選完成才出 BAN。禁完才出戰鬥建議。沒有寫進資料的數字寫不確定。第 3 選是保護位核心。</p>
+        <p class="note">沒有練度檔時不給選角。讀完後先等規則和先後手，預先禁用五項沒填就先問，不沿用各 2 名，填完才預禁。有配裝、而且神器或專武已經知道但效果不在資料庫的項目，匯入後立刻列出來請貼截圖，不等對局，也不擋選角。我方只從有配裝的角色推薦，屬性全 0 不推薦。神器名稱有填時，專武和烙印照檔案判斷；三欄都空白才用預設並標未確認。你另外講的神器或專武蓋過檔案。預禁下面只寫名字和一句理由。每一手先看資訊結構：先選的第 1 選看 0 隻，第 2、3 選看對手 1、2，第 4、5 選看 1～4。後選的第 1、2 選看對手 1，第 3、4 選看 1～3，第 5 選看全部 5 隻。第 1、2 手只推熱門且穩定的，第 3、4 手才補協同，最後 1～2 手才針對。快速模式只寫局面確認、結論先看、當前階段的 Top 3 和信心度。深度模式才寫完整十一段。沒內容的段省略。結論 5 行內。不編 0～5 分，排名用候選名單的勝率與選用率。沒有名單就寫沒有收到候選名單。只引用資料卡和專武，沒有的標缺口並降信心。不寫沒上場的人。協同分數只引用名單上的數字。沒有匯入速度就不寫檔案速度。沒入庫的寫不確定，不編。點格子後，有配裝的角色直接點一下就填進該格，再點該格可以換。已經選上和預禁過的不再出現。對方選了某人，不因為我方有人克他，就把克他的人當這一手。技能和專武留在程式裡判斷，畫面不整段列出。配裝使用率是套裝組合的比例，不是神器使用率。五選完成才出 BAN。禁完才出戰鬥建議。沒有寫進資料的數字寫不確定。第 3 選是保護位核心。</p>
       </section>
 
       <section>

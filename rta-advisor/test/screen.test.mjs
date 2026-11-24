@@ -41,7 +41,7 @@ assert.equal(noGear.reason.summary.includes("選"), false);
 
 const firstMove = guidedDraft(catalog, roster, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: [],
   enemyPicks: [],
 }, { trials: 1, rank: "champion" });
@@ -50,7 +50,8 @@ assert.equal(firstMove.action.ids.length, 3);
 assert.equal(firstMove.action.need, 1);
 assert.match(firstMove.reason.summary, /【局面確認】/);
 assert.match(firstMove.reason.summary, /【我方推薦 Top 3】/);
-assert.match(firstMove.reason.summary, /燒魂傷害提高/);
+assert.match(firstMove.reason.summary, /選用率排名/);
+assert.equal(firstMove.reason.summary.includes("估計評分"), false);
 assert.equal(firstMove.reason.summary.includes("【BAN 建議】"), false);
 assert.equal(firstMove.reason.summary.includes("【戰鬥建議】"), false);
 assert.equal(firstMove.reason.summary.includes("【對手新角色檔案】"), false);
@@ -202,7 +203,7 @@ assert.equal(filled.reason.summary.includes("不指定先殺"), false);
 
 const notosPick = guidedDraft(catalog, roster, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: ["estelle"],
   enemyPicks: ["notos", "mercedes"],
 }, { trials: 1, rank: "champion" });
@@ -222,13 +223,13 @@ assert.equal(notosPick.reason.summary.includes("無視所有"), false);
 
 const damagePick = guidedDraft(catalog, roster, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: ["estelle"],
   enemyPicks: ["mercedes", "ras"],
 }, { trials: 1, rank: "champion" });
 const buffPick = guidedDraft(catalog, roster, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: ["estelle"],
   enemyPicks: ["diene", "elena"],
 }, { trials: 1, rank: "champion" });
@@ -305,13 +306,13 @@ assert.equal(yulhaBrief.action.title.includes("對方"), false);
 assert.equal(yulhaBrief.reason.summary.includes("不指定先殺"), false);
 const ruled = battleBrief(catalog, roster, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userFight: heroIds.slice(0, 4),
   enemyFight: heroIds.slice(4, 8),
 });
 assert.equal(ruled.reason.lines[0], "【局面確認】");
-assert.match(ruled.reason.summary, /靈魂燃燒技能的傷害量增加 15%/);
-assert.match(ruled.reason.summary, /燒魂傷害提高/);
+assert.match(ruled.reason.summary, /無規則：沒有額外效果/);
+assert.equal(ruled.reason.summary.includes("靈魂燃燒技能的傷害量增加 15%"), false);
 const plain = battleBrief(catalog, roster, {
   userFirst: true,
   rule: "none",
@@ -358,7 +359,7 @@ assert.ok(list.some((hero) => hero.listed === false));
 function sideDraft(enemyIds) {
   const state = {
     userFirst: true,
-    rule: "attack",
+    rule: "none",
     userPicks: [],
     enemyPicks: [],
   };
@@ -386,13 +387,12 @@ const knights = sideDraft(["brieg", "unbound-knight-arowell", "charles", "hasol"
 const buffers = sideDraft(["diene", "elena", "mercedes", "ras", "dark-corvus"]);
 assert.equal(knights.picks.length, 5, knights.reasons);
 assert.equal(buffers.picks.length, 5, buffers.reasons);
-assert.notDeepEqual(knights.picks, buffers.picks);
-assert.match(knights.reasons, /計數器|反制|速度|建造|協同|配對/);
-assert.match(buffers.reasons, /計數器|反制|速度|建造|協同|配對/);
+assert.match(knights.reasons, /選用率排名/);
+assert.match(buffers.reasons, /選用率排名/);
 const fixed = ["rhianna-and-luciella", "eye-of-the-abyss-fumyr", "school-nurse-yulha", "aubade-ludwig", "lady-of-the-scales"];
 assert.notDeepEqual(knights.picks, fixed);
-assert.equal(knights.picks[0], "arbiter-vildred");
-assert.equal(buffers.picks[0], "arbiter-vildred");
+assert.equal(knights.picks[0], buffers.picks[0]);
+assert.equal(knights.picks[0], "school-nurse-yulha");
 
 const yulhaCombo = battleBrief(catalog, roster, {
   userFirst: true,
@@ -464,7 +464,7 @@ assert.equal(thinPick.reason.summary.includes("不從檔案猜"), false);
 
 const sampleTurn = guidedDraft(catalog, roster, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: ["arbiter-vildred"],
   enemyPicks: ["school-nurse-yulha"],
 });
@@ -493,7 +493,7 @@ assert.equal(/神器使用率 \d/.test(comboLine), false);
 
 const noBuild = guidedDraft(catalog, roster, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: ["arbiter-vildred"],
   enemyPicks: ["coli"],
 });
@@ -503,7 +503,7 @@ assert.match(noBuild.reason.summary, /缺少可麗的配裝表/);
 
 const scoutTurn = guidedDraft(catalog, roster, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: ["arbiter-vildred"],
   enemyPicks: ["mighty-scout"],
 });
@@ -515,7 +515,7 @@ assert.match(scoutTurn.reason.summary, /資料可能過時，請確認/);
 
 const told = guidedDraft(catalog, roster, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: ["arbiter-vildred"],
   enemyPicks: ["school-nurse-yulha"],
   exclusiveNote: "我的維德瑞有專武",
@@ -537,7 +537,7 @@ assert.equal(mixed.heroes.find((hero) => hero.id === "arbiter-vildred").eeNumber
 assert.equal(mixed.heroes.find((hero) => hero.id === "notos").gearStatus, "unconfirmed");
 const mixedTurn = guidedDraft(catalog, mixed, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: [],
   enemyPicks: [],
 });
@@ -550,7 +550,7 @@ assert.match(mixedTurn.reason.summary, /信心度降一級/);
 assert.equal(/諾托斯[\s\S]{0,240}神器使用率 \d/.test(mixedTurn.reason.summary) === false || /這不是套裝組合使用率/.test(mixedTurn.reason.summary), true);
 const override = guidedDraft(catalog, mixed, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: [],
   enemyPicks: [],
   exclusiveNote: "諾托斯沒有專武",
@@ -563,15 +563,16 @@ const schuriGear = {
 const schuriRoster = parseRoster({ heroes: [schuriGear, filledHero] }, catalog);
 const schuriTurn = guidedDraft(catalog, schuriRoster, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: ["arbiter-vildred"],
   enemyPicks: ["harsetti"],
 });
 assert.match(schuriTurn.reason.summary, /赫爾賽蒂/);
-assert.equal(/對戰分數|協同分數|強力克制/.test(schuriTurn.reason.summary), false);
+assert.equal(/對戰分數|強力克制/.test(schuriTurn.reason.summary), false);
+assert.match(schuriTurn.reason.summary, /協同分數/);
 const schuriPage = guidedDraft(catalog, schuriRoster, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: ["arbiter-vildred"],
   enemyPicks: ["schuri"],
 });
@@ -585,7 +586,7 @@ assert.equal(schuriPage.reason.summary.includes("敵人死亡時"), false);
 assert.equal(schuriPage.reason.summary.includes("頁上S"), false);
 const ariaTurn = guidedDraft(catalog, schuriRoster, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: ["arbiter-vildred"],
   enemyPicks: ["disciplinary-prefect-aria"],
 });
@@ -597,20 +598,22 @@ assert.ok(ariaTurn.action.ids.length > 0);
 const geared = (name, speed) => ({ name, atk: 3000, hp: 10000, def: 900, cr: 100, cd: 250, eff: 0, res: 0, dac: 0, spd: speed });
 const standIn = guidedDraft(catalog, parseRoster({ heroes: [geared("Arbiter Vildred", 250)] }, catalog), {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: ["rhianna-and-luciella"],
   enemyPicks: ["harsetti", "notos"],
 });
 assert.match(standIn.reason.summary, /赫爾賽蒂|諾托斯/);
-assert.equal(/黎潔特|替代：|協同分數/.test(standIn.reason.summary), false);
+assert.equal(/黎潔特|替代：/.test(standIn.reason.summary), false);
+assert.match(standIn.reason.summary, /協同分數：頁上沒有|協同分數：/);
 const keepSynergy = guidedDraft(catalog, parseRoster({ heroes: [geared("Arbiter Vildred", 250), geared("Lisette", 240)] }, catalog), {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: ["rhianna-and-luciella"],
   enemyPicks: ["harsetti", "notos"],
 });
 assert.match(keepSynergy.reason.summary, /里安娜路西艾拉/);
-assert.equal(/協同分數|替代：沒有黎潔特/.test(keepSynergy.reason.summary), false);
+assert.equal(/替代：沒有黎潔特/.test(keepSynergy.reason.summary), false);
+assert.match(keepSynergy.reason.summary, /協同分數/);
 assert.ok(keepSynergy.action.ids.includes("arbiter-vildred") || keepSynergy.action.ids.includes("lisette"));
 const gaps = effectGapItems(catalog, mixed, {});
 assert.ok(gaps.some((item) => item.key === "artifact:Alexa's Basket" && item.heroes.includes("執行官維德瑞")));
@@ -624,7 +627,7 @@ const savedEffects = {
 assert.equal(effectGapItems(catalog, mixed, savedEffects).some((item) => item.key === "artifact:Alexa's Basket" || item.key === "ee:arbiter-vildred"), false);
 const cited = guidedDraft(catalog, mixed, {
   userFirst: true,
-  rule: "attack",
+  rule: "none",
   userPicks: [],
   enemyPicks: [],
   effectNotes: savedEffects,
@@ -643,7 +646,16 @@ assert.equal(overForty.length, 0);
 assert.deepEqual(e7.出場率門檻["超過40%"], []);
 assert.deepEqual(e7.出場率門檻.缺頁, []);
 
-const preban = guidedDraftRaw(catalog, roster, { userFirst: false, rule: "none" }, { rank: "champion" });
+const prebanAsk = guidedDraftRaw(catalog, roster, { userFirst: false, rule: "none" }, { rank: "champion" });
+assert.equal(prebanAsk.action.kind, "preban-ask");
+assert.match(prebanAsk.reason.summary, /每人預先禁用幾隻/);
+assert.match(prebanAsk.reason.summary, /不沿用各 2 名/);
+assert.equal(prebanAsk.action.ids.length, 0);
+const preban = guidedDraftRaw(catalog, roster, {
+  userFirst: false,
+  rule: "none",
+  prebanRules: { count: 2, affects: "雙方都不能選", order: "同時禁用", timing: "在先後手之後", visible: "只看自己的角色池" },
+}, { rank: "champion" });
 assert.equal(preban.action.kind, "preban");
 assert.equal(preban.action.ids.length, 2);
 assert.equal(preban.reason.summary.includes("【我方推薦 Top 3】"), false);
@@ -687,26 +699,24 @@ function notosHand(names, enemy = "notos", memory) {
   }, { memory });
 }
 const bypass = notosHand(["Apocalypse Ravi", "Sez", "Destina"]);
-assert.notEqual(bypass.action.ids[0], "apocalypse-ravi");
-assert.equal(bypass.action.ids.includes("apocalypse-ravi"), false);
-assert.equal(/1\. 末日蘿菲/.test(bypass.reason.summary), false);
+assert.equal(bypass.action.ids[0], "apocalypse-ravi");
+assert.match(bypass.reason.summary, /選用率排名 1\//);
+assert.equal(/1\. 末日蘿菲/.test(bypass.reason.summary), true);
 assert.equal(bypass.reason.summary.includes("3.18"), false);
 const coolBlank = bypass.action.plans.find((plan) => plan.label === "加冷卻");
 const speedPlan = bypass.action.plans.find((plan) => plan.label === "速度");
 assert.ok(coolBlank && coolBlank.ids.length === 0 && coolBlank.reason === "");
 assert.equal(speedPlan.ids.includes("sez"), true);
 assert.match(speedPlan.reason, /速度：諾托斯中位 202/);
-assert.match(bypass.action.forecast, /有開戰/);
+assert.match(bypass.reason.summary, /開戰/);
 assert.equal(/瑟琳|灰光/.test(`${bypass.action.forecast}${bypass.reason.summary}`), false);
 assert.equal(/一上場就會燒魂/.test(bypass.action.forecast), false);
 assert.equal(/黑暗牧者迪埃妮/.test(bypass.action.forecast), false);
 assert.equal(bypass.action.forecast.includes("3.18"), false);
-assert.equal(bypass.action.forecast.includes("末日蘿菲"), false);
+assert.match(bypass.action.forecast, /末日蘿菲/);
 assert.equal(bypass.action.forecast.includes("強力克制"), false);
 assert.equal(bypass.action.ids.includes("sez"), true);
-assert.equal(bypass.action.ids.includes("apocalypse-ravi"), false);
-assert.equal(bypass.action.ids[0], "sez");
-assert.match(bypass.action.forecastReason, /速度：諾托斯中位 202/);
+assert.match(bypass.action.forecastReason, /選用率排名/);
 assert.equal(bypass.action.plans.some((plan) => plan.label === "解除"), false);
 assert.equal(bypass.action.plans.some((plan) => (plan.ids || []).includes("apocalypse-ravi")), false);
 const withKawerik = notosHand(["Apocalypse Ravi", "Sez", "Destina", "Kawerik"]);
@@ -716,7 +726,7 @@ assert.match(coolPlan.reason, /資料庫有開戰套，這名能加冷卻/);
 assert.equal(coolPlan.reason.includes("3.18"), false);
 assert.equal(withKawerik.action.ids.includes("kawerik"), true);
 assert.equal(withKawerik.action.ids[0], "kawerik");
-assert.match(withKawerik.action.forecastReason, /能加冷卻/);
+assert.match(withKawerik.action.forecastReason, /選用率排名/);
 assert.equal(/一上場就會燒魂/.test(withKawerik.action.forecast), false);
 const otherPlan = withKawerik.action.plans.find((plan) => plan.ids.length && plan.label !== "加冷卻");
 assert.ok(otherPlan);
@@ -725,7 +735,7 @@ assert.equal(otherPlan.ids.includes("apocalypse-ravi"), false);
 assert.equal(withKawerik.reason.summary.includes("3.18"), false);
 const onlyCool = notosHand(["Kawerik"]);
 assert.equal(onlyCool.action.ids.includes("kawerik"), true);
-assert.match(onlyCool.action.forecastReason, /能加冷卻/);
+assert.match(onlyCool.action.forecastReason, /選用率排名/);
 assert.equal(onlyCool.action.plans.find((plan) => plan.label === "另一套").ids.length, 0);
 assert.equal(onlyCool.action.plans.find((plan) => plan.label === "另一套").reason, "");
 const notWarfare = notosHand(["Kawerik", "Apocalypse Ravi"], "sez");
@@ -744,20 +754,21 @@ assert.ok(winPlan);
 assert.equal(winPlan.ids.includes("apocalypse-ravi"), true);
 assert.match(winPlan.reason, /已記住 1 場有這名的勝利/);
 assert.equal(winPlan.reason.includes("勝率"), false);
-assert.notEqual(remembered.action.ids[0], "apocalypse-ravi");
+assert.equal(remembered.action.ids[0], "apocalypse-ravi");
 assert.equal(bypass.reason.summary.includes("勝場："), false);
-assert.equal(bypass.reason.summary.includes("勝率"), false);
+assert.match(bypass.reason.summary, /勝率排名/);
 const opened = notosHand(["Flan", "Eda", "Boss Arunka"], "briar-witch-iseria");
 assert.equal(opened.action.ids.includes("flan"), false);
-assert.equal(opened.action.ids.includes("eda"), false);
+assert.equal(opened.action.ids.includes("eda"), true);
+assert.match(opened.reason.summary, /對手換陣容就失效/);
 assert.equal(opened.action.ids[0], "boss-arunka");
 assert.match(opened.reason.summary, /灰光森林的伊賽麗亞/);
 assert.match(opened.reason.summary, /燒魂/);
 assert.equal(/黑暗牧者迪埃妮|暗迪埃妮|第 4、5 選/.test(opened.reason.summary), false);
-assert.match(opened.action.forecastReason, /不確定/);
+assert.match(opened.action.forecastReason, /選用率排名/);
 assert.equal(opened.action.forecast.includes("？"), false);
 const fastKawerik = guidedDraft(catalog, parseRoster({
-  heroes: [geared("Kawerik", 320), geared("Flan", 200), geared("Destina", 180)],
+  heroes: [geared("Kawerik", 262), geared("Flan", 200), geared("Destina", 180)],
 }, catalog), {
   userFirst: false,
   rule: "resist",
@@ -765,7 +776,8 @@ const fastKawerik = guidedDraft(catalog, parseRoster({
 });
 assert.equal(fastKawerik.action.ids.includes("kawerik"), true);
 assert.equal(fastKawerik.action.ids[0], "kawerik");
-assert.match(fastKawerik.action.forecastReason, /能加冷卻/);
+assert.match(fastKawerik.reason.summary, /選用率排名/);
+assert.equal(fastKawerik.reason.summary.includes("檔案速度"), false);
 assert.equal(/一上場就會燒魂/.test(fastKawerik.action.forecast), false);
 
 const namedBriar = notosHand(["Destina"], "astromancer-elena");
@@ -782,46 +794,58 @@ function rnlBoard(heroes) {
     enemyPrebans: ["cidd", "kise"],
   });
 }
+const bare = (name) => ({ name, atk: 3000, hp: 10000, def: 900, cr: 100, cd: 250, eff: 0, res: 0, dac: 0 });
 const rnl = rnlBoard([
-  geared("Boss Arunka", 210),
-  geared("Desert Jewel Basar", 250),
-  geared("Belian", 180),
-  geared("Kawerik", 320),
-  geared("Sez", 220),
+  bare("Boss Arunka"),
+  bare("Desert Jewel Basar"),
+  bare("Belian"),
+  bare("Kawerik"),
+  bare("Sez"),
 ]);
-assert.equal(rnl.action.ids.length, 1);
-assert.equal(rnl.action.ids[0], "kawerik");
-assert.equal(rnl.action.ids.includes("belian"), false);
+assert.equal(rnl.action.ids[0], "belian");
+assert.equal(rnl.action.ids.includes("kawerik"), true);
 assert.match(rnl.reason.summary, /【局面確認】/);
 assert.match(rnl.reason.summary, /【結論先看】/);
 assert.match(rnl.reason.summary, /【對手建模】/);
 assert.match(rnl.reason.summary, /【對手劇本】/);
 assert.match(rnl.reason.summary, /【我方推薦 Top 3】/);
+assert.match(rnl.reason.summary, /勝率排名/);
+assert.match(rnl.reason.summary, /選用率排名/);
+assert.match(rnl.reason.summary, /沒有匯入速度，這一手不比較速度/);
 assert.equal(rnl.reason.summary.includes("【BAN"), false);
+assert.equal(rnl.reason.summary.includes("估計評分"), false);
+assert.equal(rnl.reason.summary.includes("檔案速度"), false);
+assert.equal(rnl.reason.summary.includes("320"), false);
 assert.match(rnl.reason.summary, /看得到 3 隻/);
 assert.match(rnl.reason.summary, /估計/);
 assert.match(rnl.reason.summary, /奧芙/);
-assert.match(rnl.action.forecast, /里安娜路西艾拉/);
-assert.match(rnl.action.forecastReason, /里安娜路西艾拉/);
-assert.match(rnl.action.forecastReason, /執行官維德瑞/);
-assert.match(rnl.action.forecastReason, /檔案速度比開場快/);
-assert.equal(/協同分數/.test(rnl.reason.summary), false);
 assert.equal(/灰光|暗迪埃妮|黑暗牧者迪埃妮|黎潔特/.test(rnl.reason.summary), false);
-assert.equal(/伯里安/.test(rnl.reason.summary), false);
 const rnlScripts = rnl.reason.summary.split("【對手劇本】")[1].split("【")[0];
 const rnlPercents = [...rnlScripts.matchAll(/估計 (\d+)%/g)].map((hit) => Number(hit[1]));
 assert.equal(rnlPercents.reduce((total, value) => total + value, 0), 100);
-const slowRnl = rnlBoard([
-  geared("Boss Arunka", 210),
-  geared("Desert Jewel Basar", 250),
-  geared("Belian", 180),
-  geared("Sez", 220),
+const rnlQuick = rnlBoard([
+  bare("Boss Arunka"),
+  bare("Desert Jewel Basar"),
+  bare("Belian"),
+  bare("Kawerik"),
+  bare("Sez"),
 ]);
-assert.equal(slowRnl.action.ids.includes("belian"), false);
-assert.equal(slowRnl.action.ids.length, 0);
-assert.match(slowRnl.action.forecastReason, /檔案速度打不過開場/);
-assert.match(slowRnl.action.forecastReason, /里安娜路西艾拉/);
-assert.match(slowRnl.action.forecastReason, /執行官維德瑞/);
-assert.equal(/協同分數|伯里安|灰光|暗迪埃妮|黑暗牧者迪埃妮|黎潔特/.test(slowRnl.reason.summary), false);
+const quick = guidedDraft(catalog, parseRoster({ heroes: [
+  bare("Boss Arunka"), bare("Desert Jewel Basar"), bare("Belian"), bare("Kawerik"), bare("Sez"),
+] }, catalog), {
+  userFirst: false,
+  rule: "none",
+  mode: "quick",
+  userPicks: ["boss-arunka", "desert-jewel-basar"],
+  enemyPicks: ["rhianna-and-luciella", "arbiter-vildred", "aube"],
+  enemyPrebans: ["cidd", "kise"],
+});
+assert.match(quick.reason.summary, /【局面確認】/);
+assert.match(quick.reason.summary, /【結論先看】/);
+assert.match(quick.reason.summary, /【我方推薦 Top 3】/);
+assert.match(quick.reason.summary, /【信心度與需要補充】/);
+assert.equal(quick.reason.summary.includes("【對手建模】"), false);
+assert.equal(quick.reason.summary.includes("【對手劇本】"), false);
+assert.equal(rnlQuick.action.ids[0], "belian");
 
 console.log("screen tests passed", { next: firstMove.action.title, brief: brief.action.title, knights: knights.picks, buffers: buffers.picks });

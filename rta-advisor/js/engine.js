@@ -2400,7 +2400,8 @@ function kitBlock(catalog, hero) {
 }
 
 const RULE_TEXT = {
-  attack: "戰爭規則：進攻。靈魂燃燒技能造成的傷害提升 15%。",
+  support: "戰爭規則：支援。效果文字還沒有。",
+  attack: "戰爭規則：支援。效果文字還沒有。",
   defense: "戰爭規則：防守。可提升回收量與防護強度 30%。",
   resist: "戰爭規則：抵抗。效果抗性提升 50%。",
   special: "戰爭規則：特別節目。閃避減少 30%。",
@@ -3551,12 +3552,27 @@ const ROLE_ZH = { knight: "騎士", warrior: "戰士", assassin: "盜賊", mage:
 const ATTR_ZH = { fire: "火", ice: "寒氣", wind: "自然", light: "光", dark: "暗" };
 
 const RULE_IMPACT = {
-  attack: "攻擊：靈魂燃燒技能的傷害量增加 15%。燒魂傷害提高，燃燒技能強的角色與魂量充足的配置更有價值。",
+  support: "支援：效果文字是空的。請貼上遊戲內顯示的效果文字。不沿用舊的攻擊加傷。",
+  attack: "支援：效果文字是空的。請貼上遊戲內顯示的效果文字。不沿用舊的攻擊加傷。",
   defense: "防禦：恢復量和防護罩效果量增加 30%。治療與護盾角色更強，持續回復的隊伍更難被消耗。",
   resist: "抵抗：效果抗性增加 50%。控場與減益的成功率下降，依賴暈眩、封印、減益的角色價值降低。",
   special: "特殊：迴避減少 30%。迴避變低，依賴迴避的角色與機制價值降低。",
   none: "無規則：沒有額外效果。",
 };
+
+function ruleImpact(state) {
+  const rule = state?.rule;
+  if (rule === "support" || rule === "attack") {
+    const text = String(state?.supportText || "").trim();
+    if (text) return `支援：${text}。這是你貼上的效果文字。`;
+    return RULE_IMPACT.support;
+  }
+  return RULE_IMPACT[rule] || RULE_IMPACT.none;
+}
+
+function supportNeedsText(state) {
+  return (state?.rule === "support" || state?.rule === "attack") && !String(state?.supportText || "").trim();
+}
 
 export function rosterReadLine(roster) {
   const matched = roster?.heroes?.length || 0;
@@ -4191,7 +4207,7 @@ function gearedCards(catalog, roster) {
 function ourPrebanPick(catalog, roster, count) {
   return gearedCards(catalog, roster)
     .slice()
-    .sort((left, right) => (right.rtaPresence?.prebans || 0) - (left.rtaPresence?.prebans || 0) || left.id.localeCompare(right.id))
+    .sort((left, right) => (e7Record(right.code)?.禁令前 || 0) - (e7Record(left.code)?.禁令前 || 0) || left.id.localeCompare(right.id))
     .slice(0, count);
 }
 
@@ -4297,12 +4313,12 @@ function draftScripts(foes, kits) {
 
 function handTitle(userFirst, userCount) {
   if (!userFirst) {
-    if (userCount === 0) return "後手第 2 手";
-    if (userCount === 2) return "後手第 4 手";
-    if (userCount === 4) return "後手第 6 手";
-  } else if (userCount === 0) return "先手第 1 手";
-  else if (userCount === 1) return "先手第 3 手";
-  else if (userCount === 3) return "先手第 5 手";
+    if (userCount === 0) return "我的第 1、2 選";
+    if (userCount === 2) return "我的第 3、4 選";
+    if (userCount === 4) return "我的第 5 選";
+  } else if (userCount === 0) return "我的第 1 選";
+  else if (userCount === 1) return "我的第 2、3 選";
+  else if (userCount === 3) return "我的第 4、5 選";
   return "這一手";
 }
 
@@ -4335,7 +4351,71 @@ function countersUnforced(hero, foes) {
 }
 
 function withoutPairScores(lines) {
-  return (lines || []).filter((line) => line && !/對戰分數|協同分數|強力克制|計數器：|反制：|替代：/.test(line));
+  return (lines || []).filter((line) => line && !/對戰分數|強力克制|計數器：|反制：|替代：/.test(line));
+}
+
+function rateText(value) {
+  return typeof value === "number" ? pagePercent(value) : "頁上沒有";
+}
+
+function rankLabel(rows, field, id) {
+  const valued = rows.filter((row) => typeof row[field] === "number");
+  if (!valued.length) return "頁上沒有";
+  const sorted = valued.slice().sort((left, right) => right[field] - left[field] || left.id.localeCompare(right.id));
+  const index = sorted.findIndex((row) => row.id === id);
+  if (index < 0) return "頁上沒有";
+  return `${index + 1}/${sorted.length}`;
+}
+
+function inTopHalf(rows, field, id) {
+  const label = rankLabel(rows, field, id);
+  if (label === "頁上沒有") return false;
+  const [rank, total] = label.split("/").map(Number);
+  return rank <= Math.ceil(total / 2);
+}
+
+function listedPair(list, code) {
+  if (!code) return null;
+  const hit = (list || []).find((item) => item.代碼 === code);
+  return typeof hit?.分數 === "number" ? hit.分數 : null;
+}
+
+function candidateRows(catalog, roster, blocked) {
+  const taken = new Set((blocked || []).map((id) => canonicalId(id)));
+  const rows = [];
+  for (const card of gearedCards(catalog, roster)) {
+    if (taken.has(canonicalId(card.id))) continue;
+    const record = e7Record(card.code);
+    if (!record?.有頁) continue;
+    rows.push({
+      id: card.id,
+      hero: card,
+      win: typeof record.勝率 === "number" ? record.勝率 : null,
+      pick: typeof record.選擇率 === "number" ? record.選擇率 : null,
+      preban: typeof record.禁令前 === "number" ? record.禁令前 : null,
+      finalBan: typeof record.禁令後 === "number" ? record.禁令後 : null,
+      games: typeof record.場次 === "number" ? record.場次 : null,
+      thin: record.梯隊 === "場數不足",
+    });
+  }
+  rows.sort((left, right) => (right.pick ?? -1) - (left.pick ?? -1) || (right.win ?? -1) - (left.win ?? -1) || (right.games ?? -1) - (left.games ?? -1) || left.id.localeCompare(right.id));
+  return rows;
+}
+
+function keepQuick(lines) {
+  const allowed = new Set(["【局面確認】", "【結論先看】", "【我方推薦 Top 3】", "【預先禁用建議】", "【最終禁用建議】", "【戰鬥推演】", "【信心度與需要補充】"]);
+  const kept = [];
+  let on = false;
+  for (const line of lines) {
+    if (/^【.+】$/.test(line)) on = allowed.has(line);
+    if (on) kept.push(line);
+  }
+  return kept;
+}
+
+function prebanRulesReady(rules) {
+  const count = Number(rules?.count);
+  return Number.isInteger(count) && count >= 1 && Boolean(rules?.affects && rules?.order && rules?.timing && String(rules?.visible || "").trim());
 }
 
 function buildHandReport(ctx) {
@@ -4348,53 +4428,46 @@ function buildHandReport(ctx) {
   const burnBars = kits.filter((row) => row.kit.burn && typeof row.kit.median === "number").map((row) => row.kit.median);
   const burnBar = burnBars.length ? Math.max(...burnBars) : null;
   const enemyTurn = Boolean(ctx.enemyTurn);
-  const protectedTurn = !enemyTurn && !userFirst && userPicks.length === 2 && seat.left === seat.count && foes.length > 0;
   const flexible = foes.length < 3;
-  const rankIndex = new Map(ranked.map((row, index) => [row.id, index]));
-  let pool = ranked.map((row) => row.id);
-  if (burnBar != null) {
-    pool = pool.filter((id) => {
-      const hero = draftHero(catalog, id);
-      if (!hero || !DAMAGE_ROLES.has(hero.role)) return true;
-      const file = fileSpeedOf(roster, id);
-      return file != null && file > burnBar;
+  const stage = userPicks.length >= 3 ? "late" : userPicks.length >= 2 ? "mid" : "early";
+  const blocked = [...userPicks, ...enemyPicks, ...(state?.prebans || []), ...(state?.enemyPrebans || [])];
+  const list = candidateRows(catalog, roster, blocked);
+  const enemyCodes = foes.map((hero) => hero.code).filter(Boolean);
+  const allyCodes = userPicks.map((id) => catalogHero(catalog, id)?.code).filter(Boolean);
+  const hitsOf = (row, field, codes) => {
+    const record = e7Record(row.hero.code);
+    return codes.flatMap((code) => {
+      const score = listedPair(record?.[field], code);
+      return score == null ? [] : [{ name: nameByCode(catalog, code), score }];
     });
+  };
+  const kept = [];
+  for (const row of list) {
+    const popular = inTopHalf(list, "pick", row.id) || inTopHalf(list, "win", row.id);
+    const counters = hitsOf(row, "克制", enemyCodes);
+    if (stage === "late" && !popular && counters.length) {
+      row.targeted = true;
+      kept.push(row);
+      continue;
+    }
+    if (!popular) continue;
+    kept.push(row);
   }
-  if (protectedTurn && bar != null) {
-    pool = pool.filter((id) => {
-      const file = fileSpeedOf(roster, id);
-      return file != null && file > bar;
-    });
-  }
-  const scored = pool.map((id) => {
-    const hero = draftHero(catalog, id);
-    const kit = storedKit(hero);
-    const file = fileSpeedOf(roster, id);
-    const ownMedian = medianOf(hero);
-    let score = 0;
-    if (file != null && bar != null && file > bar) score += 5;
-    if (bar != null && ownMedian != null && ownMedian >= bar) score += 2;
-    if (kit.cool && kits.some((row) => row.kit.lock)) score += 8;
-    if (kit.soulCut && kits.some((row) => row.kit.burn)) score += 6;
-    if (kits.some((row) => row.kit.barrier) && kit.strip) score += 3;
-    if (hero && DAMAGE_ROLES.has(hero.role) && file != null && bar != null && file > bar) score += 2;
-    if (flexible && foes.length && hero && !DAMAGE_ROLES.has(hero.role)) score += 3;
-    if (hero && countersUnforced(hero, foes)) score -= 4;
-    const ev = scripts.length
-      ? scripts.reduce((total, script) => total + (script.p / 100) * scriptPerformance(script.name, file, bar, kit), 0)
-      : 0;
-    return { id, hero, kit, file, score: score + ev, ev };
-  });
-  scored.sort((left, right) => right.score - left.score || (rankIndex.get(left.id) ?? 99) - (rankIndex.get(right.id) ?? 99) || left.id.localeCompare(right.id));
-  const limit = enemyTurn
-    ? Math.min(3, scored.length)
-    : (protectedTurn ? 1 : (foes.length ? Math.min(Math.max(seat.left || 1, 1), 3) : Math.min(3, scored.length)));
-  const ids = scored.slice(0, limit).map((row) => row.id);
-  const shown = scored.filter((row) => ids.includes(row.id)).slice(0, 3);
-  const lines = [];
-  const ruleLine = RULE_IMPACT[state?.rule] || "無規則：沒有額外效果。";
-  const who = userFirst ? "我方先手" : "對方先手";
   const includesProtected = !enemyTurn && userPicks.length < 3 && userPicks.length + (seat.left || 0) > 2;
+  if (includesProtected && kept.length > 1) {
+    const popular = kept.filter((row) => inTopHalf(list, "pick", row.id) && typeof row.finalBan === "number");
+    const banPick = (popular.length ? popular : kept).slice().sort((left, right) => (right.finalBan ?? -1) - (left.finalBan ?? -1) || left.id.localeCompare(right.id))[0];
+    if (banPick && typeof banPick.finalBan === "number") {
+      banPick.protectedBecauseBan = true;
+      const rest = kept.filter((row) => row.id !== banPick.id);
+      kept.splice(0, kept.length, banPick, ...rest);
+    }
+  }
+  const shown = kept.slice(0, 3);
+  const ids = shown.map((row) => row.id);
+  const lines = [];
+  const ruleLine = ruleImpact(state);
+  const who = userFirst ? "我方先手" : "對方先手";
   const turnNote = enemyTurn
     ? `輪到對方選。${progressText(userFirst, userPicks, enemyPicks).replace(/^[^。]*。/, "")}對方這手還要選 ${seat.left} 名。`
     : `${handTitle(userFirst, userPicks.length)}，選 ${seat.left} 名。`;
@@ -4409,13 +4482,13 @@ function buildHandReport(ctx) {
   const onBoard = foes.length ? `場上是${foes.map((hero) => hero.nameZh).join("、")}。` : "";
   const conclusion = [];
   if (enemyTurn) conclusion.push("先點對方的格子。下面是對方選完後的準備。");
-  conclusion.push(pick ? `推薦${protectedTurn ? "保護位" : ""}：${screenName(catalog, pick.id)}。${onBoard}` : `推薦：不確定。${onBoard}`);
-  if (protectedTurn && pick) conclusion.push(`【估計】檔案速度 ${pick.file}，比${fastest?.hero.nameZh || "開場"}中位 ${bar} 先動。檔案速度比開場快。`);
-  else if (protectedTurn) conclusion.push(`【資料】${fastest?.hero.nameZh || "對方"}中位 ${bar ?? "不確定"}。【估計】檔案速度打不過開場，不推。`);
-  else if (pick && kits.some((row) => row.kit.lock) && pick.kit.cool) conclusion.push("【估計】對方資料庫有開戰套，這名能加冷卻。");
-  else if (kits.some((row) => row.kit.lock)) conclusion.push("【估計】場上有開戰。不硬猜具體角色。");
-  else if (flexible) conclusion.push("【估計】對手資訊少，先留靈活，不硬猜具體角色。");
-  else if (pick && bar != null) conclusion.push(`【估計】開場最快是${fastest?.hero.nameZh || "對方"}中位 ${bar}。`);
+  if (!list.length) conclusion.push("沒有收到候選名單，不編排名。");
+  else if (pick) conclusion.push(`推薦${includesProtected ? "保護位" : ""}：${screenName(catalog, pick.id)}。勝率排名 ${rankLabel(list, "win", pick.id)}，選用率排名 ${rankLabel(list, "pick", pick.id)}。${onBoard}`);
+  else conclusion.push(`推薦：不確定。${onBoard}`);
+  if (stage === "early") conclusion.push("【推論】第 1、2 手只留熱門且穩定的，不選針對型。");
+  else if (stage === "mid") conclusion.push("【推論】第 3、4 手以熱門為主，協同只作推論。");
+  else conclusion.push("【推論】最後 1～2 手才精準針對。針對型要寫對手換陣容就失效。");
+  if (flexible && foes.length) conclusion.push("【估計】對手只有 1～2 隻，只推流派，不硬猜具體角色。");
   conclusion.push("BAN 等五選完成。戰鬥等進場再推前 2～3 回合。");
   conclusion.push(`這一手看得到 ${foes.length} 隻。`);
   lines.push("【結論先看】");
@@ -4457,29 +4530,47 @@ function buildHandReport(ctx) {
     lines.push("合計 100%。這些機率是估計，新資訊要重算。");
   }
   lines.push("【我方推薦 Top 3】");
-  if (!shown.length) {
-    lines.push(ranked.length ? "檔案速度打不過開場，不推。" : "帳號裡沒有還能選、而且有配裝的角色。");
+  if (!list.length) {
+    lines.push("沒有收到候選名單，不編排名。");
+  } else if (!shown.length) {
+    lines.push("候選名單裡沒有落在前 50%、又說得出理由的人。不另編排名。");
   } else {
-    const fasterCount = bar == null ? shown.length : shown.filter((row) => row.file != null && row.file > bar).length;
+    lines.push(`【資料】候選名單 ${list.length} 名，來自 e7rtabot，賽季 ${e7Rta.賽季}，勝率區間 ${e7Rta.勝率區間}。資料檔沒有寫段位，不標成王者～傳說。排序用選用率、勝率、場數。該順位表現頁上沒有。`);
     for (const [index, row] of shown.entries()) {
-      const speedScore = row.file == null || bar == null ? 0 : row.file > bar ? 5 : 2;
-      const disrupt = row.kit.cool || row.kit.soulCut ? 4 : row.kit.strip || row.kit.control ? 3 : 2;
-      const live = !DAMAGE_ROLES.has(row.hero?.role) || row.kit.barrier || row.kit.heal ? 4 : 2;
-      const link = allies.length ? 3 : 2;
-      const banRisk = fasterCount === 1 && row.file != null && bar != null && row.file > bar ? 5 : 2;
-      const ruleFit = state?.rule === "resist" && row.kit.control ? 2 : 3;
-      const bits = scripts.map((script) => `${script.name} ${scriptPerformance(script.name, row.file, bar, row.kit)}`);
+      const counters = hitsOf(row, "克制", enemyCodes);
+      const synergies = hitsOf(row, "協同", allyCodes);
+      const file = fileSpeedOf(roster, row.id);
+      const band = e7Record(row.hero.code)?.速度;
+      const bandReady = band && ["25", "50", "75", "90"].every((key) => typeof band[key] === "number");
+      const speedNote = typeof file !== "number"
+        ? ""
+        : bandReady
+          ? `匯入速度 ${file}，公開速度 25 ${band["25"]}、50 ${band["50"]}、75 ${band["75"]}、90 ${band["90"]}。`
+          : `匯入速度 ${file}。公開速度分布頁上沒有。`;
       const view = gearView(catalog, roster, ownHero(roster, row.id), state);
-      lines.push(`${index + 1}. ${screenName(catalog, row.id)}。檔案速度 ${row.file ?? "不確定"}。估計評分（0～5）：先動 ${speedScore}、輸出或打斷 ${disrupt}、生存 ${live}、機制銜接 ${link}、抗 BAN ${banRisk}、規則適配 ${ruleFit}。期望值估計 ${Math.round(row.ev * 10) / 10}。${scripts.length ? `各劇本表現估計：${bits.join("、")}。` : ""}${view?.text || ""}`);
-      if (protectedTurn && banRisk === 5) lines.push("若不受保護，被 BAN 的可能性高。缺了他隊伍搶不到開場。兩者都高，所以放保護位。");
+      const text = [
+        `${index + 1}. ${screenName(catalog, row.id)}。`,
+        `勝率 ${rateText(row.win)}，勝率排名 ${rankLabel(list, "win", row.id)}。`,
+        `選用率 ${rateText(row.pick)}，選用率排名 ${rankLabel(list, "pick", row.id)}。`,
+        `事先禁用率 ${rateText(row.preban)}。最終禁用率 ${rateText(row.finalBan)}。場數 ${row.games ?? "頁上沒有"}。`,
+        "該順位表現：頁上沒有。",
+        `克制分數：${counters.length ? counters.map((hit) => `${hit.name} ${hit.score}`).join("、") : "頁上沒有"}。`,
+        `協同分數：${synergies.length ? synergies.map((hit) => `${hit.name} ${hit.score}`).join("、") : "頁上沒有"}。`,
+        row.thin ? "【資料】場數不足，這筆勝率權重下降。" : "",
+        speedNote ? `【資料】${speedNote}` : "",
+        view?.text || "",
+      ].filter(Boolean).join("");
+      lines.push(text);
+      if (row.protectedBecauseBan) lines.push(`【推論】最終禁用率 ${rateText(row.finalBan)}，在選用率前 50% 裡最高，放保護位。這是名單上的數字。`);
+      if (stage === "mid" && synergies.length) lines.push(`【推論】協同分數拿來補缺口，不改熱門排序。${synergies.map((hit) => `${hit.name} ${hit.score}`).join("、")}。`);
+      if (counters.length) lines.push("【推論】名單上有克制分數。對手換陣容就失效。");
     }
-    lines.push(`前瞻：我選${screenName(catalog, pick.id)}之後，對手最好的回應是補我這格蓋不住的功能。下一手再補，不把先動和另一個功能堆在同一隻。`);
-    lines.push("風險：估計。檔案速度打不過開場的不推。");
+    lines.push(`前瞻：我選${screenName(catalog, pick.id)}之後，對手最好的回應是補我這格蓋不住的功能。下一手再補。`);
+    if (!shown.some((row) => typeof fileSpeedOf(roster, row.id) === "number")) lines.push("【資料】沒有匯入速度，這一手不比較速度。");
   }
-  if (pick || protectedTurn) {
+  if (pick || includesProtected) {
     lines.push("【觸發改選】");
     lines.push("若下一手對方露出更快的開場，或場上多了資料卡沒有的機制，這一手重算，不沿用現在的估計。");
-    if (protectedTurn) lines.push("若我方檔案沒有人快過對方開場中位，保護位改不確定。");
   }
   lines.push("【信心度與需要補充】");
   for (const line of withoutPairScores(supplementLines(catalog, roster, state, foes.some((hero) => skillUnverified(hero)), foes, ids))) {
@@ -4493,22 +4584,13 @@ function buildHandReport(ctx) {
     }
   }
   if (roster?.unknown?.length) lines.push(`這些英文名對不上，請告訴我是誰：${roster.unknown.join("、")}。`);
-  lines.push("上面的機率、評分、期望值都是估計。沒有寫進資料卡或專武的機制不推。");
+  lines.push("上面的機率是估計。排名用名單上的勝率與選用率。沒有寫進資料卡或專武的機制不推。");
   const face = conclusion.slice(0, 5).join("");
-  const speeds = kits.map((row) => `${row.hero.nameZh}中位 ${row.kit.median ?? "不確定"}`).join("、");
-  let why = "";
-  if (protectedTurn && pick) why = `${speeds}，檔案速度比開場快。`;
-  else if (protectedTurn) why = `${speeds}，檔案速度打不過開場。`;
-  else if (pick && kits.some((row) => row.kit.lock) && pick.kit.cool) why = "能加冷卻。";
-  else if (fastest) why = `速度：${fastest.hero.nameZh}中位 ${fastest.kit.median}。`;
-  else why = flexible ? "資訊不足，不硬猜具體角色。" : "";
-  const heldSlow = burnBar != null && ranked.some((row) => {
-    const hero = draftHero(catalog, row.id);
-    const file = fileSpeedOf(roster, row.id);
-    return hero && DAMAGE_ROLES.has(hero.role) && !(file != null && file > burnBar);
-  });
-  if (heldSlow && !(pick && pick.file != null && pick.file > burnBar)) why = `${why}慢的輸出打不過開場，不確定。`;
-  return { lines, ids, face, why };
+  const why = pick
+    ? `勝率排名 ${rankLabel(list, "win", pick.id)}，選用率排名 ${rankLabel(list, "pick", pick.id)}。`
+    : "沒有收到候選名單。";
+  const visible = state?.mode === "quick" ? keepQuick(lines) : lines;
+  return { lines: visible, ids, face, why };
 }
 
 const OPPONENT_RULE = "對手的技能、專武、神器按頁上最大強化判斷，神器取使用率最高的一種。沒有使用率或沒有效果文字的不編。陣行沒有使用率就不編。我方用 JSON 的實際練度。";
@@ -4530,6 +4612,19 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
       basis,
     };
   }
+  if (supportNeedsText(state)) {
+    const line = "支援的效果文字是空的。請貼上遊戲內顯示的效果文字。在你貼上之前，不沿用舊的攻擊加傷。";
+    return {
+      ok: true,
+      phase: "ask",
+      firstPick: state.userFirst === true,
+      action: { kind: "ask", title: line, detail: line, ids: [] },
+      reason: { summary: line, lines: ["【局面確認】", "階段：規則。支援的效果文字是空的。", "【結論先看】", line, "【信心度與需要補充】", "效果文字沒貼上之前，不套用舊的攻擊加傷。"] },
+      rate: null,
+      version: basis.version,
+      basis,
+    };
+  }
   const userFirst = state.userFirst === true;
   const userPicks = (state.userPicks || []).filter(Boolean);
   const enemyPicks = (state.enemyPicks || []).filter(Boolean);
@@ -4537,12 +4632,37 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const enemyPre = (state.enemyPrebans || []).filter(Boolean);
   const who = userFirst ? "我方先手" : "對方先手";
   const geared = gearedCards(catalog, roster);
-  const each = Math.min(prebanEach(options), geared.length);
+  const askedCount = prebanRulesReady(state.prebanRules)
+    ? Number(state.prebanRules.count)
+    : (state.prebansDone ? prebans.length : null);
+  const each = Math.min(askedCount || geared.length, geared.length);
   if (!geared.length) {
     const line = "沒有有配裝的角色可預禁，也不能進選角。";
     return advicePacket(catalog, basis, state, { board: [who, line] }, { phase: "preban", kind: "ask", title: line, ids: [] });
   }
-  if (!state.prebansDone || prebans.length < each) {
+  if (!state.prebansDone && (!prebanRulesReady(state.prebanRules) || prebans.length < each)) {
+    if (!prebanRulesReady(state.prebanRules)) {
+      const lines = [
+        "【局面確認】",
+        "階段：預先禁用。這五項是空的。",
+        "【結論先看】",
+        "先回答下面五項。不沿用各 2 名，也不先推薦禁用誰。",
+        "每人預先禁用幾隻？",
+        "被禁用的角色影響誰？雙方都不能選，或只有對手不能選？",
+        "同時禁用，還是依序禁用？",
+        "預先禁用在決定先後手之前，還是之後？",
+        "預先禁用時看得到什麼？",
+        "【信心度與需要補充】",
+        "這五項沒填，先問。",
+      ];
+      return advicePacket(catalog, basis, state, { hand: lines }, {
+        phase: "preban",
+        kind: "preban-ask",
+        title: "先填預先禁用的五項",
+        detail: "不沿用各 2 名。",
+        ids: [],
+      });
+    }
     const picked = ourPrebanPick(catalog, roster, each);
     const names = picked.map((hero) => hero.nameZh).filter(Boolean);
     const counts = picked.map((hero) => {
@@ -4552,9 +4672,9 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
     return advicePacket(catalog, basis, state, {
       board: [
         who,
-        RULE_IMPACT[state.rule] || "規則數值不確定，請告訴我這一場的規則。",
-        `先預禁。我方 ${each} 名，對方 ${each} 名。預禁完才進選角。`,
-        `我方預禁：${names.join("、")}。從有配裝的角色裡，依本季預禁數挑。點上面那句就採用。`,
+        ruleImpact(state),
+        `先預禁。你填的是每人 ${each} 名。${state.prebanRules.affects}。${state.prebanRules.order}。${state.prebanRules.timing}。當時看得到：${state.prebanRules.visible}。`,
+        `【預先禁用建議】${names.join("、")}。依 e7rtabot 事先禁用率挑，不是固定各 2 名。點上面那句就採用。`,
         ...counts,
       ],
     }, {
@@ -4565,7 +4685,7 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
       ids: picked.map((hero) => hero.id),
     });
   }
-  if (!state.enemyPrebansDone || enemyPre.length < each) {
+  if (!state.enemyPrebansDone && enemyPre.length < each) {
     const left = each - enemyPre.length;
     const ours = prebans.map((id) => screenName(catalog, id)).filter(Boolean).join("、");
     return advicePacket(catalog, basis, state, {
@@ -4590,7 +4710,7 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const board = [
     staleNotice(newest ? [newest] : []),
     progressText(userFirst, userPicks, enemyPicks),
-    RULE_IMPACT[state.rule] || "規則數值不確定，請告訴我這一場的規則。",
+    ruleImpact(state),
     "第 3 選是保護位核心，雙方都不能 BAN。",
     OPPONENT_RULE,
     who,
@@ -4709,7 +4829,8 @@ function battleTurnLines(catalog, roster, draft, byId, order) {
     .sort((left, right) => (right.speed ?? -1) - (left.speed ?? -1) || (left.hero?.nameZh || "").localeCompare(right.hero?.nameZh || "", "zh"));
   const wave = ranked.slice(0, 3).map((row) => {
     const speed = typeof row.speed === "number" ? row.speed : "不確定";
-    const source = row.side === "user" ? "檔案速度" : "中位速度";
+    if (row.side === "user" && typeof row.speed !== "number") return `${row.hero?.nameZh || "這名"}沒有匯入速度`;
+    const source = row.side === "user" ? "匯入速度" : "中位速度";
     return `${row.hero?.nameZh || "這名"}${source} ${speed}`;
   });
   const enemySpeeds = enemyFight
@@ -4755,9 +4876,14 @@ function battleTurnLines(catalog, roster, draft, byId, order) {
   else if (branches.length < 3 && opener) branches.push("若對方開場大招可用，則先打這名，不讓大招進協同鏈。");
   for (const branch of branches.slice(0, 3)) lines.push(branch);
   if (order?.ult) lines.push(`【資料】開大的成立條件：要能擊殺、打斷或保命。這一動${order.ult}`);
-  const speeds = userFight.map((id) => `${screenName(catalog, id) || "我方"}檔案速度 ${typeof fileSpeedOf(roster, id) === "number" ? fileSpeedOf(roster, id) : "不確定"}`);
-  lines.push(`【資料】我方實際速度：${speeds.join("、")}。不拿對手的中位數當成我的速度。`);
-  const burnRule = draft.rule === "attack" ? "攻擊規則下燒魂傷害 +15%。" : "";
+  const knownSpeeds = userFight.flatMap((id) => {
+    const speed = fileSpeedOf(roster, id);
+    return typeof speed === "number" ? [`${screenName(catalog, id) || "我方"}匯入速度 ${speed}`] : [];
+  });
+  lines.push(knownSpeeds.length
+    ? `【資料】${knownSpeeds.join("、")}。對照公開速度分布，不拿中位數當成我的速度。`
+    : "【資料】沒有匯入速度，這一手不比較速度。");
+  const burnRule = "";
   const soulBooks = userFight.flatMap((id) => {
     const view = gearView(catalog, roster, ownHero(roster, id), draft);
     if (!view?.artifactEnglish || !/book|tagehel/i.test(view.artifactEnglish)) return [];
@@ -4799,7 +4925,7 @@ export function battleBrief(catalog, roster, draft) {
     "【局面確認】",
     staleNotice(foes),
     `${draft.userFirst === false ? "對方先手" : "我方先手"}。戰鬥中，雙方各留下 4 名。只推前 2～3 回合。`,
-    RULE_IMPACT[draft.rule] || RULE_IMPACT.none,
+    ruleImpact(draft),
     RULE_TEXT[draft.rule] || "",
     "第 3 選是保護位核心，這一場已經不能 BAN。",
     "【戰鬥推演】",
@@ -4812,7 +4938,7 @@ export function battleBrief(catalog, roster, draft) {
     confidenceLine(unverified, speeds.some((speed) => typeof speed !== "number"), foes.some((hero) => !e7Record(hero.code)?.有頁), usedDefaultGear(catalog, roster, userFight, draft)),
     ...supplementLines(catalog, roster, draft, unverified, foes, userFight),
   );
-  const kept = lines.map((row) => String(row || "").trim()).filter(Boolean);
+  const kept = (draft?.mode === "quick" ? keepQuick(lines) : lines).map((row) => String(row || "").trim()).filter(Boolean);
   const summary = kept.join("\n");
   return {
     ok: true,
