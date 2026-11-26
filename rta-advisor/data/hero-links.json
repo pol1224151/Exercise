@@ -1,0 +1,34 @@
+{
+  "people": [
+    {
+      "id": "lady-of-the-scales",
+      "also": [],
+      "names": ["天秤", "天秤之主", "Lady of the Scales"]
+    },
+    {
+      "id": "lone-crescent-bellona",
+      "also": [],
+      "names": ["一輪孤月維爾蘿娜", "Lone Crescent Bellona"]
+    },
+    {
+      "id": "aubade-ludwig",
+      "also": ["ludwig"],
+      "names": ["黎明的序曲魯特比", "黎明序曲魯特比", "魯特比", "Aubade Ludwig", "Ludwig"]
+    },
+    {
+      "id": "perfumer-byblis",
+      "also": ["byblis"],
+      "names": ["調香師維波里絲", "維波里絲", "Perfumer Byblis", "Byblis"]
+    },
+    {
+      "id": "eye-of-the-abyss-fumyr",
+      "also": ["fumyr"],
+      "names": ["深海之眼芙米爾", "芙米爾", "Eye of the Abyss Fumyr", "Fumyr"]
+    },
+    {
+      "id": "sigret",
+      "also": ["swift-flagbearer-sigret"],
+      "names": ["賽珂蘭特", "疾速賽車手賽珂蘭特", "Sigret", "Swift Flagbearer Sigret"]
+    }
+  ]
+}
