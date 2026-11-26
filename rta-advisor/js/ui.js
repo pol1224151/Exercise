@@ -28,8 +28,6 @@ function blankDraft(userFirst = null) {
     exclusiveNote: "",
     effectNotes: loadEffectNotes(localStorage),
     mode: "quick",
-    supportText: "",
-    prebanRules: null,
   };
 }
 
@@ -197,12 +195,6 @@ function onePickWhy(result) {
 function adviceFace(result) {
   const kind = result?.action?.kind;
   const names = (result?.action?.ids || []).map((id) => heroName(id)).filter(Boolean);
-  if (kind === "preban-ask") {
-    return { action: result.action?.title || "先填預先禁用的五項", reason: result.reason?.summary || "", click: "" };
-  }
-  if (kind === "ask" && /支援/.test(result?.action?.title || "")) {
-    return { action: result.action.title, reason: result.reason?.summary || "", click: "" };
-  }
   if (kind === "preban") {
     return { action: names.join("、"), reason: "依 e7rtabot 事先禁用率挑。", click: "preban" };
   }
@@ -343,7 +335,7 @@ function draftTaken() {
 }
 
 function draftKey() {
-  return [manual.rule || "", manual.userFirst, manual.mode || "", manual.supportText || "", JSON.stringify(manual.prebanRules || {}), manual.exclusiveNote || "", JSON.stringify(manual.effectNotes || {}), manual.enemyPrebansDone, (manual.enemyPrebans || []).join(","), manual.prebansDone, (manual.prebans || []).join(","), manual.userPicks.join(","), manual.enemyPicks.join(","), manual.userBanId || "", manual.enemyBanId || "", $("rank")?.value || ""].join("|");
+  return [manual.rule || "", manual.userFirst, manual.mode || "", manual.exclusiveNote || "", JSON.stringify(manual.effectNotes || {}), manual.enemyPrebansDone, (manual.enemyPrebans || []).join(","), manual.prebansDone, (manual.prebans || []).join(","), manual.userPicks.join(","), manual.enemyPicks.join(","), manual.userBanId || "", manual.enemyBanId || "", $("rank")?.value || ""].join("|");
 }
 
 function paintRule() {
@@ -351,9 +343,7 @@ function paintRule() {
     button.classList.toggle("primary", button.dataset.rule === manual.rule);
   }
   const node = $("ruleText");
-  if (node) node.textContent = manual.rule === "support" && !manual.supportText ? "支援的效果文字是空的，請先貼上。" : manual.rule ? "" : "先選戰爭規則，再點先後手。支援要先貼效果文字。";
-  const support = $("supportBox");
-  if (support) support.hidden = manual.rule !== "support";
+  if (node) node.textContent = manual.rule ? "" : "先選戰爭規則，再點先後手。";
   $("modeQuick")?.classList.toggle("primary", manual.mode !== "deep");
   $("modeDeep")?.classList.toggle("primary", manual.mode === "deep");
 }
@@ -422,15 +412,11 @@ function setOrder(userFirst) {
   const exclusiveNote = manual.exclusiveNote || "";
   const effectNotes = manual.effectNotes || {};
   const mode = manual.mode || "quick";
-  const supportText = manual.supportText || "";
-  const prebanRules = manual.prebanRules;
   manual = blankDraft(userFirst);
   manual.rule = rule;
   manual.exclusiveNote = exclusiveNote;
   manual.effectNotes = effectNotes;
   manual.mode = mode;
-  manual.supportText = supportText;
-  manual.prebanRules = prebanRules;
   guideKey = "";
   openRecord = null;
   const record = $("liveRecord");
@@ -714,7 +700,9 @@ function applyDraftChoice(slot, heroId) {
       return;
     }
     manual.enemyPrebans.push(heroId);
-    const each = Number(manual.prebanRules?.count) || 0;
+    const geared = (roster?.heroes || []).filter((hero) => hero.geared).length;
+    const rankEach = $("rank")?.value === "below" ? 1 : 2;
+    const each = Math.min(rankEach, geared);
     if (manual.enemyPrebans.length >= each) manual.enemyPrebansDone = true;
     renderGuide();
     return;
@@ -788,13 +776,6 @@ function withRecord(result) {
 
 function renderLive(result) {
   result = withRecord(result);
-  const form = $("prebanAsk");
-  if (form) form.hidden = result?.action?.kind !== "preban-ask";
-  if (result?.action?.kind === "preban-ask" || (result?.action?.kind === "ask" && /支援/.test(result.action?.title || ""))) {
-    const face = adviceFace(result);
-    showCard({ action: face.action, rate: "", reason: face.reason, click: "" });
-    return;
-  }
   if (result?.phase === "ask" || result?.action?.kind === "ask") {
     showCard({ action: result.action?.title || GEAR_ASK, rate: "", reason: "", click: result.action?.title === GEAR_ASK ? "import" : "" });
     return;
@@ -927,11 +908,6 @@ for (const button of document.querySelectorAll("#ruleRow button")) {
     renderGuide();
   });
 }
-$("supportText")?.addEventListener("input", (event) => {
-  manual.supportText = event.target.value;
-  guideKey = "";
-  if (roster?.heroes?.length) renderGuide();
-});
 $("modeQuick")?.addEventListener("click", () => {
   manual.mode = "quick";
   guideKey = "";
@@ -939,18 +915,6 @@ $("modeQuick")?.addEventListener("click", () => {
 });
 $("modeDeep")?.addEventListener("click", () => {
   manual.mode = "deep";
-  guideKey = "";
-  renderGuide();
-});
-$("prebanAsk")?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const count = Number($("prebanCount").value);
-  const affects = $("prebanAffects").value;
-  const order = $("prebanOrder").value;
-  const timing = $("prebanTiming").value;
-  const visible = $("prebanVisible").value.trim();
-  if (!Number.isInteger(count) || count < 1 || !affects || !order || !timing || !visible) return;
-  manual.prebanRules = { count, affects, order, timing, visible };
   guideKey = "";
   renderGuide();
 });

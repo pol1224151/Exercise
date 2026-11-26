@@ -646,15 +646,28 @@ assert.equal(overForty.length, 0);
 assert.deepEqual(e7.出場率門檻["超過40%"], []);
 assert.deepEqual(e7.出場率門檻.缺頁, []);
 
-const prebanAsk = guidedDraftRaw(catalog, roster, { userFirst: false, rule: "none" }, { rank: "champion" });
-assert.equal(prebanAsk.action.kind, "preban-ask");
-assert.match(prebanAsk.reason.summary, /每人預先禁用幾隻/);
-assert.match(prebanAsk.reason.summary, /不沿用各 2 名/);
-assert.equal(prebanAsk.action.ids.length, 0);
+const prebanAsk = guidedDraftRaw(catalog, roster, { userFirst: false, rule: "special" }, { rank: "champion" });
+assert.equal(prebanAsk.action.kind, "preban");
+assert.match(prebanAsk.reason.summary, /冠軍以上各 2 隻/);
+assert.match(prebanAsk.reason.summary, /雙方都不能選被禁的角色/);
+assert.match(prebanAsk.reason.summary, /同時禁/);
+assert.match(prebanAsk.reason.summary, /先後手決定之後/);
+assert.match(prebanAsk.reason.summary, /看不到對方預禁/);
+assert.match(prebanAsk.reason.summary, /特殊：迴避減少 30%/);
+assert.equal(prebanAsk.reason.summary.includes("支援的效果文字"), false);
+assert.equal(prebanAsk.reason.summary.includes("每人預先禁用幾隻"), false);
+assert.equal(prebanAsk.action.ids.length, 2);
+const supportRule = guidedDraftRaw(catalog, roster, { userFirst: false, rule: "support" }, { rank: "champion" });
+assert.equal(supportRule.action.kind, "preban");
+assert.match(supportRule.reason.summary, /靈魂燃燒技能的傷害量增加 15%/);
+assert.equal(supportRule.reason.summary.includes("效果文字"), false);
+const belowPreban = guidedDraftRaw(catalog, roster, { userFirst: false, rule: "none" }, { rank: "below" });
+assert.equal(belowPreban.action.kind, "preban");
+assert.equal(belowPreban.action.ids.length, 1);
+assert.match(belowPreban.reason.summary, /這場各 1 名/);
 const preban = guidedDraftRaw(catalog, roster, {
   userFirst: false,
   rule: "none",
-  prebanRules: { count: 2, affects: "雙方都不能選", order: "同時禁用", timing: "在先後手之後", visible: "只看自己的角色池" },
 }, { rank: "champion" });
 assert.equal(preban.action.kind, "preban");
 assert.equal(preban.action.ids.length, 2);

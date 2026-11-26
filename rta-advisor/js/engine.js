@@ -1461,7 +1461,7 @@ function takeTurn(actor, units, plan, rand, log) {
     else if (!cannotCrit && (alwaysCrit || rand() < Math.min(100, actor.crit) / 100)) hitMult = Math.min(3.5, actor.cd / 100);
     if (relation === "advantage") hitMult *= 1.1;
     let damage = skillDamage(actor, target, skill, hitMult);
-    if (doBurn && actor.rule === "attack") damage *= 1.15;
+    if (doBurn && (actor.rule === "attack" || actor.rule === "support")) damage *= 1.15;
     if (target.barrier > 0 && damage > 0) {
       const absorbed = Math.min(target.barrier, damage);
       target.barrier -= absorbed;
@@ -2400,8 +2400,8 @@ function kitBlock(catalog, hero) {
 }
 
 const RULE_TEXT = {
-  support: "戰爭規則：支援。效果文字還沒有。",
-  attack: "戰爭規則：支援。效果文字還沒有。",
+  support: "戰爭規則：支援。靈魂燃燒技能的傷害量增加 15%。",
+  attack: "戰爭規則：支援。靈魂燃燒技能的傷害量增加 15%。",
   defense: "戰爭規則：防守。可提升回收量與防護強度 30%。",
   resist: "戰爭規則：抵抗。效果抗性提升 50%。",
   special: "戰爭規則：特別節目。閃避減少 30%。",
@@ -3552,8 +3552,8 @@ const ROLE_ZH = { knight: "騎士", warrior: "戰士", assassin: "盜賊", mage:
 const ATTR_ZH = { fire: "火", ice: "寒氣", wind: "自然", light: "光", dark: "暗" };
 
 const RULE_IMPACT = {
-  support: "支援：效果文字是空的。請貼上遊戲內顯示的效果文字。不沿用舊的攻擊加傷。",
-  attack: "支援：效果文字是空的。請貼上遊戲內顯示的效果文字。不沿用舊的攻擊加傷。",
+  support: "支援：靈魂燃燒技能的傷害量增加 15%。燒魂傷害提高，燃燒技能強的角色與魂量充足的配置更有價值。",
+  attack: "支援：靈魂燃燒技能的傷害量增加 15%。燒魂傷害提高，燃燒技能強的角色與魂量充足的配置更有價值。",
   defense: "防禦：恢復量和防護罩效果量增加 30%。治療與護盾角色更強，持續回復的隊伍更難被消耗。",
   resist: "抵抗：效果抗性增加 50%。控場與減益的成功率下降，依賴暈眩、封印、減益的角色價值降低。",
   special: "特殊：迴避減少 30%。迴避變低，依賴迴避的角色與機制價值降低。",
@@ -3561,17 +3561,7 @@ const RULE_IMPACT = {
 };
 
 function ruleImpact(state) {
-  const rule = state?.rule;
-  if (rule === "support" || rule === "attack") {
-    const text = String(state?.supportText || "").trim();
-    if (text) return `支援：${text}。這是你貼上的效果文字。`;
-    return RULE_IMPACT.support;
-  }
-  return RULE_IMPACT[rule] || RULE_IMPACT.none;
-}
-
-function supportNeedsText(state) {
-  return (state?.rule === "support" || state?.rule === "attack") && !String(state?.supportText || "").trim();
+  return RULE_IMPACT[state?.rule] || RULE_IMPACT.none;
 }
 
 export function rosterReadLine(roster) {
@@ -4413,11 +4403,6 @@ function keepQuick(lines) {
   return kept;
 }
 
-function prebanRulesReady(rules) {
-  const count = Number(rules?.count);
-  return Number.isInteger(count) && count >= 1 && Boolean(rules?.affects && rules?.order && rules?.timing && String(rules?.visible || "").trim());
-}
-
 function buildHandReport(ctx) {
   const { catalog, roster, state, userFirst, userPicks, enemyPicks, foes, ranked, seat } = ctx;
   const kits = foes.map((hero) => ({ hero, kit: storedKit(hero) }));
@@ -4612,19 +4597,6 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
       basis,
     };
   }
-  if (supportNeedsText(state)) {
-    const line = "支援的效果文字是空的。請貼上遊戲內顯示的效果文字。在你貼上之前，不沿用舊的攻擊加傷。";
-    return {
-      ok: true,
-      phase: "ask",
-      firstPick: state.userFirst === true,
-      action: { kind: "ask", title: line, detail: line, ids: [] },
-      reason: { summary: line, lines: ["【局面確認】", "階段：規則。支援的效果文字是空的。", "【結論先看】", line, "【信心度與需要補充】", "效果文字沒貼上之前，不套用舊的攻擊加傷。"] },
-      rate: null,
-      version: basis.version,
-      basis,
-    };
-  }
   const userFirst = state.userFirst === true;
   const userPicks = (state.userPicks || []).filter(Boolean);
   const enemyPicks = (state.enemyPicks || []).filter(Boolean);
@@ -4632,37 +4604,13 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
   const enemyPre = (state.enemyPrebans || []).filter(Boolean);
   const who = userFirst ? "我方先手" : "對方先手";
   const geared = gearedCards(catalog, roster);
-  const askedCount = prebanRulesReady(state.prebanRules)
-    ? Number(state.prebanRules.count)
-    : (state.prebansDone ? prebans.length : null);
-  const each = Math.min(askedCount || geared.length, geared.length);
+  const each = Math.min(prebanEach(options), geared.length);
+  const prebanRule = `冠軍以上各 2 隻，冠軍以下各 1 隻。這場各 ${prebanEach(options)} 名。雙方都不能選被禁的角色。同時禁。發生在先後手決定之後、選角之前。當時只看得到規則和先後手，看不到對方預禁。`;
   if (!geared.length) {
     const line = "沒有有配裝的角色可預禁，也不能進選角。";
     return advicePacket(catalog, basis, state, { board: [who, line] }, { phase: "preban", kind: "ask", title: line, ids: [] });
   }
-  if (!state.prebansDone && (!prebanRulesReady(state.prebanRules) || prebans.length < each)) {
-    if (!prebanRulesReady(state.prebanRules)) {
-      const lines = [
-        "【局面確認】",
-        "階段：預先禁用。這五項是空的。",
-        "【結論先看】",
-        "先回答下面五項。不沿用各 2 名，也不先推薦禁用誰。",
-        "每人預先禁用幾隻？",
-        "被禁用的角色影響誰？雙方都不能選，或只有對手不能選？",
-        "同時禁用，還是依序禁用？",
-        "預先禁用在決定先後手之前，還是之後？",
-        "預先禁用時看得到什麼？",
-        "【信心度與需要補充】",
-        "這五項沒填，先問。",
-      ];
-      return advicePacket(catalog, basis, state, { hand: lines }, {
-        phase: "preban",
-        kind: "preban-ask",
-        title: "先填預先禁用的五項",
-        detail: "不沿用各 2 名。",
-        ids: [],
-      });
-    }
+  if (!state.prebansDone || prebans.length < each) {
     const picked = ourPrebanPick(catalog, roster, each);
     const names = picked.map((hero) => hero.nameZh).filter(Boolean);
     const counts = picked.map((hero) => {
@@ -4673,8 +4621,8 @@ export function guidedDraft(catalog, roster, state = {}, options = {}) {
       board: [
         who,
         ruleImpact(state),
-        `先預禁。你填的是每人 ${each} 名。${state.prebanRules.affects}。${state.prebanRules.order}。${state.prebanRules.timing}。當時看得到：${state.prebanRules.visible}。`,
-        `【預先禁用建議】${names.join("、")}。依 e7rtabot 事先禁用率挑，不是固定各 2 名。點上面那句就採用。`,
+        prebanRule,
+        `先給我方預禁。${names.join("、")}。依 e7rtabot 事先禁用率，從有配裝的角色裡挑。點上面那句就採用。接著再點對方預禁。`,
         ...counts,
       ],
     }, {
