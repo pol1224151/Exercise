@@ -1,4 +1,4 @@
-import { GEAR_ASK, battleBrief, buildGearReport, clearAccount, counterEdges, effectGapItems, guidedDraft, loadAccount, loadEffectNotes, matchesPicker, parseRoster, readAccountText, rosterReadLine, saveAccount, saveEffectNotes, selectableHeroes, sourceBasis } from "./engine.js";
+import { GEAR_ASK, battleBrief, buildGearReport, clearAccount, counterEdges, effectGapItems, guidedDraft, loadAccount, loadEffectNotes, matchesPicker, parseRoster, publicPickRate, readAccountText, rosterReadLine, saveAccount, saveEffectNotes, selectableHeroes, sourceBasis } from "./engine.js";
 import { draftType, loadMatches, matchIdentity, rateForType, recordResult, saveMatches } from "./records.js";
 
 const $ = (id) => document.getElementById(id);
@@ -595,7 +595,7 @@ function openSlotChoices() {
   paintBoard();
   $("draftStatus").textContent = slot.kind === "user"
     ? "有配裝的角色點一下就填進這一格。再點這一格可以換。已經選上和預禁過的不會出現。"
-    : "輸入名字，點一下就填進這一格。再點這一格可以換。已經選上和預禁過的不會出現。";
+    : "打名字就列出符合的頭像，點一下填進這一格。沒輸入時，選用率高的在最上面。已經選上和預禁過的不會出現。";
 }
 
 function fillSlotChoices(query = "") {
@@ -604,13 +604,14 @@ function fillSlotChoices(query = "") {
   if (!list || !slot) return;
   list.replaceChildren();
   const needle = query.trim().toLowerCase();
-  if (slot.kind === "enemy" && !needle) return;
   const taken = draftTaken();
-  let heroes = selectableHeroes(catalog).sort((left, right) => left.nameZh.localeCompare(right.nameZh, "zh-Hant"));
-  heroes = heroes.filter((hero) => !taken.has(hero.id));
+  let heroes = selectableHeroes(catalog).filter((hero) => !taken.has(hero.id));
   if (slot.kind === "user") {
     const geared = new Set((roster?.heroes || []).filter((hero) => hero.geared).map((hero) => hero.id));
     heroes = heroes.filter((hero) => geared.has(hero.id));
+    heroes.sort((left, right) => left.nameZh.localeCompare(right.nameZh, "zh-Hant"));
+  } else {
+    heroes.sort((left, right) => (publicPickRate(right.code) ?? -1) - (publicPickRate(left.code) ?? -1) || left.nameZh.localeCompare(right.nameZh, "zh-Hant"));
   }
   for (const hero of heroes) {
     const labels = [hero.nameZh, hero.name, hero.id, ...(hero.aliases || [])].map((label) => String(label || "").toLowerCase());
@@ -629,9 +630,30 @@ function fillSlotChoices(query = "") {
     button.append(name);
     button.addEventListener("click", () => {
       const chosen = pendingSlot;
-      pendingSlot = null;
-      $("slotChoices").hidden = true;
-      if (chosen) applyDraftChoice(chosen, hero.id);
+      if (!chosen) return;
+      const stay = chosen.kind === "enemy" && !chosen.replace && (lastAdvice?.action?.need || 0) > 1;
+      const query = $("slotSearch")?.value || "";
+      if (!stay) {
+        pendingSlot = null;
+        $("slotChoices").hidden = true;
+      }
+      applyDraftChoice(chosen, hero.id);
+      if (!stay) return;
+      const stillEnemy = lastAdvice?.action?.kind === "report" && (lastAdvice.action.need || 0) > 0 && manual.enemyPicks.length === chosen.index + 1;
+      if (!stillEnemy) {
+        pendingSlot = null;
+        $("slotChoices").hidden = true;
+        return;
+      }
+      pendingSlot = { kind: "enemy", index: manual.enemyPicks.length, replace: false };
+      $("slotChoices").hidden = false;
+      $("slotChoicesTitle").textContent = `對方第 ${manual.enemyPicks.length + 1} 格，點一名填進去`;
+      const input = $("slotSearch");
+      if (input) input.value = query;
+      fillSlotChoices(query);
+      paintBoard();
+      $("draftStatus").textContent = "這一手還有 1 名。游標和清單留著，直接點下一個。已選和預禁的不會出現。";
+      input?.focus();
     });
     list.appendChild(button);
   }

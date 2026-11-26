@@ -2066,6 +2066,11 @@ function e7Record(code) {
   return e7Rta.英雄?.[code] || null;
 }
 
+export function publicPickRate(code) {
+  const value = e7Record(code)?.選擇率;
+  return typeof value === "number" ? value : null;
+}
+
 function sdHero(code) {
   return e7Sd.英雄?.[code] || null;
 }

@@ -436,6 +436,11 @@ footer { padding: 8px 0 28px; color: var(--muted); font-size: 0.9rem; }
   margin-top: 12px;
 }
 
+#slotList {
+  max-height: 280px;
+  overflow: auto;
+}
+
 .picker-list button {
   font: inherit;
   display: flex;
