@@ -196,13 +196,13 @@ function adviceFace(result) {
   const kind = result?.action?.kind;
   const names = (result?.action?.ids || []).map((id) => heroName(id)).filter(Boolean);
   if (kind === "preban") {
-    return { action: names.join("、"), reason: "依 e7rtabot 事先禁用率挑。", click: "preban" };
+    return { action: names.length ? "點一名，填進我方預禁。" : "沒有可預禁的人", reason: "依 e7rtabot 事先禁用率挑。", click: "" };
   }
   if (kind === "enemy-preban") {
     return { action: result.action?.title || "選對方的預禁", reason: "請選對方預禁的人。", click: "enemy-preban" };
   }
   if (kind === "pick" && result.action?.report) {
-    return { action: names[0] || "不確定", reason: result.action.report, click: "" };
+    return { action: names.length ? "點一名，填進這一格。" : "不確定", reason: result.action.report, click: "" };
   }
   if (kind === "pick" && result.action?.forecast) {
     const who = names.length ? names.join("、") : "不確定";
@@ -219,14 +219,14 @@ function adviceFace(result) {
     return { action, reason, click: "" };
   }
   if (kind === "pick") {
-    return { action: names.join("、"), reason: onePickWhy(result), click: "" };
+    return { action: names.length ? "點一名，填進這一格。" : "不確定", reason: onePickWhy(result), click: "" };
   }
   if (kind === "report") {
     const left = result.action?.need || 1;
     return { action: `點對方這手的 ${left} 名`, reason: "", click: "" };
   }
   if (kind === "ban") {
-    return { action: result.action?.title || "選要禁的人", reason: "第 3 選不能禁。", click: "" };
+    return { action: names.length ? "點一名，做最後禁。" : (result.action?.title || "選要禁的人"), reason: "第 3 選不能禁。", click: "" };
   }
   if (kind === "brief" || result?.phase === "battle") {
     return { action: result.action?.title || "照這一步打", reason: result.action?.report || result.reason?.summary || "", click: "" };
@@ -234,7 +234,49 @@ function adviceFace(result) {
   return { action: result?.action?.title || "", reason: "", click: "" };
 }
 
-function showCard({ action, rate, reason, click }) {
+function heroCard(id) {
+  const pools = [catalog?.heroes || [], catalog?.seasonHeroes || [], catalog?.database || []];
+  for (const pool of pools) {
+    const hero = pool.find((row) => row.id === id);
+    if (hero?.nameZh) return hero;
+  }
+  return null;
+}
+
+function recommendationHeroes(result) {
+  const kind = result?.action?.kind;
+  const ids = result?.action?.ids || [];
+  if (kind === "ban") return ids.map((id) => heroCard(id)).filter(Boolean);
+  if (kind !== "preban" && kind !== "pick") return [];
+  const taken = draftTaken();
+  return ids.filter((id) => !taken.has(id)).map((id) => heroCard(id)).filter(Boolean);
+}
+
+function renderFaces(heroes) {
+  const root = $("liveFaces");
+  if (!root) return;
+  root.replaceChildren();
+  root.hidden = !heroes.length;
+  for (const hero of heroes) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "face";
+    if (hero.code) {
+      const face = document.createElement("img");
+      face.alt = "";
+      face.src = `./data/faces/${hero.code}.webp`;
+      face.addEventListener("error", () => face.remove());
+      button.append(face);
+    }
+    const name = document.createElement("span");
+    name.textContent = hero.nameZh;
+    button.append(name);
+    button.addEventListener("click", () => takeRecommendation(hero.id));
+    root.append(button);
+  }
+}
+
+function showCard({ action, rate, reason, click, heroes }) {
   const button = $("liveAction");
   button.textContent = action || "這一手沒有建議";
   button.disabled = !click;
@@ -243,6 +285,7 @@ function showCard({ action, rate, reason, click }) {
   const node = $("liveReason");
   node.replaceChildren();
   node.textContent = reason || "";
+  renderFaces(heroes || []);
 }
 
 function renderEffectGaps(force = false) {
@@ -574,7 +617,16 @@ function fillSlotChoices(query = "") {
     if (needle && !labels.some((label) => label.includes(needle))) continue;
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = hero.nameZh;
+    if (hero.code) {
+      const face = document.createElement("img");
+      face.alt = "";
+      face.src = `./data/faces/${hero.code}.webp`;
+      face.addEventListener("error", () => face.remove());
+      button.append(face);
+    }
+    const name = document.createElement("span");
+    name.textContent = hero.nameZh;
+    button.append(name);
     button.addEventListener("click", () => {
       const chosen = pendingSlot;
       pendingSlot = null;
@@ -774,8 +826,44 @@ function withRecord(result) {
   };
 }
 
+function prebanEachNow() {
+  const geared = (roster?.heroes || []).filter((hero) => hero.geared).length;
+  const rankEach = $("rank")?.value === "below" ? 1 : 2;
+  return Math.min(rankEach, geared);
+}
+
+function takeRecommendation(heroId) {
+  const kind = lastAdvice?.action?.kind;
+  if (!heroId || !kind) return;
+  if ($("slotChoices")) $("slotChoices").hidden = true;
+  pendingSlot = null;
+  if (kind === "preban") {
+    if (draftTaken().has(heroId)) return;
+    manual.prebans.push(heroId);
+    if (manual.prebans.length >= prebanEachNow()) manual.prebansDone = true;
+  } else if (kind === "pick") {
+    const geared = new Set((roster?.heroes || []).filter((hero) => hero.geared).map((hero) => hero.id));
+    if (!geared.has(heroId) || draftTaken().has(heroId)) return;
+    if (manual.userPicks.length >= 5) return;
+    manual.userPicks.push(heroId);
+    manual.steps.push({ side: "user", ids: [heroId] });
+  } else if (kind === "ban") {
+    const index = manual.enemyPicks.indexOf(heroId);
+    if (index < 0 || index === 2) {
+      $("draftStatus").textContent = "第 3 選是保護位，不能打叉。";
+      return;
+    }
+    manual.userBanId = heroId;
+  } else {
+    return;
+  }
+  guideKey = "";
+  renderGuide();
+}
+
 function renderLive(result) {
   result = withRecord(result);
+  const heroes = recommendationHeroes(result);
   if (result?.phase === "ask" || result?.action?.kind === "ask") {
     showCard({ action: result.action?.title || GEAR_ASK, rate: "", reason: "", click: result.action?.title === GEAR_ASK ? "import" : "" });
     return;
@@ -796,6 +884,7 @@ function renderLive(result) {
       rate: rated.startsWith("尚無") ? "" : rated,
       reason: face.reason,
       click: face.click,
+      heroes,
     });
   }
   const type = currentIdentity();
@@ -935,13 +1024,6 @@ $("liveAction").addEventListener("click", () => {
     pendingSlot = { kind: "enemy-preban" };
     pickerIds = null;
     openDraftPicker("對方預禁了哪一名");
-    return;
-  }
-  if (click === "preban") {
-    manual.prebans = [...(lastAdvice?.action?.ids || [])];
-    manual.prebansDone = true;
-    guideKey = "";
-    renderGuide();
     return;
   }
   if (click === "import") $("importFile").click();

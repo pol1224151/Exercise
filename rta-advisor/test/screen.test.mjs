@@ -102,6 +102,7 @@ const lastBan = guidedDraft(catalog, roster, {
 assert.equal(lastBan.action.kind, "ban");
 assert.notEqual(lastBan.action.id, heroIds[7]);
 assert.match(lastBan.reason.summary, /保護/);
+assert.match(lastBan.reason.summary, /斷開場/);
 assert.match(lastBan.reason.summary, /關鍵/);
 
 const brief = battleBrief(catalog, roster, {
@@ -766,19 +767,21 @@ const winPlan = remembered.action.plans.find((plan) => plan.label === "勝場");
 assert.ok(winPlan);
 assert.equal(winPlan.ids.includes("apocalypse-ravi"), true);
 assert.match(winPlan.reason, /已記住 1 場有這名的勝利/);
+assert.match(winPlan.reason, /打過這組/);
+assert.match(winPlan.reason, /不改排名/);
 assert.equal(winPlan.reason.includes("勝率"), false);
 assert.equal(remembered.action.ids[0], "apocalypse-ravi");
 assert.equal(bypass.reason.summary.includes("勝場："), false);
 assert.match(bypass.reason.summary, /勝率排名/);
 const opened = notosHand(["Flan", "Eda", "Boss Arunka"], "briar-witch-iseria");
 assert.equal(opened.action.ids.includes("flan"), false);
-assert.equal(opened.action.ids.includes("eda"), true);
-assert.match(opened.reason.summary, /對手換陣容就失效/);
-assert.equal(opened.action.ids[0], "boss-arunka");
+assert.equal(opened.action.ids.includes("eda"), false);
+assert.equal(opened.action.ids.includes("boss-arunka"), false);
+assert.match(opened.reason.summary, /活不過已上場的開場/);
 assert.match(opened.reason.summary, /灰光森林的伊賽麗亞/);
 assert.match(opened.reason.summary, /燒魂/);
 assert.equal(/黑暗牧者迪埃妮|暗迪埃妮|第 4、5 選/.test(opened.reason.summary), false);
-assert.match(opened.action.forecastReason, /選用率排名/);
+assert.match(opened.action.forecastReason, /活不過已上場的開場/);
 assert.equal(opened.action.forecast.includes("？"), false);
 const fastKawerik = guidedDraft(catalog, parseRoster({
   heroes: [geared("Kawerik", 262), geared("Flan", 200), geared("Destina", 180)],
@@ -836,6 +839,37 @@ assert.equal(/灰光|暗迪埃妮|黑暗牧者迪埃妮|黎潔特/.test(rnl.reas
 const rnlScripts = rnl.reason.summary.split("【對手劇本】")[1].split("【")[0];
 const rnlPercents = [...rnlScripts.matchAll(/估計 (\d+)%/g)].map((hit) => Number(hit[1]));
 assert.equal(rnlPercents.reduce((total, value) => total + value, 0), 100);
+assert.match(rnl.reason.summary, /上場後/);
+assert.match(rnl.reason.summary, /放保護位|不放保護位/);
+assert.match(rnl.reason.summary, /全段位/);
+assert.match(rnl.reason.summary, /最怕補上|不確定，不編名字/);
+assert.match(rnl.reason.summary, /沒有出現，拿掉|先擋/);
+const slowHand = guidedDraft(catalog, parseRoster({
+  heroes: [geared("Kawerik", 100), geared("Belian", 330)],
+}, catalog), {
+  userFirst: false,
+  rule: "none",
+  prebans: ["estelle", "zio"],
+  prebansDone: true,
+  enemyPrebans: ["cidd", "kise"],
+  enemyPrebansDone: true,
+  enemyPicks: ["rhianna-and-luciella"],
+});
+assert.equal(slowHand.action.ids.includes("kawerik"), false);
+assert.equal(slowHand.action.ids.includes("belian"), true);
+assert.match(slowHand.reason.summary, /活不過已上場的開場/);
+assert.equal(slowHand.reason.summary.includes("檔案速度"), false);
+assert.equal(slowHand.reason.summary.includes("320"), false);
+const noSpeedEarly = guidedDraft(catalog, parseRoster({
+  heroes: [bare("Kawerik"), bare("Belian")],
+}, catalog), {
+  userFirst: false,
+  rule: "none",
+  enemyPicks: ["rhianna-and-luciella"],
+});
+assert.equal(noSpeedEarly.action.ids.includes("kawerik"), true);
+assert.match(noSpeedEarly.reason.summary, /沒有匯入速度，這一手不比較速度/);
+assert.match(noSpeedEarly.reason.summary, /只推流派，不硬猜具體角色/);
 const rnlQuick = rnlBoard([
   bare("Boss Arunka"),
   bare("Desert Jewel Basar"),

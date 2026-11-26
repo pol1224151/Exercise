@@ -359,6 +359,14 @@ footer { padding: 8px 0 28px; color: var(--muted); font-size: 0.9rem; }
   display: inline-block;
 }
 
+.face img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+
 .slot-choices {
   margin-top: 12px;
 }
