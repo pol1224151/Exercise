@@ -903,16 +903,37 @@ function markMatch(result) {
   const book = loadMatches(localStorage);
   const existing = book.matches.find((row) => row.key === identity.key);
   const saved = recordResult(book, identity.key, result, existing?.id || null, identity);
-  openRecord = { type: identity.key, id: saved.id };
   saveMatches(localStorage, saved);
   const text = saved.replaced
     ? (result === "win" ? "已改成這場勝利，沒有多加一場。" : "已改成這場落敗，沒有多加一場。")
-    : (result === "win" ? "已記下這場勝利。" : "已記下這場落敗。");
-  $("recordState").textContent = text;
-  const live = $("liveRecord");
-  if (live) live.textContent = text;
+    : (result === "win" ? "已記下這場的預禁和五選，這場勝利。" : "已記下這場的預禁和五選，這場落敗。");
+  clearBoard(text);
+}
+
+function clearBoard(note) {
+  pendingSlot = null;
+  pickerIds = null;
+  if ($("slotChoices")) $("slotChoices").hidden = true;
+  if ($("picker")?.open) $("picker").close();
+  const mode = manual.mode || "quick";
+  const exclusiveNote = manual.exclusiveNote || "";
+  const effectNotes = manual.effectNotes || {};
+  manual = blankDraft(null);
+  manual.mode = mode;
+  manual.exclusiveNote = exclusiveNote;
+  manual.effectNotes = effectNotes;
   guideKey = "";
+  openRecord = null;
+  lastAdvice = null;
   renderGuide();
+  const live = $("liveRecord");
+  if (live) live.textContent = note || "";
+  if ($("recordState")) $("recordState").textContent = note || "";
+  if (note && $("draftStatus")) $("draftStatus").textContent = `${note}請再選規則和先後手。`;
+  for (const id of ["markWin", "markLoss", "liveWin", "liveLoss"]) {
+    const node = $(id);
+    if (node) node.disabled = true;
+  }
 }
 
 

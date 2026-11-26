@@ -3199,10 +3199,10 @@ function forecastEnemy(enemies) {
   return { sentence: `推估：${who}${bits.join("，")}。`, partners: later };
 }
 
-function rememberedWins(memory, heroId) {
+function rememberedPlayed(memory, heroId) {
   const rows = Array.isArray(memory) ? memory : (memory?.matches || []);
   const id = canonicalId(heroId);
-  return rows.filter((row) => row?.result === "win" && (row.userPicks || []).some((pick) => pick === heroId || canonicalId(pick) === id));
+  return rows.filter((row) => (row?.result === "win" || row?.result === "loss") && (row.userPicks || []).some((pick) => pick === heroId || canonicalId(pick) === id));
 }
 
 function buildPlans(catalog, ranked, userPicks, enemies, memory, limit) {
@@ -3282,7 +3282,7 @@ function buildPlans(catalog, ranked, userPicks, enemies, memory, limit) {
   }
   const winners = [];
   for (const row of ranked || []) {
-    const wins = rememberedWins(memory, row.id);
+    const wins = rememberedPlayed(memory, row.id);
     if (wins.length) winners.push({ id: row.id, wins: wins.length });
   }
   winners.sort((left, right) => right.wins - left.wins || left.id.localeCompare(right.id));
@@ -3290,7 +3290,7 @@ function buildPlans(catalog, ranked, userPicks, enemies, memory, limit) {
     plans.push({
       label: "勝場",
       ids: winners.slice(0, limit).map((row) => row.id),
-      reason: `打過這組：已記住 ${winners[0].wins} 場有這名的勝利。這一場不改排名。`,
+        reason: "打過這組。",
       weight: 0,
     });
   }
@@ -3398,8 +3398,8 @@ function compositionRank(catalog, roster, userPicks, enemyPicks, blockedIds, mem
         notes.push({ weight: 30, text: `冷卻：對上${name}，${because}，這名能加冷卻。` });
       }
     }
-    const wins = rememberedWins(memory, hero.id);
-    if (wins.length) notes.push({ weight: 0, text: `打過這組：已記下 ${wins.length} 場有這名的結果。少於足以改排名的樣本，不改排名。` });
+    const played = rememberedPlayed(memory, hero.id);
+    if (played.length) notes.push({ weight: 0, text: "打過這組。" });
     let combo = null;
     const group = [mine, ...allies];
     for (const ally of allies) {

@@ -766,9 +766,7 @@ const remembered = notosHand(["Apocalypse Ravi", "Sez", "Destina"], "notos", {
 const winPlan = remembered.action.plans.find((plan) => plan.label === "勝場");
 assert.ok(winPlan);
 assert.equal(winPlan.ids.includes("apocalypse-ravi"), true);
-assert.match(winPlan.reason, /已記住 1 場有這名的勝利/);
 assert.match(winPlan.reason, /打過這組/);
-assert.match(winPlan.reason, /不改排名/);
 assert.equal(winPlan.reason.includes("勝率"), false);
 assert.equal(remembered.action.ids[0], "apocalypse-ravi");
 assert.equal(bypass.reason.summary.includes("勝場："), false);
